@@ -1,3 +1,8 @@
+#if DEBUG
+using System.Globalization;
+using System.IO;
+using System.Text.RegularExpressions;
+#endif
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -31,6 +36,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
+#if DEBUG
+        SetupLayoutEditor();
+#endif
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
         Closed += (_, _) =>
@@ -504,6 +513,115 @@ public partial class MainWindow : Window
                 if ((int)cell.Tag == prev) cell.IsChecked = true;
         }
     }
+
+    // ---- 배치 ----
+
+    private void ApplyLayout(double bubbleX, double bubbleY, double eggX, double eggY)
+    {
+        BubbleOffset.X = bubbleX;
+        BubbleOffset.Y = bubbleY;
+        EggOffset.X = eggX;
+        EggOffset.Y = eggY;
+    }
+
+#if DEBUG
+    // ---- 배치 편집(개발자, Debug 빌드 전용) ----
+
+    private bool _layoutEdit;
+    private Point? _dragStart;   // 드래그 시작 시 루트 기준 마우스 위치
+    private Point _dragOrigin;   // 드래그 시작 시 오프셋
+
+    /// <summary>우클릭 메뉴에 배치 편집 항목 추가 + 말풍선/알 드래그 핸들러 연결.</summary>
+    private void SetupLayoutEditor()
+    {
+        var edit = new MenuItem { Header = "배치 편집", IsCheckable = true };
+        edit.Click += (_, _) => SetLayoutEdit(edit.IsChecked);
+        var save = new MenuItem { Header = "배치 저장(소스 기본값)" };
+        save.Click += (_, _) => SaveLayoutDefaults();
+        var reset = new MenuItem { Header = "배치 되돌리기" };
+        reset.Click += (_, _) =>
+            ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
+
+        var menu = ContextMenu!;
+        var at = menu.Items.Count - 1; // "종료" 앞
+        menu.Items.Insert(at, new Separator());
+        menu.Items.Insert(at, reset);
+        menu.Items.Insert(at, save);
+        menu.Items.Insert(at, edit);
+
+        foreach (var el in new FrameworkElement[] { Bubble, EggGroup })
+        {
+            el.PreviewMouseLeftButtonDown += OnLayoutDragStart;
+            el.PreviewMouseMove += OnLayoutDragMove;
+            el.PreviewMouseLeftButtonUp += OnLayoutDragEnd;
+        }
+    }
+
+    private void SetLayoutEdit(bool on)
+    {
+        _layoutEdit = on;
+        var vis = on ? Visibility.Visible : Visibility.Collapsed;
+        BubbleEditFrame.Visibility = vis;
+        EggEditFrame.Visibility = vis;
+        Bubble.Cursor = on ? Cursors.SizeAll : null;
+        EggGroup.Cursor = on ? Cursors.SizeAll : null;
+    }
+
+    private void OnLayoutDragStart(object sender, MouseButtonEventArgs e)
+    {
+        if (!_layoutEdit) return;
+        e.Handled = true; // 창 DragMove·알 부화 클릭 차단
+        var el = (FrameworkElement)sender;
+        var t = (TranslateTransform)el.RenderTransform;
+        _dragStart = e.GetPosition(Root);
+        _dragOrigin = new Point(t.X, t.Y);
+        el.CaptureMouse();
+    }
+
+    private void OnLayoutDragMove(object sender, MouseEventArgs e)
+    {
+        if (_dragStart is not { } start) return;
+        var el = (FrameworkElement)sender;
+        var t = (TranslateTransform)el.RenderTransform;
+        var d = e.GetPosition(Root) - start;
+        var (prevX, prevY) = (t.X, t.Y);
+        t.X = Math.Round(_dragOrigin.X + d.X);
+        t.Y = Math.Round(_dragOrigin.Y + d.Y);
+        // 창(루트) 밖으로 나가면 잘리므로 축별로 되돌림
+        var bounds = el.TransformToAncestor(Root).TransformBounds(new Rect(el.RenderSize));
+        if (bounds.Left < 0 || bounds.Right > Root.ActualWidth) t.X = prevX;
+        if (bounds.Top < 0 || bounds.Bottom > Root.ActualHeight) t.Y = prevY;
+    }
+
+    private void OnLayoutDragEnd(object sender, MouseButtonEventArgs e)
+    {
+        if (_dragStart == null) return;
+        e.Handled = true;
+        _dragStart = null;
+        ((FrameworkElement)sender).ReleaseMouseCapture();
+    }
+
+    /// <summary>현재 오프셋으로 LayoutDefaults.cs를 다시 씀. 다음 빌드부터 기본 위치.</summary>
+    private void SaveLayoutDefaults()
+    {
+        var path = LayoutDefaults.SourcePath();
+        if (!File.Exists(path))
+        {
+            MessageBox.Show($"소스 파일을 찾을 수 없음:\n{path}", "배치 저장");
+            return;
+        }
+        static string N(double v) => v.ToString(CultureInfo.InvariantCulture);
+        var src = File.ReadAllText(path);
+        src = Regex.Replace(src, @"BubbleX = [^,]+, BubbleY = [^;]+;",
+            $"BubbleX = 2, BubbleY = 19;");
+        src = Regex.Replace(src, @"EggX = [^,]+, EggY = [^;]+;",
+            $"EggX = -21, EggY = 30;");
+        File.WriteAllText(path, src);
+        MessageBox.Show(
+            $"저장됨 — 다시 빌드하면 기본값으로 반영\n\n말풍선 ({N(BubbleOffset.X)}, {N(BubbleOffset.Y)})\n알 ({N(EggOffset.X)}, {N(EggOffset.Y)})\n\n{path}",
+            "배치 저장");
+    }
+#endif
 
     // ---- 창 ----
 
