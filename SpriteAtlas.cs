@@ -29,11 +29,27 @@ public sealed class SpriteAtlas
     public int Height { get; }
     public SpriteFrame[] Frames { get; }
 
+    /// <summary>
+    /// 모든 프레임의 실제 픽셀 영역 합집합(캔버스 좌표). 9세대처럼 96x96 고정 캔버스에 여백이 많은 경우
+    /// 캔버스가 아니라 이 영역을 기준으로 배율·발 위치를 잡아야 크기가 균일해짐.
+    /// </summary>
+    public Int32Rect Body { get; }
+
     private SpriteAtlas(int width, int height, SpriteFrame[] frames)
     {
         Width = width;
         Height = height;
         Frames = frames;
+
+        int l = int.MaxValue, t = int.MaxValue, r = 0, b = 0;
+        foreach (var f in frames)
+        {
+            l = Math.Min(l, f.OffsetX);
+            t = Math.Min(t, f.OffsetY);
+            r = Math.Max(r, f.OffsetX + f.Width);
+            b = Math.Max(b, f.OffsetY + f.Height);
+        }
+        Body = new Int32Rect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
     }
 
     public static async Task<SpriteAtlas> LoadAsync(int dexId)

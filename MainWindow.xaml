@@ -167,7 +167,7 @@
   <!-- Background=Transparent: 빈 영역도 히트테스트되어 드래그 가능. 버튼류·알은 클릭을 handled 처리하므로 드래그로 안 넘어감. -->
   <StackPanel Width="300" Background="Transparent" MouseLeftButtonDown="OnDrag">
     <!-- 상단: 포켓몬(왼쪽) + 알 열(오른쪽). 위쪽 여백은 스트레치(ScaleY 1.12) 시 잘리지 않도록. -->
-    <Grid Margin="0,24,0,0">
+    <Grid x:Name="TopArea" Margin="0,24,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>

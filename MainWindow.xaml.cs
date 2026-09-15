@@ -133,15 +133,23 @@ public partial class MainWindow : Window
         if (req != _loadRequest) return false;
 
         _atlas = atlas;
-        Stage.Width = atlas.Width;
-        Stage.Height = atlas.Height;
-        // 캔버스 크기가 포켓몬마다 다르므로(42~96) 표시 높이 ~126px로 맞춤. 정수 배율 유지(픽셀아트).
-        var zoom = Math.Max(1, Math.Round(126.0 / atlas.Height));
+        // 캔버스(37~98px, 9세대는 96 고정+여백)가 아니라 실제 몸체 영역을 스테이지로 삼고,
+        // 몸체 높이가 항상 BodyTargetHeight가 되도록 소수 배율. 넓은 포켓몬은 폭 상한으로 제한.
+        var body = atlas.Body;
+        Stage.Width = body.Width;
+        Stage.Height = body.Height;
+        var zoom = Math.Min(BodyTargetHeight / body.Height, BodyMaxWidth / body.Width);
+        zoom = Math.Max(1, Math.Round(zoom * 4) / 4); // 0.25 단위: 픽셀 굵기 불균일 완화
         Zoom.ScaleX = Zoom.ScaleY = zoom;
+        // 바운스 스트레치(ScaleY 1.12)가 창 위로 잘리지 않게 여백을 표시 높이에 비례
+        TopArea.Margin = new Thickness(0, Math.Ceiling(body.Height * zoom * 0.14) + 4, 0, 0);
         ShowFrame(0);
         UpdateLevelUi();
         return true;
     }
+
+    private const double BodyTargetHeight = 110;
+    private const double BodyMaxWidth = 170;
 
     private void ShowFrame(int i)
     {
@@ -150,8 +158,9 @@ public partial class MainWindow : Window
         Sprite.Source = f.Bitmap;
         Sprite.Width = f.Width;
         Sprite.Height = f.Height;
-        Canvas.SetLeft(Sprite, f.OffsetX);
-        Canvas.SetTop(Sprite, f.OffsetY);
+        // 스테이지 원점 = 몸체 영역 좌상단
+        Canvas.SetLeft(Sprite, f.OffsetX - _atlas.Body.X);
+        Canvas.SetTop(Sprite, f.OffsetY - _atlas.Body.Y);
     }
 
     // ---- 레벨 ----
