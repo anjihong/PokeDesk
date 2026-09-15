@@ -38,8 +38,8 @@ public sealed class SpriteAtlas
 
     public static async Task<SpriteAtlas> LoadAsync(int dexId)
     {
-        var jsonPath = await CachedAsync($"pokemon/{dexId}.json");
-        var pngPath = await CachedAsync($"pokemon/{dexId}.png");
+        var jsonPath = await CachedAsync($"pokemon/{PokemonForms.SpriteKey(dexId)}.json");
+        var pngPath = await CachedAsync($"pokemon/{PokemonForms.SpriteKey(dexId)}.png");
         return Parse(jsonPath, pngPath);
     }
 

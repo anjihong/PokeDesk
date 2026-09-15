@@ -60,10 +60,11 @@
       </Setter>
     </Style>
 
-    <!-- 아이콘 셀. 선택된 포켓몬은 노란 테두리. -->
+    <!-- 아이콘 셀. 선택된 포켓몬은 노란 테두리. 미보유(비활성) 셀도 툴팁은 보이게. -->
     <Style x:Key="IconButton" TargetType="RadioButton">
       <Setter Property="Margin" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
@@ -85,6 +86,8 @@
   </Window.Resources>
   <Window.ContextMenu>
     <ContextMenu>
+      <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>
+      <Separator/>
       <MenuItem Header="종료" Click="OnExit"/>
     </ContextMenu>
   </Window.ContextMenu>
@@ -120,10 +123,33 @@
       </Border>
     </StackPanel>
 
-    <!-- 포켓몬 선택 패널: 세대 탭 + 아이콘 격자 (코드에서 채움) -->
+    <!-- 알: 개수 + 부화 버튼 + 다음 알 카운트다운 + 부화 결과 -->
+    <Border Width="300" Background="#CC202020" CornerRadius="8" Padding="6" Margin="0,0,0,4">
+      <StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+          <Image x:Name="EggIcon" Width="24" Height="24" Stretch="Uniform" Margin="0,0,4,0"/>
+          <TextBlock x:Name="EggCountText" Text="알 x0" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+          <Button x:Name="HatchButton" Content="부화" Margin="8,0" Padding="8,2" Click="OnHatch" IsEnabled="False"/>
+          <TextBlock x:Name="EggTimerText" Text="다음 알 30:00" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"/>
+        </StackPanel>
+        <StackPanel x:Name="HatchResultRow" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0" Visibility="Collapsed">
+          <Image x:Name="HatchResultIcon" Width="40" Height="30" Stretch="None"/>
+          <TextBlock x:Name="HatchResultText" Foreground="#FFD84A" FontWeight="Bold" VerticalAlignment="Center"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- 포켓몬 도감/선택 패널: 세대 탭 + 아이콘 격자 (코드에서 채움). 미보유 종은 실루엣·선택 불가. -->
     <Border Width="300" Background="#CC202020" CornerRadius="8" Padding="6">
       <StackPanel>
-        <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+        <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+        <!-- 보유만 보기 필터 + 보유 수 -->
+        <Grid Margin="2,0,2,4">
+          <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
+                    HorizontalAlignment="Left" Checked="OnOwnedOnlyChanged" Unchecked="OnOwnedOnlyChanged"/>
+          <TextBlock x:Name="OwnedCount" Text="보유 1/1025" Foreground="#DDDDDD" FontSize="11"
+                     HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
         <ScrollViewer x:Name="IconScroll" Height="150"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <WrapPanel x:Name="IconGrid"/>
