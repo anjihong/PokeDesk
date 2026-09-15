@@ -106,17 +106,36 @@ public sealed class SpriteAtlas
         var frames = all
             .Select(f => (Index: int.Parse(Path.GetFileNameWithoutExtension(f.Name)), f.Elem))
             .OrderBy(x => x.Index)
-            .Select(x =>
-            {
-                var rect = ReadRect(x.Elem.GetProperty("frame"));
-                var s = x.Elem.GetProperty("spriteSourceSize");
-                var bmp = new CroppedBitmap(sheet, rect);
-                bmp.Freeze();
-                return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height);
-            })
+            .Select(x => MakeFrame(sheet, x.Elem))
             .ToArray();
 
         var size = all[0].Elem.GetProperty("sourceSize");
         return new SpriteAtlas(size.GetProperty("w").GetInt32(), size.GetProperty("h").GetInt32(), frames);
+    }
+
+    /// <summary>
+    /// 이름 프레임 아틀라스(egg/egg, egg/egg_crack 등). 파일명(확장자 제외) → 프레임.
+    /// 오프셋은 spriteSourceSize 기준(trimmed 프레임을 원래 캔버스에 놓을 위치).
+    /// </summary>
+    internal static async Task<Dictionary<string, SpriteFrame>> LoadFramesAsync(string relativeBase)
+    {
+        var jsonPath = await CachedAsync($"{relativeBase}.json");
+        var pngPath = await CachedAsync($"{relativeBase}.png");
+        var sheet = LoadSheet(pngPath);
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(jsonPath));
+        var result = new Dictionary<string, SpriteFrame>();
+        foreach (var (name, elem) in EnumerateFrames(doc.RootElement))
+            result[Path.GetFileNameWithoutExtension(name)] = MakeFrame(sheet, elem);
+        return result;
+    }
+
+    private static SpriteFrame MakeFrame(BitmapImage sheet, JsonElement elem)
+    {
+        var rect = ReadRect(elem.GetProperty("frame"));
+        var s = elem.GetProperty("spriteSourceSize");
+        var bmp = new CroppedBitmap(sheet, rect);
+        bmp.Freeze();
+        return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height);
     }
 }

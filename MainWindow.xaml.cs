@@ -19,6 +19,14 @@ public partial class MainWindow : Window
     private bool _dirty;      // 설정 변경됨, 주기 저장 대기
     private bool _placed;     // 초기 위치 잡은 뒤부터 크기 변화에 맞춰 하단 고정
     private DateTime _lastEggTick; // 알 타이머 직전 틱 시각(UTC)
+    private bool _anchorTop;       // 서랍 펼침/접힘 중: 창 상단 고정(아래로 펼쳐지게)
+    private bool _drawerOpen;
+    private double? _topBeforeDrawer;
+
+    private enum EggState { Waiting, Ready, Hatching, Result }
+    private EggState _eggState;
+    private Dictionary<string, SpriteFrame>? _crackFrames;
+    private readonly DispatcherTimer _resultTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
     public MainWindow()
     {
@@ -60,7 +68,7 @@ public partial class MainWindow : Window
         };
         save.Start();
 
-        // 실행 시간 누적 → 30분마다 알 1개. 절전 등으로 틱이 밀려도 한 번에 최대 5초만 인정.
+        // 실행 시간 누적 → 30분마다 알 1개(알이 있으면 일시정지). 절전 등으로 틱이 밀려도 한 번에 최대 5초만 인정.
         _lastEggTick = DateTime.UtcNow;
         var egg = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         egg.Tick += (_, _) =>
@@ -72,14 +80,23 @@ public partial class MainWindow : Window
             {
                 _settings.Save();
                 _dirty = false;
+                if (_eggState == EggState.Waiting) SetEggState(EggState.Ready);
             }
-            else _dirty = true;
-            UpdateEggUi();
+            else if (_eggState == EggState.Waiting)
+            {
+                _dirty = true;
+                UpdateBubbleCountdown();
+            }
         };
         egg.Start();
-        UpdateEggUi();
+        _resultTimer.Tick += (_, _) =>
+        {
+            _resultTimer.Stop();
+            SetEggState(_settings.Eggs > 0 ? EggState.Ready : EggState.Waiting);
+        };
+        SetEggState(_settings.Eggs > 0 ? EggState.Ready : EggState.Waiting);
         UpdateOwnedCount();
-        _ = LoadEggIconAsync();
+        _ = LoadEggAssetsAsync();
 
         var bounce = (Storyboard)Resources["Bounce"];
         // 훅 콜백은 빨리 반환해야 하므로 애니메이션 시작은 큐에 넘김
@@ -156,69 +173,185 @@ public partial class MainWindow : Window
 
     // ---- 알 ----
 
-    private void UpdateEggUi()
+    /// <summary>
+    /// 알 상태 머신. Waiting(카운트다운) → Ready(클릭하여 부화, 통통) → Hatching(흔들림+균열+플래시) → Result(아이콘+이름+NEW!, 5초) → Waiting.
+    /// </summary>
+    private void SetEggState(EggState state)
     {
-        EggCountText.Text = $"알 x{_settings.Eggs}";
-        HatchButton.IsEnabled = _settings.Eggs > 0;
-        EggTimerText.Text = $"다음 알 {TimeSpan.FromSeconds(_settings.RemainingEggSeconds):mm\\:ss}";
+        _eggState = state;
+        var idle = (Storyboard)Resources["EggIdle"];
+        switch (state)
+        {
+            case EggState.Waiting:
+                idle.Stop(this);
+                ShowEgg(true);
+                UpdateBubbleCountdown();
+                break;
+            case EggState.Ready:
+                ShowEgg(true);
+                BubbleText.Text = "클릭하여\n부화";
+                idle.Begin(this, true);
+                break;
+            case EggState.Hatching:
+                idle.Stop(this);
+                BubbleText.Text = "...";
+                break;
+            case EggState.Result:
+                // BubbleText/NewText는 HatchAsync가 채움
+                EggStage.Visibility = Visibility.Collapsed;
+                ResultImage.Visibility = Visibility.Visible;
+                NewText.Visibility = Visibility.Visible;
+                break;
+        }
     }
 
-    /// <summary>알 아이콘(pokerogue-assets egg/egg_icons 첫 프레임). 실패해도 조용히 빈 칸.</summary>
-    private async Task LoadEggIconAsync()
+    private void ShowEgg(bool show)
+    {
+        EggStage.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        CrackImage.Visibility = Visibility.Collapsed;
+        ResultImage.Visibility = Visibility.Collapsed;
+        NewText.Visibility = Visibility.Collapsed;
+    }
+
+    private void UpdateBubbleCountdown() =>
+        BubbleText.Text = TimeSpan.FromSeconds(_settings.RemainingEggSeconds).ToString(@"mm\:ss");
+
+    /// <summary>알 본체(egg/egg의 egg_0) + 균열 오버레이(egg/egg_crack). 실패하면 대체 타원 유지, 균열 없이 진행.</summary>
+    private async Task LoadEggAssetsAsync()
     {
         try
         {
-            var jsonPath = await SpriteAtlas.CachedAsync("egg/egg_icons.json");
-            var pngPath = await SpriteAtlas.CachedAsync("egg/egg_icons.png");
-            var sheet = SpriteAtlas.LoadSheet(pngPath);
-            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(jsonPath));
-            foreach (var (_, elem) in SpriteAtlas.EnumerateFrames(doc.RootElement))
+            var egg = await SpriteAtlas.LoadFramesAsync("egg/egg");
+            if (egg.TryGetValue("egg_0", out var f))
             {
-                var bmp = new CroppedBitmap(sheet, SpriteAtlas.ReadRect(elem.GetProperty("frame")));
-                bmp.Freeze();
-                EggIcon.Source = bmp;
-                break;
+                EggImage.Source = f.Bitmap;
+                EggFallback.Visibility = Visibility.Collapsed;
             }
+            _crackFrames = await SpriteAtlas.LoadFramesAsync("egg/egg_crack");
         }
         catch
         {
-            // 네트워크 실패 등: 아이콘 없이 진행
+            // 네트워크 실패 등: 대체 타원으로 진행
         }
     }
 
-    private async Task HatchOneAsync()
+    /// <summary>균열 단계(1~4) 오버레이. 균열 캔버스는 80x80이고 알(28x30)은 그 중앙 → (26,25) 기준으로 배치.</summary>
+    private void ShowCrack(int stage)
     {
-        if (_settings.Hatch() is not { } res) return;
+        if (_crackFrames == null || !_crackFrames.TryGetValue(stage.ToString(), out var f)) return;
+        CrackImage.Source = f.Bitmap;
+        CrackImage.Width = f.Width;
+        CrackImage.Height = f.Height;
+        Canvas.SetLeft(CrackImage, f.OffsetX - 26);
+        Canvas.SetTop(CrackImage, f.OffsetY - 25);
+        CrackImage.Visibility = Visibility.Visible;
+    }
+
+    private async void OnEggClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true; // 드래그로 넘어가지 않게
+        if (_eggState != EggState.Ready) return;
+        await HatchAsync();
+    }
+
+    private async Task HatchAsync()
+    {
+        SetEggState(EggState.Hatching);
+        var shake = (Storyboard)Resources["EggShake"];
+        for (var stage = 1; stage <= 3; stage++)
+        {
+            ShowCrack(stage);
+            shake.Begin(this, true);
+            await Task.Delay(550);
+        }
+        ShowCrack(4);
+        await Task.Delay(250);
+
+        if (_settings.Hatch() is not { } res)
+        {
+            SetEggState(EggState.Waiting);
+            return;
+        }
         _settings.Save();
         _dirty = false;
-        UpdateEggUi();
-
-        var name = $"#{res.Dex} {PokemonNames.Of(res.Dex)}";
-        HatchResultText.Text = res.IsNew ? $"{name} 새 포켓몬!" : $"{name} 중복 → Lv.{res.Level}";
-        HatchResultIcon.Source = null;
-        HatchResultRow.Visibility = Visibility.Visible;
         UpdateOwnedCount();
         if (res.Dex == _settings.SelectedDex) UpdateLevelUi();
+        RefreshIconCell(res.Dex);
 
+        Flash.Opacity = 1;
+        ((Storyboard)Resources["FlashOut"]).Begin(this, true);
+        await Task.Delay(150);
+
+        ResultImage.Source = null;
         try
         {
             var icons = await PokemonIcons.LoadGenAsync(PokemonIcons.GenOf(res.Dex));
-            if (icons.TryGetValue(res.Dex, out var bmp)) HatchResultIcon.Source = bmp;
+            if (icons.TryGetValue(res.Dex, out var bmp)) ResultImage.Source = bmp;
         }
         catch
         {
-            // 아이콘 없어도 텍스트는 표시됨
+            // 아이콘 없어도 이름은 표시됨
         }
-        RefreshIconCell(res.Dex);
+        NewText.Text = res.IsNew ? "NEW!" : $"Lv.{res.Level} ↑";
+        BubbleText.Text = PokemonNames.Of(res.Dex);
+        SetEggState(EggState.Result);
+        ((Storyboard)Resources["ResultPop"]).Begin(this, true);
+        _resultTimer.Stop();
+        _resultTimer.Start();
     }
 
-    private async void OnHatch(object sender, RoutedEventArgs e) => await HatchOneAsync();
-
-    /// <summary>테스트용: 알 1개 지급 후 바로 부화.</summary>
-    private async void OnDebugEgg(object sender, RoutedEventArgs e)
+    /// <summary>테스트용: 알을 즉시 준비 상태로.</summary>
+    private void OnDebugEgg(object sender, RoutedEventArgs e)
     {
-        _settings.Eggs++;
-        await HatchOneAsync();
+        if (_eggState is EggState.Hatching or EggState.Result) return;
+        if (_settings.Eggs == 0)
+        {
+            _settings.Eggs = 1;
+            _settings.EggSeconds = 0;
+            _settings.Save();
+        }
+        SetEggState(EggState.Ready);
+    }
+
+    // ---- 메뉴 탭 / 서랍 ----
+
+    // ToggleButton이라 같은 탭을 다시 누르면 Unchecked → 접힘. 다른 탭을 누르면 나머지를 코드에서 해제.
+    private void OnMenuChecked(object sender, RoutedEventArgs e)
+    {
+        var btn = (ToggleButton)sender;
+        foreach (ToggleButton other in MenuTabs.Children)
+            if (other != btn) other.IsChecked = false;
+        var isDex = (string)btn.Tag == "dex";
+        DexPanel.Visibility = isDex ? Visibility.Visible : Visibility.Collapsed;
+        PlaceholderPanel.Visibility = isDex ? Visibility.Collapsed : Visibility.Visible;
+        AnimateDrawer(open: true);
+    }
+
+    private void OnMenuUnchecked(object sender, RoutedEventArgs e)
+    {
+        foreach (ToggleButton other in MenuTabs.Children)
+            if (other.IsChecked == true) return; // 다른 탭으로 전환 중이면 그 탭이 열어 줌
+        AnimateDrawer(open: false);
+    }
+
+    /// <summary>서랍 Height를 0↔내용 높이로. 펼치는 동안 창 상단을 고정해 아래로 내려오게 하고, 끝나면 작업 영역 안으로 보정.</summary>
+    private void AnimateDrawer(bool open)
+    {
+        DrawerContent.Measure(new Size(300, double.PositiveInfinity));
+        var target = open ? DrawerContent.DesiredSize.Height : 0;
+        if (open && !_drawerOpen) _topBeforeDrawer = Top; // 화면 아래 걸려 위로 밀렸다가 접히면 원위치
+        _drawerOpen = open;
+        _anchorTop = true;
+        var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(250))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        anim.Completed += (_, _) =>
+        {
+            _anchorTop = false;
+            if (!open && _topBeforeDrawer is { } top) Top = top;
+        };
+        Drawer.BeginAnimation(HeightProperty, anim);
     }
 
     // ---- 도감/선택 패널 ----
@@ -368,6 +501,13 @@ public partial class MainWindow : Window
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_placed) return;
+        if (_anchorTop)
+        {
+            // 서랍 펼침/접힘 중: 상단 고정(아래로 펼쳐짐). 단, 작업 영역 아래로 나가면 그만큼 위로.
+            var wa = SystemParameters.WorkArea;
+            if (Top + e.NewSize.Height > wa.Bottom) Top = wa.Bottom - e.NewSize.Height;
+            return;
+        }
         // 스프라이트 교체로 크기가 바뀌어도 발 위치(하단 중앙) 고정
         if (e.HeightChanged) Top += e.PreviousSize.Height - e.NewSize.Height;
         if (e.WidthChanged) Left += (e.PreviousSize.Width - e.NewSize.Width) / 2;

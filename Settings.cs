@@ -64,18 +64,15 @@ public sealed class Settings
         return false;
     }
 
-    /// <summary>실행 시간 누적. 간격마다 알 1개. 지급됐으면 true.</summary>
+    /// <summary>실행 시간 누적. 간격 채우면 알 1개. 알이 이미 있으면 깔 때까지 일시정지. 지급됐으면 true.</summary>
     public bool TickEgg(double seconds)
     {
+        if (Eggs > 0) return false;
         EggSeconds += seconds;
-        var got = false;
-        while (EggSeconds >= EggIntervalSeconds)
-        {
-            EggSeconds -= EggIntervalSeconds;
-            Eggs++;
-            got = true;
-        }
-        return got;
+        if (EggSeconds < EggIntervalSeconds) return false;
+        EggSeconds = 0;
+        Eggs = 1;
+        return true;
     }
 
     [JsonIgnore]
