@@ -235,8 +235,8 @@
       </StackPanel>
     </Grid>
 
-    <!-- 레벨 + 경험치 바 -->
-    <StackPanel HorizontalAlignment="Center" Margin="0,4,0,6">
+    <!-- 레벨 + 경험치 바. 오른쪽 여백 = 알 열 폭(96) + 여백(6) → 포켓몬 열(Grid 0열)과 같은 중앙선. -->
+    <StackPanel HorizontalAlignment="Center" Margin="0,4,102,6">
       <TextBlock x:Name="LevelText" Text="Lv. 1" Foreground="White" FontWeight="Bold" FontSize="14"
                  HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
         <TextBlock.RenderTransform>
