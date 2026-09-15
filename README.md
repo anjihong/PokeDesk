@@ -11,12 +11,15 @@ dotnet run
 
 - 좌클릭 드래그: 이동
 - 우클릭 → 종료
+- 포켓몬 아래 패널: 세대 탭(1~9) 선택 후 아이콘 클릭으로 포켓몬 교체 (1~1025번 전부)
+- 레벨: 키 입력·마우스 클릭마다 경험치 +1, 레벨 × 10회마다 레벨업. 포켓몬별로 따로 기록되며
+  `%LOCALAPPDATA%\DeskPokemon\settings.json` 에 저장
 
 ## 스프라이트 출처 및 라이선스
 
 스프라이트는 앱에 포함되지 않으며, 첫 실행 시
 [pagefaultgames/pokerogue-assets](https://github.com/pagefaultgames/pokerogue-assets) 의
-`images/pokemon/` 에서 받아 `%LOCALAPPDATA%\DeskPokemon\sprites` 에 캐시합니다.
+`images/pokemon/` 및 `images/pokemon_icons_*` 에서 받아 `%LOCALAPPDATA%\DeskPokemon\sprites` 에 캐시합니다.
 
 - 재생 방식(프레임 정렬, 10fps 루프)은 PokéRogue와 동일합니다.
 - 해당 저장소 자산은 라이선스 가능한 범위에서 CC-BY-NC-SA-4.0이며, 원작 스프라이트는

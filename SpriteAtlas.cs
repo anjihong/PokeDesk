@@ -10,17 +10,20 @@ namespace DeskPokemon;
 public sealed record SpriteFrame(CroppedBitmap Bitmap, int OffsetX, int OffsetY, int Width, int Height);
 
 /// <summary>
-/// PokeRogue 에셋 저장소의 TexturePacker 아틀라스({id}.json + {id}.png)를
+/// PokeRogue 에셋 저장소의 TexturePacker 아틀라스(pokemon/{id}.json + .png)를
 /// 런타임에 받아 %LOCALAPPDATA%\DeskPokemon\sprites 에 캐시하고 프레임 배열로 푼다.
 /// 에셋은 앱에 번들하지 않는다(라이선스: 저장소 README 참고).
+/// 다운로드·시트 로드·프레임 열거 헬퍼는 아이콘 아틀라스(<see cref="PokemonIcons"/>)와 공유.
 /// </summary>
 public sealed class SpriteAtlas
 {
     private const string BaseUrl =
-        "https://raw.githubusercontent.com/pagefaultgames/pokerogue-assets/beta/images/pokemon/";
+        "https://raw.githubusercontent.com/pagefaultgames/pokerogue-assets/beta/images/";
 
     private static readonly string CacheDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "sprites");
+
+    private static readonly HttpClient Http = new();
 
     public int Width { get; }
     public int Height { get; }
@@ -35,25 +38,25 @@ public sealed class SpriteAtlas
 
     public static async Task<SpriteAtlas> LoadAsync(int dexId)
     {
-        var jsonPath = await CachedAsync($"{dexId}.json");
-        var pngPath = await CachedAsync($"{dexId}.png");
+        var jsonPath = await CachedAsync($"pokemon/{dexId}.json");
+        var pngPath = await CachedAsync($"pokemon/{dexId}.png");
         return Parse(jsonPath, pngPath);
     }
 
-    private static async Task<string> CachedAsync(string name)
+    /// <summary>images/ 기준 상대 경로를 받아 캐시 경로 반환. 없으면 다운로드.</summary>
+    internal static async Task<string> CachedAsync(string relative)
     {
-        Directory.CreateDirectory(CacheDir);
-        var path = Path.Combine(CacheDir, name);
+        var path = Path.Combine(CacheDir, relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (!File.Exists(path))
         {
-            using var http = new HttpClient();
-            var bytes = await http.GetByteArrayAsync(BaseUrl + name);
+            var bytes = await Http.GetByteArrayAsync(BaseUrl + relative);
             await File.WriteAllBytesAsync(path, bytes);
         }
         return path;
     }
 
-    private static SpriteAtlas Parse(string jsonPath, string pngPath)
+    internal static BitmapImage LoadSheet(string pngPath)
     {
         var sheet = new BitmapImage();
         sheet.BeginInit();
@@ -61,30 +64,59 @@ public sealed class SpriteAtlas
         sheet.CacheOption = BitmapCacheOption.OnLoad;
         sheet.EndInit();
         sheet.Freeze();
+        return sheet;
+    }
+
+    /// <summary>
+    /// TexturePacker JSON의 프레임 열거. 두 가지 형태 지원:
+    /// {"textures":[{"frames":[...]}]} (배열, filename 속성) / {"frames":{"name":{...}}} (해시).
+    /// </summary>
+    internal static IEnumerable<(string Name, JsonElement Elem)> EnumerateFrames(JsonElement root)
+    {
+        var frames = root.TryGetProperty("textures", out var textures)
+            ? textures[0].GetProperty("frames")
+            : root.GetProperty("frames");
+
+        if (frames.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var f in frames.EnumerateArray())
+                yield return (f.GetProperty("filename").GetString()!, f);
+        }
+        else
+        {
+            foreach (var p in frames.EnumerateObject())
+                yield return (p.Name, p.Value);
+        }
+    }
+
+    internal static Int32Rect ReadRect(JsonElement r) => new(
+        r.GetProperty("x").GetInt32(), r.GetProperty("y").GetInt32(),
+        r.GetProperty("w").GetInt32(), r.GetProperty("h").GetInt32());
+
+    private static SpriteAtlas Parse(string jsonPath, string pngPath)
+    {
+        var sheet = LoadSheet(pngPath);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(jsonPath));
-        var frameArray = doc.RootElement.GetProperty("textures")[0].GetProperty("frames");
-        if (frameArray.GetArrayLength() == 0)
+        var all = EnumerateFrames(doc.RootElement).ToArray();
+        if (all.Length == 0)
             throw new InvalidDataException("아틀라스에 프레임이 없음");
 
         // 배열 순서는 재생 순서가 아님. filename("0001.png") 숫자 기준 정렬.
-        var frames = frameArray.EnumerateArray()
-            .Select(f => (Index: int.Parse(Path.GetFileNameWithoutExtension(f.GetProperty("filename").GetString()!)), Elem: f))
+        var frames = all
+            .Select(f => (Index: int.Parse(Path.GetFileNameWithoutExtension(f.Name)), f.Elem))
             .OrderBy(x => x.Index)
             .Select(x =>
             {
-                var r = x.Elem.GetProperty("frame");
+                var rect = ReadRect(x.Elem.GetProperty("frame"));
                 var s = x.Elem.GetProperty("spriteSourceSize");
-                var rect = new Int32Rect(
-                    r.GetProperty("x").GetInt32(), r.GetProperty("y").GetInt32(),
-                    r.GetProperty("w").GetInt32(), r.GetProperty("h").GetInt32());
                 var bmp = new CroppedBitmap(sheet, rect);
                 bmp.Freeze();
                 return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height);
             })
             .ToArray();
 
-        var size = frameArray[0].GetProperty("sourceSize");
+        var size = all[0].Elem.GetProperty("sourceSize");
         return new SpriteAtlas(size.GetProperty("w").GetInt32(), size.GetProperty("h").GetInt32(), frames);
     }
 }

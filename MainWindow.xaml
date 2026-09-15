@@ -5,8 +5,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
-        RenderOptions.BitmapScalingMode="NearestNeighbor"
-        MouseLeftButtonDown="OnDrag">
+        RenderOptions.BitmapScalingMode="NearestNeighbor">
   <Window.Resources>
     <!-- 스쿼시/스트레치 바운스. 발(하단 중앙) 기준. -->
     <Storyboard x:Key="Bounce">
@@ -21,22 +20,115 @@
         <LinearDoubleKeyFrame KeyTime="0:0:0.22" Value="1"/>
       </DoubleAnimationUsingKeyFrames>
     </Storyboard>
+
+    <!-- 레벨업 시 레벨 텍스트 펄스 -->
+    <Storyboard x:Key="LevelUp">
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="LevelPulse" Storyboard.TargetProperty="ScaleX">
+        <LinearDoubleKeyFrame KeyTime="0:0:0.1" Value="1.5"/>
+        <LinearDoubleKeyFrame KeyTime="0:0:0.35" Value="1"/>
+      </DoubleAnimationUsingKeyFrames>
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="LevelPulse" Storyboard.TargetProperty="ScaleY">
+        <LinearDoubleKeyFrame KeyTime="0:0:0.1" Value="1.5"/>
+        <LinearDoubleKeyFrame KeyTime="0:0:0.35" Value="1"/>
+      </DoubleAnimationUsingKeyFrames>
+    </Storyboard>
+
+    <!-- 세대 탭 -->
+    <Style x:Key="GenTab" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#DDDDDD"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="2,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="Bd" CornerRadius="4" Padding="7,2" Background="#33FFFFFF">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#FFD84A"/>
+                <Setter Property="Foreground" Value="#202020"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- 아이콘 셀. 선택된 포켓몬은 노란 테두리. -->
+    <Style x:Key="IconButton" TargetType="RadioButton">
+      <Setter Property="Margin" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="Bd" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent" Background="Transparent">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#FFD84A"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
   <Window.ContextMenu>
     <ContextMenu>
       <MenuItem Header="종료" Click="OnExit"/>
     </ContextMenu>
   </Window.ContextMenu>
-  <!-- 위쪽 여백: 스트레치(ScaleY 1.12) 시 잘리지 않도록 -->
-  <Grid Margin="12,24,12,0">
-    <Canvas x:Name="Stage" Width="42" Height="42" RenderTransformOrigin="0.5,1">
-      <Canvas.LayoutTransform>
-        <ScaleTransform ScaleX="3" ScaleY="3"/>
-      </Canvas.LayoutTransform>
-      <Canvas.RenderTransform>
-        <ScaleTransform x:Name="Squash"/>
-      </Canvas.RenderTransform>
-      <Image x:Name="Sprite" Stretch="Fill"/>
-    </Canvas>
-  </Grid>
+
+  <!-- Background=Transparent: 빈 영역도 히트테스트되어 드래그 가능. 버튼류는 클릭을 handled 처리하므로 드래그로 안 넘어감. -->
+  <StackPanel Background="Transparent" MouseLeftButtonDown="OnDrag">
+    <!-- 위쪽 여백: 스트레치(ScaleY 1.12) 시 잘리지 않도록 -->
+    <Grid Margin="12,24,12,0" HorizontalAlignment="Center">
+      <Canvas x:Name="Stage" Width="42" Height="42" RenderTransformOrigin="0.5,1">
+        <Canvas.LayoutTransform>
+          <ScaleTransform x:Name="Zoom" ScaleX="3" ScaleY="3"/>
+        </Canvas.LayoutTransform>
+        <Canvas.RenderTransform>
+          <ScaleTransform x:Name="Squash"/>
+        </Canvas.RenderTransform>
+        <Image x:Name="Sprite" Stretch="Fill"/>
+      </Canvas>
+    </Grid>
+
+    <!-- 레벨 + 경험치 바 -->
+    <StackPanel HorizontalAlignment="Center" Margin="0,4,0,6">
+      <TextBlock x:Name="LevelText" Text="Lv. 1" Foreground="White" FontWeight="Bold" FontSize="14"
+                 HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+        <TextBlock.RenderTransform>
+          <ScaleTransform x:Name="LevelPulse"/>
+        </TextBlock.RenderTransform>
+        <TextBlock.Effect>
+          <DropShadowEffect ShadowDepth="0" BlurRadius="4" Color="Black"/>
+        </TextBlock.Effect>
+      </TextBlock>
+      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0">
+        <Rectangle x:Name="ExpBar" HorizontalAlignment="Left" Width="0" Fill="#FFD84A" RadiusX="3" RadiusY="3"/>
+      </Border>
+    </StackPanel>
+
+    <!-- 포켓몬 선택 패널: 세대 탭 + 아이콘 격자 (코드에서 채움) -->
+    <Border Width="300" Background="#CC202020" CornerRadius="8" Padding="6">
+      <StackPanel>
+        <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+        <ScrollViewer x:Name="IconScroll" Height="150"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <WrapPanel x:Name="IconGrid"/>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
+  </StackPanel>
 </Window>
