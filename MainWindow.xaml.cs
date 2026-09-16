@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
 #if DEBUG
         SetupLayoutEditor();
+        SetupUnlockAll();
 #endif
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
@@ -441,7 +442,11 @@ public partial class MainWindow : Window
         IconScroll.ScrollToTop();
     }
 
-    private void UpdateOwnedCount() => OwnedCount.Text = $"보유 {_settings.Owned.Count}/{PokemonIcons.Generations[^1].Last}";
+    private void UpdateOwnedCount()
+    {
+        var total = PokemonIcons.Generations[^1].Last;
+        OwnedCount.Text = $"보유 {(_settings.UnlockAll ? total : _settings.Owned.Count)}/{total}";
+    }
 
     /// <summary>아이콘 셀. 미보유 종은 실루엣 + 비활성.</summary>
     private RadioButton MakeIconCell(int dex, BitmapSource bmp)
@@ -525,6 +530,38 @@ public partial class MainWindow : Window
     }
 
 #if DEBUG
+    // ---- 전체 해금 치트(개발자, Debug 빌드 전용) ----
+
+    /// <summary>우클릭 메뉴에 전체 해금 토글 추가. Owned를 건드리지 않아 끄면 원래대로 돌아감.</summary>
+    private void SetupUnlockAll()
+    {
+        var item = new MenuItem { Header = "전체 해금(치트)", IsCheckable = true };
+        item.Click += async (_, _) => await SetUnlockAll(item.IsChecked);
+        ContextMenu!.Items.Insert(ContextMenu.Items.Count - 1, item); // "종료" 앞
+    }
+
+    private async Task SetUnlockAll(bool on)
+    {
+        _settings.UnlockAll = on;
+
+        // 끌 때 미보유 종을 보고 있었으면 기본 포켓몬으로 복귀
+        if (!on && !_settings.IsOwned(_settings.SelectedDex))
+        {
+            _settings.SelectedDex = Settings.Starter;
+            UpdateLevelUi();
+            await LoadPokemonAsync(Settings.Starter);
+            _settings.Save();
+            _dirty = false;
+        }
+
+        UpdateOwnedCount();
+        if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons))
+        {
+            RebuildIconGrid(gen, icons);
+            IconScroll.ScrollToTop();
+        }
+    }
+
     // ---- 배치 편집(개발자, Debug 빌드 전용) ----
 
     private bool _layoutEdit;

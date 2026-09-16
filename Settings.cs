@@ -18,7 +18,7 @@ public sealed class Settings
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    private const int Starter = 4;        // 파이리
+    public const int Starter = 4;         // 파이리
     private const int CurrentSchema = 1;  // 1: 알/도감 도입
 
     /// <summary>실행 시간 기준 알 지급 간격(초).</summary>
@@ -30,6 +30,12 @@ public sealed class Settings
     public HashSet<int> Owned { get; set; } = new();    // 도감에 등록된(부화한) 종
     public int Eggs { get; set; }                       // 보유 알
     public double EggSeconds { get; set; }              // 다음 알까지 누적 실행 시간(초)
+
+    // 말풍선·알 오프셋(px). Debug 배치 편집으로 조정하면 여기 저장 — 재실행·Release에도 적용.
+    public double BubbleX { get; set; } = LayoutDefaults.BubbleX;
+    public double BubbleY { get; set; } = LayoutDefaults.BubbleY;
+    public double EggX { get; set; } = LayoutDefaults.EggX;
+    public double EggY { get; set; } = LayoutDefaults.EggY;
 
     /// <summary>다음 레벨까지 필요한 입력 횟수. 레벨에 비례.</summary>
     public static int ExpToNext(int level) => level * 10;
@@ -54,7 +60,10 @@ public sealed class Settings
 
     // ---- 도감 / 알 ----
 
-    public bool IsOwned(int dex) => Owned.Contains(dex);
+    /// <summary>Debug 치트: 전체 해금. 저장 안 함 — 끄면 원래 Owned로 돌아감.</summary>
+    [JsonIgnore] public bool UnlockAll { get; set; }
+
+    public bool IsOwned(int dex) => UnlockAll || Owned.Contains(dex);
 
     /// <summary>도감 등록. 이미 있으면 레벨 +1(Exp는 유지)하고 false.</summary>
     public bool AddOwned(int dex)
