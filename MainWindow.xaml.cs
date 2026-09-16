@@ -1,4 +1,5 @@
 #if DEBUG
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -17,7 +18,7 @@ namespace DeskPokemon;
 public partial class MainWindow : Window
 {
     private readonly InputHook _hook = new();
-    private readonly Settings _settings = Settings.Load();
+    private readonly Settings _settings;
     private SpriteAtlas? _atlas;
     private int _frame;
     private int _loadRequest; // 최신 스프라이트 로드 요청 번호. 빠른 연속 선택 시 옛 결과 무시.
@@ -33,13 +34,15 @@ public partial class MainWindow : Window
     private Dictionary<string, SpriteFrame>? _crackFrames;
     private readonly DispatcherTimer _resultTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
-    public MainWindow()
+    public MainWindow(Settings settings)
     {
+        _settings = settings;
         InitializeComponent();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
 #if DEBUG
         SetupLayoutEditor();
         SetupUnlockAll();
+        SetupReset();
 #endif
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
@@ -534,6 +537,23 @@ public partial class MainWindow : Window
     }
 
 #if DEBUG
+    // ---- 초기화(개발자, Debug 빌드 전용) ----
+
+    /// <summary>우클릭 메뉴에 초기화 항목 추가. 세이브 삭제 후 앱을 다시 띄워 스타팅 선택부터.</summary>
+    private void SetupReset()
+    {
+        var item = new MenuItem { Header = "초기화(테스트)" };
+        item.Click += (_, _) =>
+        {
+            if (MessageBox.Show("세이브를 삭제하고 스타팅 선택부터 다시 시작할까요?", "초기화",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            Settings.Delete();
+            Process.Start(Environment.ProcessPath!);
+            Environment.Exit(0); // Shutdown()은 Closed에서 세이브를 다시 쓰므로 바로 종료
+        };
+        ContextMenu!.Items.Insert(ContextMenu.Items.Count - 1, item); // "종료" 앞
+    }
+
     // ---- 전체 해금 치트(개발자, Debug 빌드 전용) ----
 
     /// <summary>우클릭 메뉴에 전체 해금 토글 추가. Owned를 건드리지 않아 끄면 원래대로 돌아감.</summary>
@@ -551,9 +571,9 @@ public partial class MainWindow : Window
         // 끌 때 미보유 종을 보고 있었으면 기본 포켓몬으로 복귀
         if (!on && !_settings.IsOwned(_settings.SelectedDex))
         {
-            _settings.SelectedDex = Settings.Starter;
+            _settings.SelectedDex = _settings.StarterDex;
             UpdateLevelUi();
-            await LoadPokemonAsync(Settings.Starter);
+            await LoadPokemonAsync(_settings.StarterDex);
             _settings.Save();
             _dirty = false;
         }
