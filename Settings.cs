@@ -31,12 +31,6 @@ public sealed class Settings
     public int Eggs { get; set; }                       // 보유 알
     public double EggSeconds { get; set; }              // 다음 알까지 누적 실행 시간(초)
 
-    // 말풍선·알 오프셋(px). Debug 배치 편집으로 조정하면 여기 저장 — 재실행·Release에도 적용.
-    public double BubbleX { get; set; } = LayoutDefaults.BubbleX;
-    public double BubbleY { get; set; } = LayoutDefaults.BubbleY;
-    public double EggX { get; set; } = LayoutDefaults.EggX;
-    public double EggY { get; set; } = LayoutDefaults.EggY;
-
     /// <summary>다음 레벨까지 필요한 입력 횟수. 레벨에 비례.</summary>
     public static int ExpToNext(int level) => level * 10;
 

@@ -641,7 +641,7 @@ public partial class MainWindow : Window
     /// <summary>현재 오프셋으로 LayoutDefaults.cs를 다시 씀. 다음 빌드부터 기본 위치.</summary>
     private void SaveLayoutDefaults()
     {
-        var path = LayoutDefaults.SourcePath();
+        var path = LayoutDefaults.SourcePath;
         if (!File.Exists(path))
         {
             MessageBox.Show($"소스 파일을 찾을 수 없음:\n{path}", "배치 저장");
@@ -650,9 +650,9 @@ public partial class MainWindow : Window
         static string N(double v) => v.ToString(CultureInfo.InvariantCulture);
         var src = File.ReadAllText(path);
         src = Regex.Replace(src, @"BubbleX = [^,]+, BubbleY = [^;]+;",
-            $"BubbleX = 2, BubbleY = 19;");
+            $"BubbleX = {N(BubbleOffset.X)}, BubbleY = {N(BubbleOffset.Y)};");
         src = Regex.Replace(src, @"EggX = [^,]+, EggY = [^;]+;",
-            $"EggX = -21, EggY = 30;");
+            $"EggX = {N(EggOffset.X)}, EggY = {N(EggOffset.Y)};");
         File.WriteAllText(path, src);
         MessageBox.Show(
             $"저장됨 — 다시 빌드하면 기본값으로 반영\n\n말풍선 ({N(BubbleOffset.X)}, {N(BubbleOffset.Y)})\n알 ({N(EggOffset.X)}, {N(EggOffset.Y)})\n\n{path}",

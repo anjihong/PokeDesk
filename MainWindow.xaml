@@ -268,7 +268,7 @@
     </StackPanel>
 
     <!-- 메뉴 탭. 누르면 아래 서랍이 펼쳐지고 다시 누르면 접힘. 2·3은 추후. -->
-    <Border Background="#CC202020" CornerRadius="8" Padding="6,5">
+    <Border Background="#CC202020" CornerRadius="8" Padding="6,5" Width="210" HorizontalAlignment="Center">
       <StackPanel x:Name="MenuTabs" Orientation="Horizontal" HorizontalAlignment="Left">
         <ToggleButton Content="도감" Tag="dex" Style="{StaticResource MenuTab}" Checked="OnMenuChecked" Unchecked="OnMenuUnchecked"/>
         <ToggleButton Content="메뉴 2" Tag="menu2" Style="{StaticResource MenuTab}" Checked="OnMenuChecked" Unchecked="OnMenuUnchecked" IsEnabled="False"/>
