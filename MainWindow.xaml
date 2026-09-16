@@ -33,14 +33,65 @@
       </DoubleAnimationUsingKeyFrames>
     </Storyboard>
 
-    <!-- 알 준비 상태: 통통 튀는 루프 -->
-    <Storyboard x:Key="EggIdle" RepeatBehavior="Forever">
+    <!-- 알 애니메이션용 공용 이징 -->
+    <CubicEase x:Key="EggWindUp" EasingMode="EaseInOut"/>
+    <QuadraticEase x:Key="EggPop" EasingMode="EaseOut"/>
+    <SineEase x:Key="EggSwing" EasingMode="EaseInOut"/>
+    <ElasticEase x:Key="EggSpring" EasingMode="EaseOut" Oscillations="2" Springiness="4"/>
+
+    <!-- 알 대기 상태: 보용보용 (천천히 눌림 → 톡 튀어 늘어남 → 탄성으로 복귀 → 숨쉬듯 살짝 두 번) -->
+    <Storyboard x:Key="EggWait" RepeatBehavior="Forever">
       <DoubleAnimationUsingKeyFrames Storyboard.TargetName="EggScale" Storyboard.TargetProperty="ScaleY">
-        <LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
-        <LinearDoubleKeyFrame KeyTime="0:0:0.15" Value="0.92"/>
-        <LinearDoubleKeyFrame KeyTime="0:0:0.35" Value="1.06"/>
-        <LinearDoubleKeyFrame KeyTime="0:0:0.5" Value="1"/>
-        <LinearDoubleKeyFrame KeyTime="0:0:1.4" Value="1"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.35" Value="0.94" EasingFunction="{StaticResource EggWindUp}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="1.04" EasingFunction="{StaticResource EggPop}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.1" Value="1" EasingFunction="{StaticResource EggSpring}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.9" Value="0.97" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.7" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="0.97" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.3" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+      </DoubleAnimationUsingKeyFrames>
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="EggScale" Storyboard.TargetProperty="ScaleX">
+        <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.35" Value="1.04" EasingFunction="{StaticResource EggWindUp}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="0.97" EasingFunction="{StaticResource EggPop}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.1" Value="1" EasingFunction="{StaticResource EggSpring}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.9" Value="1.025" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.7" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:3.5" Value="1.025" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.3" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+      </DoubleAnimationUsingKeyFrames>
+    </Storyboard>
+
+    <!-- 알 준비 상태: 좌우 흔들흔들(점점 작게) → 보용보용 → 숨쉬듯 살짝 두 번, 반복 -->
+    <Storyboard x:Key="EggIdle" RepeatBehavior="Forever">
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="EggRotate" Storyboard.TargetProperty="Angle">
+        <EasingDoubleKeyFrame KeyTime="0:0:0" Value="0"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.12" Value="-12" EasingFunction="{StaticResource EggPop}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="12" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="-8" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.66" Value="5" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="0" EasingFunction="{StaticResource EggSpring}"/>
+      </DoubleAnimationUsingKeyFrames>
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="EggScale" Storyboard.TargetProperty="ScaleY">
+        <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="1"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.25" Value="0.91" EasingFunction="{StaticResource EggWindUp}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.4" Value="1.06" EasingFunction="{StaticResource EggPop}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.0" Value="1" EasingFunction="{StaticResource EggSpring}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.7" Value="0.97" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:3.4" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.1" Value="0.97" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.8" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+      </DoubleAnimationUsingKeyFrames>
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="EggScale" Storyboard.TargetProperty="ScaleX">
+        <EasingDoubleKeyFrame KeyTime="0:0:0.95" Value="1"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.25" Value="1.06" EasingFunction="{StaticResource EggWindUp}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:1.4" Value="0.96" EasingFunction="{StaticResource EggPop}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.0" Value="1" EasingFunction="{StaticResource EggSpring}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:2.7" Value="1.025" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:3.4" Value="1" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.1" Value="1.025" EasingFunction="{StaticResource EggSwing}"/>
+        <EasingDoubleKeyFrame KeyTime="0:0:4.8" Value="1" EasingFunction="{StaticResource EggSwing}"/>
       </DoubleAnimationUsingKeyFrames>
     </Storyboard>
 

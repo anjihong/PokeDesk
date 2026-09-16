@@ -199,20 +199,24 @@ public partial class MainWindow : Window
     {
         _eggState = state;
         var idle = (Storyboard)Resources["EggIdle"];
+        var wait = (Storyboard)Resources["EggWait"];
         switch (state)
         {
             case EggState.Waiting:
                 idle.Stop(this);
                 ShowEgg(true);
                 UpdateBubbleCountdown();
+                wait.Begin(this, true);
                 break;
             case EggState.Ready:
+                wait.Stop(this);
                 ShowEgg(true);
                 BubbleText.Text = "클릭하여\n부화";
                 idle.Begin(this, true);
                 break;
             case EggState.Hatching:
                 idle.Stop(this);
+                wait.Stop(this); // EggShake가 EggRotate를 쓰므로 루프 정지
                 BubbleText.Text = "...";
                 break;
             case EggState.Result:
