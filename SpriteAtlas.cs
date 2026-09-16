@@ -52,11 +52,25 @@ public sealed class SpriteAtlas
         Body = new Int32Rect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
     }
 
+    /// <summary>
+    /// exp/ 는 애니메이션이 보강된 실험 스프라이트. 6~9세대 정지 종 334개 중 278개가 여기 있음.
+    /// 없는 56종은 기존 경로(정지)로 폴백.
+    /// </summary>
     public static async Task<SpriteAtlas> LoadAsync(int dexId)
     {
-        var jsonPath = await CachedAsync($"pokemon/{PokemonForms.SpriteKey(dexId)}.json");
-        var pngPath = await CachedAsync($"pokemon/{PokemonForms.SpriteKey(dexId)}.png");
-        return Parse(jsonPath, pngPath);
+        var key = PokemonForms.SpriteKey(dexId);
+        foreach (var dir in new[] { "pokemon/exp/", "pokemon/" })
+        {
+            try
+            {
+                return Parse(await CachedAsync($"{dir}{key}.json"), await CachedAsync($"{dir}{key}.png"));
+            }
+            catch (HttpRequestException)
+            {
+                // 그 경로에 없음 → 다음 후보
+            }
+        }
+        throw new FileNotFoundException($"스프라이트 없음: {key}");
     }
 
     /// <summary>images/ 기준 상대 경로를 받아 캐시 경로 반환. 없으면 다운로드.</summary>
