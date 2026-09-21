@@ -304,8 +304,7 @@ public partial class MainWindow : Window
         if (res.Dex == _settings.SelectedDex) UpdateLevelUi();
         RefreshIconCell(res.Dex);
 
-        Flash.Opacity = 1;
-        ((Storyboard)Resources["FlashOut"]).Begin(this, true);
+        ((Storyboard)Resources["FlashOut"]).Begin(this, true); // From=1이라 Opacity 직접 설정 불필요(이전 애니메이션이 값을 잡고 있어 무시됨)
         await Task.Delay(150);
 
         ResultImage.Source = null;
