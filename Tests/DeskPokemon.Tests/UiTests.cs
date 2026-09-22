@@ -152,7 +152,8 @@ public class UiTests
             var tooltip = Assert.IsType<ToolTip>(ToolTip.GetTip(track));
             Assert.Equal(PlacementMode.Top, ToolTip.GetPlacement(track));
             Assert.Equal(300, ToolTip.GetShowDelay(track));
-            Assert.Equal("현재 경험치: 29\n필요 경험치: 30", tooltip.Content);
+            var label = Assert.IsType<TooltipText>(tooltip.Content);
+            Assert.Equal("현재 경험치: 29\n필요 경험치: 30", label.Text);
             Assert.False(ToolTip.GetIsOpen(track));
 
             Hover(window, track);
@@ -171,14 +172,15 @@ public class UiTests
             Assert.Equal("Lv. 2", window.FindControl<TextBlock>("LevelText")!.Text);
             Assert.Same(tooltip, ToolTip.GetTip(track));
             Assert.True(ToolTip.GetIsOpen(track));
-            Assert.Equal("현재 경험치: 0\n필요 경험치: 60", tooltip.Content);
+            Assert.Same(label, tooltip.Content);
+            Assert.Equal("현재 경험치: 0\n필요 경험치: 60", label.Text);
             Assert.False(window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.IsVisible);
 
             // The same already-visible tooltip must continue updating, without a second hover.
             Invoke(window, "AddExp");
             Assert.Same(tooltip, ToolTip.GetTip(track));
             Assert.True(ToolTip.GetIsOpen(track));
-            Assert.Equal("현재 경험치: 1\n필요 경험치: 60", tooltip.Content);
+            Assert.Equal("현재 경험치: 1\n필요 경험치: 60", label.Text);
 
             window.MouseMove(new Point(-1, -1), RawInputModifiers.None);
             await EventuallyAsync(window, () => !ToolTip.GetIsOpen(track));
@@ -204,7 +206,7 @@ public class UiTests
             Assert.True(track.IsPointerOver);
             await EventuallyAsync(window, () => ToolTip.GetIsOpen(track));
             var tooltip = Assert.IsType<ToolTip>(ToolTip.GetTip(track));
-            Assert.Equal("현재 경험치: 0\n필요 경험치: 30", tooltip.Content);
+            Assert.Equal("현재 경험치: 0\n필요 경험치: 30", Assert.IsType<TooltipText>(tooltip.Content).Text);
             Assert.NotNull(tooltip.GetVisualRoot());
         }
         finally { window.Close(); }
