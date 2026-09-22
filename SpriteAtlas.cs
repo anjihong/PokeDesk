@@ -1,23 +1,23 @@
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
-using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using SkiaSharp;
 
 namespace DeskPokemon;
 
 /// <summary>한 프레임. Bitmap은 시트에서 잘라낸 조각, Offset은 원본 캔버스(SourceSize) 내 위치.</summary>
-public sealed record SpriteFrame(CroppedBitmap Bitmap, int OffsetX, int OffsetY, int Width, int Height);
+public sealed record SpriteFrame(Bitmap Bitmap, int OffsetX, int OffsetY, int Width, int Height);
 
 /// <summary>
 /// PokeRogue 에셋 저장소의 TexturePacker 아틀라스(pokemon/{id}.json + .png)를
-/// 런타임에 받아 %LOCALAPPDATA%\DeskPokemon\sprites 에 캐시하고 프레임 배열로 푼다.
+/// 런타임에 받아 사용자별 앱 데이터 폴더의 sprites에 캐시하고 프레임 배열로 푼다.
 /// 에셋은 앱에 번들하지 않는다(라이선스: 저장소 README 참고).
 /// PokeRogue 쪽이 정지(1프레임)인 종은 PokeAPI 미러의 BW 스타일 GIF를 합성해 같은 프레임 형태로 만든다.
 /// 다운로드·시트 로드·프레임 열거 헬퍼는 아이콘 아틀라스(<see cref="PokemonIcons"/>)와 공유.
 /// </summary>
-public sealed class SpriteAtlas
+public sealed class SpriteAtlas : IDisposable
 {
     private const string BaseUrl =
         "https://raw.githubusercontent.com/pagefaultgames/pokerogue-assets/beta/images/";
@@ -26,10 +26,10 @@ public sealed class SpriteAtlas
     private const string GifUrl =
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/";
 
-    private static readonly string CacheDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "sprites");
+    private static readonly string CacheDir = AppPaths.SpriteCache;
 
     private static readonly HttpClient Http = new();
+    private bool _disposed;
 
     public int Width { get; }
     public int Height { get; }
@@ -39,7 +39,7 @@ public sealed class SpriteAtlas
     /// 모든 프레임의 실제 픽셀 영역 합집합(캔버스 좌표). 9세대처럼 96x96 고정 캔버스에 여백이 많은 경우
     /// 캔버스가 아니라 이 영역을 기준으로 배율·발 위치를 잡아야 크기가 균일해짐.
     /// </summary>
-    public Int32Rect Body { get; }
+    public PixelRect Body { get; }
 
     private SpriteAtlas(int width, int height, SpriteFrame[] frames)
     {
@@ -55,7 +55,7 @@ public sealed class SpriteAtlas
             r = Math.Max(r, f.OffsetX + f.Width);
             b = Math.Max(b, f.OffsetY + f.Height);
         }
-        Body = new Int32Rect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
+        Body = new PixelRect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
     }
 
     /// <summary>
@@ -82,11 +82,18 @@ public sealed class SpriteAtlas
 
         try
         {
-            return ParseGif(await CachedAsync($"pokeapi/{dexId}.gif", $"{GifUrl}{dexId}.gif"));
+            var animated = ParseGif(await CachedAsync($"pokeapi/{dexId}.gif", $"{GifUrl}{dexId}.gif"));
+            still?.Dispose();
+            return animated;
         }
         catch (HttpRequestException) when (still != null)
         {
             return still; // GIF도 없음 → 정지 그대로
+        }
+        catch
+        {
+            still?.Dispose();
+            throw;
         }
     }
 
@@ -98,21 +105,29 @@ public sealed class SpriteAtlas
         if (!File.Exists(path))
         {
             var bytes = await Http.GetByteArrayAsync(url ?? BaseUrl + relative);
-            await File.WriteAllBytesAsync(path, bytes);
+            // 다른 창/프로세스는 완전히 기록된 파일만 보도록 같은 폴더에서 원자적으로 이동한다.
+            var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
+            try
+            {
+                await File.WriteAllBytesAsync(temporary, bytes);
+                try
+                {
+                    File.Move(temporary, path);
+                }
+                catch (IOException) when (File.Exists(path))
+                {
+                    // 같은 에셋의 동시 요청이 먼저 캐시를 완성했다.
+                }
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
         }
         return path;
     }
 
-    internal static BitmapImage LoadSheet(string pngPath)
-    {
-        var sheet = new BitmapImage();
-        sheet.BeginInit();
-        sheet.UriSource = new Uri(pngPath);
-        sheet.CacheOption = BitmapCacheOption.OnLoad;
-        sheet.EndInit();
-        sheet.Freeze();
-        return sheet;
-    }
+    internal static SpritePixels LoadSheet(string pngPath) => SpritePixels.Load(pngPath);
 
     /// <summary>
     /// TexturePacker JSON의 프레임 열거. 두 가지 형태 지원:
@@ -136,11 +151,11 @@ public sealed class SpriteAtlas
         }
     }
 
-    internal static Int32Rect ReadRect(JsonElement r) => new(
+    internal static PixelRect ReadRect(JsonElement r) => new(
         r.GetProperty("x").GetInt32(), r.GetProperty("y").GetInt32(),
         r.GetProperty("w").GetInt32(), r.GetProperty("h").GetInt32());
 
-    private static SpriteAtlas Parse(string jsonPath, string pngPath)
+    internal static SpriteAtlas Parse(string jsonPath, string pngPath)
     {
         var sheet = LoadSheet(pngPath);
 
@@ -181,98 +196,76 @@ public sealed class SpriteAtlas
     /// 차분 인코딩 GIF를 프레임마다 전체 캔버스로 합성(disposal 0~3)하고 불투명 영역만 잘라
     /// 아틀라스 프레임과 같은 형태로 만든다. 앱은 고정 10fps라 GIF 지연(5~30cs 혼재)을 100ms 간격으로 리샘플.
     /// </summary>
-    private static SpriteAtlas ParseGif(string gifPath)
+    internal static SpriteAtlas ParseGif(string gifPath)
     {
-        var bytes = File.ReadAllBytes(gifPath);
-        int w = BitConverter.ToUInt16(bytes, 6), h = BitConverter.ToUInt16(bytes, 8); // 논리 화면 크기
-        var decoder = new GifBitmapDecoder(
-            new MemoryStream(bytes), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        using var codec = SKCodec.Create(gifPath) ?? throw new InvalidDataException("GIF를 읽을 수 없음");
+        var metadata = codec.FrameInfo;
+        if (metadata.Length == 0)
+            throw new InvalidDataException("GIF에 프레임이 없음");
 
-        var canvas = new byte[w * h * 4];
-        byte[]? restore = null; // disposal 3: 직전 프레임 그리기 전 상태
-        var prevRect = Int32Rect.Empty;
-        var prevDisposal = 0;
         var timeline = new List<(SpriteFrame Frame, int EndMs)>();
         var clock = 0;
-
-        foreach (var src in decoder.Frames)
+        try
         {
-            if (prevDisposal == 2) ClearRect(canvas, w, h, prevRect);
-            else if (prevDisposal == 3 && restore != null) Buffer.BlockCopy(restore, 0, canvas, 0, canvas.Length);
-
-            var meta = (BitmapMetadata)src.Metadata;
-            prevRect = new Int32Rect(Query(meta, "/imgdesc/Left"), Query(meta, "/imgdesc/Top"), src.PixelWidth, src.PixelHeight);
-            prevDisposal = Query(meta, "/grctlext/Disposal");
-            if (prevDisposal == 3) restore = (byte[])canvas.Clone();
-
-            Blit(canvas, w, h, src, prevRect);
-            var delay = Query(meta, "/grctlext/Delay");
-            clock += (delay <= 1 ? 10 : delay) * 10; // 브라우저 관례: 0·1cs는 100ms
-            timeline.Add((Snapshot(canvas, w, h), clock));
-        }
-
-        // 100ms 간격 샘플링: 짧은 프레임은 건너뛰고 긴 프레임은 반복
-        var frames = new List<SpriteFrame>();
-        for (int t = 0, i = 0; t < clock; t += 100)
-        {
-            while (timeline[i].EndMs <= t) i++;
-            frames.Add(timeline[i].Frame);
-        }
-        return new SpriteAtlas(w, h, frames.ToArray());
-    }
-
-    private static int Query(BitmapMetadata meta, string query) =>
-        meta.ContainsQuery(query) ? Convert.ToInt32(meta.GetQuery(query)) : 0;
-
-    private static void ClearRect(byte[] canvas, int w, int h, Int32Rect r)
-    {
-        var right = Math.Min(w, r.X + r.Width);
-        if (right <= r.X) return;
-        for (var y = r.Y; y < Math.Min(h, r.Y + r.Height); y++)
-            Array.Clear(canvas, (y * w + r.X) * 4, (right - r.X) * 4);
-    }
-
-    /// <summary>GIF 투명은 0/255 이진이라 불투명 픽셀만 덮어쓰면 됨.</summary>
-    private static void Blit(byte[] canvas, int w, int h, BitmapSource src, Int32Rect at)
-    {
-        var px = new byte[at.Width * at.Height * 4];
-        new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0).CopyPixels(px, at.Width * 4, 0);
-        for (var y = 0; y < at.Height; y++)
-        {
-            for (var x = 0; x < at.Width; x++)
+            for (var i = 0; i < metadata.Length; i++)
             {
-                int cx = at.X + x, cy = at.Y + y, s = (y * at.Width + x) * 4;
-                if (cx >= w || cy >= h || px[s + 3] == 0) continue;
-                Buffer.BlockCopy(px, s, canvas, (cy * w + cx) * 4, 4);
+                var canvas = SpritePixels.Decode(codec, i);
+                var delay = metadata[i].Duration; // Skia의 지연 단위는 ms
+                clock = checked(clock + (delay <= 10 ? 100 : delay)); // 브라우저 관례: 0·1cs는 100ms
+                timeline.Add((Snapshot(canvas), clock));
             }
+
+            // 100ms 간격 샘플링: 짧은 프레임은 건너뛰고 긴 프레임은 반복
+            var frames = new List<SpriteFrame>();
+            for (int t = 0, i = 0; t < clock; t += 100)
+            {
+                while (timeline[i].EndMs <= t) i++;
+                frames.Add(timeline[i].Frame);
+            }
+
+            var used = frames.Select(f => f.Bitmap).ToHashSet();
+            foreach (var entry in timeline)
+                if (!used.Contains(entry.Frame.Bitmap)) entry.Frame.Bitmap.Dispose();
+            return new SpriteAtlas(codec.Info.Width, codec.Info.Height, frames.ToArray());
+        }
+        catch
+        {
+            foreach (var entry in timeline) entry.Frame.Bitmap.Dispose();
+            throw;
         }
     }
 
     /// <summary>현재 캔버스에서 불투명 픽셀 경계만 잘라 프레임으로. Offset은 캔버스 내 위치.</summary>
-    private static SpriteFrame Snapshot(byte[] canvas, int w, int h)
+    private static SpriteFrame Snapshot(SpritePixels canvas)
     {
+        int w = canvas.Width, h = canvas.Height;
         int l = w, t = h, r = -1, b = -1;
         for (var y = 0; y < h; y++)
         {
             for (var x = 0; x < w; x++)
             {
-                if (canvas[(y * w + x) * 4 + 3] == 0) continue;
+                if (canvas.Pixels[(y * w + x) * 4 + 3] == 0) continue;
                 l = Math.Min(l, x); t = Math.Min(t, y); r = Math.Max(r, x); b = Math.Max(b, y);
             }
         }
         // ponytail: 완전 투명 프레임은 하단 중앙 1px로 둠(Body 합집합 왜곡 최소화). 현재 19종엔 없음.
-        var box = r < 0 ? new Int32Rect(w / 2, h - 1, 1, 1) : new Int32Rect(l, t, r - l + 1, b - t + 1);
-        var bmp = new CroppedBitmap(BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, canvas, w * 4), box);
-        bmp.Freeze();
-        return new SpriteFrame(bmp, box.X, box.Y, box.Width, box.Height);
+        var box = r < 0 ? new PixelRect(w / 2, h - 1, 1, 1) : new PixelRect(l, t, r - l + 1, b - t + 1);
+        return new SpriteFrame(canvas.Crop(box), box.X, box.Y, box.Width, box.Height);
     }
 
-    private static SpriteFrame MakeFrame(BitmapImage sheet, JsonElement elem)
+    private static SpriteFrame MakeFrame(SpritePixels sheet, JsonElement elem)
     {
         var rect = ReadRect(elem.GetProperty("frame"));
         var s = elem.GetProperty("spriteSourceSize");
-        var bmp = new CroppedBitmap(sheet, rect);
-        bmp.Freeze();
+        var bmp = sheet.Crop(rect);
         return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        // 리샘플링한 긴 GIF 프레임은 같은 Bitmap을 여러 번 참조한다.
+        foreach (var bitmap in Frames.Select(f => f.Bitmap).Distinct()) bitmap.Dispose();
     }
 }

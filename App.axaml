@@ -1,0 +1,17 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DeskPokemon.App" RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#FFD84A"/>
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="avares://DeskPokemon/Assets/Fonts#NanumGothic"/>
+    </Style>
+    <Style Selector="ToolTip">
+      <Setter Property="FontFamily" Value="avares://DeskPokemon/Assets/Fonts#NanumGothic"/>
+    </Style>
+  </Application.Styles>
+</Application>

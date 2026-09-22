@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using Avalonia.Media.Imaging;
 
 namespace DeskPokemon;
 
@@ -17,7 +17,8 @@ public static class PokemonIcons
         (6, 650, 721), (7, 722, 809), (8, 810, 905), (9, 906, 1025),
     ];
 
-    private static readonly Dictionary<int, Dictionary<int, BitmapSource>> Cache = new();
+    private static readonly ConcurrentDictionary<int, Dictionary<int, Bitmap>> Cache = new();
+    private static readonly ConcurrentDictionary<int, Lazy<Task<Dictionary<int, Bitmap>>>> Loads = new();
 
     public static int GenOf(int dex)
     {
@@ -26,10 +27,28 @@ public static class PokemonIcons
         return 1;
     }
 
-    public static async Task<Dictionary<int, BitmapSource>> LoadGenAsync(int gen)
+    public static async Task<Dictionary<int, Bitmap>> LoadGenAsync(int gen)
     {
         if (Cache.TryGetValue(gen, out var cached)) return cached;
+        if (gen < 1 || gen > Generations.Length) throw new ArgumentOutOfRangeException(nameof(gen));
 
+        // 스타터 세 마리가 동시에 같은 세대를 요청해도 다운로드/네이티브 비트맵은 한 번만 만든다.
+        var load = Loads.GetOrAdd(gen, static generation =>
+            new Lazy<Task<Dictionary<int, Bitmap>>>(() => LoadGenCoreAsync(generation)));
+        try
+        {
+            return await load.Value;
+        }
+        catch
+        {
+            // 실패한 요청만 제거해서 다음 시도는 다시 다운로드할 수 있게 한다.
+            Loads.TryRemove(new KeyValuePair<int, Lazy<Task<Dictionary<int, Bitmap>>>>(gen, load));
+            throw;
+        }
+    }
+
+    private static async Task<Dictionary<int, Bitmap>> LoadGenCoreAsync(int gen)
+    {
         var jsonPath = await SpriteAtlas.CachedAsync($"pokemon_icons_{gen}.json");
         var pngPath = await SpriteAtlas.CachedAsync($"pokemon_icons_{gen}.png");
         var sheet = SpriteAtlas.LoadSheet(pngPath);
@@ -41,13 +60,19 @@ public static class PokemonIcons
 
         // 세대 범위의 각 종에 대해 기본형 키("4", "964-zero")와 이름이 같은 프레임만 채택
         var (_, first, last) = Generations[gen - 1];
-        var result = new Dictionary<int, BitmapSource>();
-        for (var dex = first; dex <= last; dex++)
+        var result = new Dictionary<int, Bitmap>();
+        try
         {
-            if (!frames.TryGetValue(PokemonForms.SpriteKey(dex), out var elem)) continue;
-            var bmp = new CroppedBitmap(sheet, SpriteAtlas.ReadRect(elem.GetProperty("frame")));
-            bmp.Freeze();
-            result[dex] = bmp;
+            for (var dex = first; dex <= last; dex++)
+            {
+                if (!frames.TryGetValue(PokemonForms.SpriteKey(dex), out var elem)) continue;
+                result[dex] = sheet.Crop(SpriteAtlas.ReadRect(elem.GetProperty("frame")));
+            }
+        }
+        catch
+        {
+            foreach (var bitmap in result.Values) bitmap.Dispose();
+            throw;
         }
 
         Cache[gen] = result;
@@ -55,34 +80,35 @@ public static class PokemonIcons
     }
 
     /// <summary>이미 로드된 세대의 아이콘 전체. 네트워크 없이 즉시.</summary>
-    public static bool TryGetCachedGen(int gen, out Dictionary<int, BitmapSource> icons) =>
+    public static bool TryGetCachedGen(int gen, out Dictionary<int, Bitmap> icons) =>
         Cache.TryGetValue(gen, out icons!);
 
     /// <summary>이미 로드된 세대의 원본 아이콘. 네트워크 없이 즉시.</summary>
-    public static bool TryGetCached(int gen, int dex, out BitmapSource bmp)
+    public static bool TryGetCached(int gen, int dex, out Bitmap bmp)
     {
         bmp = null!;
         return Cache.TryGetValue(gen, out var icons) && icons.TryGetValue(dex, out bmp!);
     }
 
-    private static readonly Dictionary<int, BitmapSource> Silhouettes = new();
+    private static readonly Dictionary<int, Bitmap> Silhouettes = new();
+    private static readonly object SilhouetteLock = new();
 
     /// <summary>미보유 종 표시용 실루엣. 알파는 유지하고 색만 어둡게. 도감 번호별 캐시.</summary>
-    public static BitmapSource SilhouetteOf(int dex, BitmapSource icon)
+    public static Bitmap SilhouetteOf(int dex, Bitmap icon)
     {
-        if (Silhouettes.TryGetValue(dex, out var cached)) return cached;
+        lock (SilhouetteLock)
+        {
+            if (Silhouettes.TryGetValue(dex, out var cached)) return cached;
 
-        // Bgra32는 비프리멀티라 B,G,R만 덮고 A는 그대로 두면 됨
-        var bgra = new FormatConvertedBitmap(icon, PixelFormats.Bgra32, null, 0);
-        int w = bgra.PixelWidth, h = bgra.PixelHeight, stride = w * 4;
-        var px = new byte[stride * h];
-        bgra.CopyPixels(px, stride, 0);
-        for (var i = 0; i < px.Length; i += 4)
-            px[i] = px[i + 1] = px[i + 2] = 0x28;
+            // Windows와 macOS 모두 BGRA 비프리멀티로 변환한 뒤 알파를 유지한다.
+            var pixels = SpritePixels.CopyFrom(icon);
+            var px = pixels.Pixels;
+            for (var i = 0; i < px.Length; i += 4)
+                px[i] = px[i + 1] = px[i + 2] = 0x28;
 
-        var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, stride);
-        bmp.Freeze();
-        Silhouettes[dex] = bmp;
-        return bmp;
+            var bmp = pixels.ToBitmap();
+            Silhouettes[dex] = bmp;
+            return bmp;
+        }
     }
 }

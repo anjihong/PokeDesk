@@ -13,8 +13,7 @@ public sealed class PokemonProgress
 /// <summary>%LOCALAPPDATA%\DeskPokemon\settings.json — 선택 포켓몬 + 포켓몬별 레벨/경험치 + 도감 보유 + 알.</summary>
 public sealed class Settings
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "settings.json");
+    private static readonly string FilePath = AppPaths.SettingsFile;
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 

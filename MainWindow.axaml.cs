@@ -1,23 +1,29 @@
 #if DEBUG
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 #endif
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
+using Avalonia;
+using Avalonia.Interactivity;
+using Avalonia.Styling;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 
 namespace DeskPokemon;
 
 public partial class MainWindow : Window
 {
-    private readonly InputHook _hook = new();
+    private readonly InputHook? _hook;
+    private readonly bool _startServices;
+    private readonly List<DispatcherTimer> _timers = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _closed;
+    private bool _discardSave;
+    private Dictionary<string, SpriteFrame>? _eggFrames;
     private readonly Settings _settings;
     private SpriteAtlas? _atlas;
     private int _frame;
@@ -34,34 +40,62 @@ public partial class MainWindow : Window
     private Dictionary<string, SpriteFrame>? _crackFrames;
     private readonly DispatcherTimer _resultTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
-    public MainWindow(Settings settings)
+    /// <summary>XAML 디자이너용 미리보기. 실제 실행은 저장 데이터를 전달하는 생성자를 사용.</summary>
+    public MainWindow() : this(Settings.New(4), false) { }
+
+    public MainWindow(Settings settings) : this(settings, true) { }
+
+    internal MainWindow(Settings settings, bool startServices)
     {
         _settings = settings;
+        _startServices = startServices;
+        _hook = startServices ? new InputHook() : null;
         InitializeComponent();
+        BuildAnimations();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
 #if DEBUG
         SetupLayoutEditor();
         SetupUnlockAll();
         SetupReset();
 #endif
-        Loaded += OnLoaded;
+        if (startServices) Opened += OnLoaded;
+        UpdateLevelUi();
+        UpdateOwnedCount();
+        if (_hook != null)
+        {
+            _hook.Triggered += OnGlobalInput;
+            _hook.StatusChanged += OnInputStatusChanged;
+            RefreshInputStatus();
+        }
+        AddHandler(PointerPressedEvent, OnLocalPointer, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnLocalKey, RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, OnLocalKeyUp, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) => _localKeys.Clear();
         SizeChanged += OnSizeChanged;
         Closed += (_, _) =>
         {
-            _hook.Dispose();
-            _settings.Save();
+            _closed = true;
+            _lifetime.Cancel();
+            foreach (var timer in _timers) timer.Stop();
+            _resultTimer.Stop();
+            _drawerAnimation?.Dispose();
+            foreach (var animation in _animations.Values) animation.Dispose();
+            _hook?.Dispose();
+            Sprite.Source = null;
+            _atlas?.Dispose();
+            EggImage.Source = CrackImage.Source = null;
+            DisposeFrames(_eggFrames);
+            DisposeFrames(_crackFrames);
+            if (_startServices && !_discardSave) _settings.Save();
         };
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object? sender, EventArgs e)
     {
         BuildGenTabs();
 
-        if (!await LoadPokemonAsync(_settings.SelectedDex))
-        {
-            Close();
-            return;
-        }
+        await LoadPokemonAsync(_settings.SelectedDex);
+        if (_closed) return;
 
         // PokeRogue와 동일: frameRate 10, 무한 반복
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -69,6 +103,7 @@ public partial class MainWindow : Window
         {
             if (_atlas != null) ShowFrame((_frame + 1) % _atlas.Frames.Length);
         };
+        _timers.Add(timer);
         timer.Start();
 
         // 입력마다 디스크 쓰지 않고 5초 주기로 저장
@@ -79,6 +114,7 @@ public partial class MainWindow : Window
             _settings.Save();
             _dirty = false;
         };
+        _timers.Add(save);
         save.Start();
 
         // 실행 시간 누적 → 30분마다 알 1개(알이 있으면 일시정지). 절전 등으로 틱이 밀려도 한 번에 최대 5초만 인정.
@@ -87,7 +123,7 @@ public partial class MainWindow : Window
         egg.Tick += (_, _) =>
         {
             var now = DateTime.UtcNow;
-            var dt = Math.Min((now - _lastEggTick).TotalSeconds, 5);
+            var dt = Math.Clamp((now - _lastEggTick).TotalSeconds, 0, 5);
             _lastEggTick = now;
             if (_settings.TickEgg(dt))
             {
@@ -101,6 +137,7 @@ public partial class MainWindow : Window
                 UpdateBubbleCountdown();
             }
         };
+        _timers.Add(egg);
         egg.Start();
         _resultTimer.Tick += (_, _) =>
         {
@@ -111,18 +148,10 @@ public partial class MainWindow : Window
         UpdateOwnedCount();
         _ = LoadEggAssetsAsync();
 
-        var bounce = (Storyboard)Resources["Bounce"];
-        // 훅 콜백은 빨리 반환해야 하므로 애니메이션 시작은 큐에 넘김
-        _hook.Triggered += () => Dispatcher.BeginInvoke(() =>
-        {
-            bounce.Begin(this, true);
-            AddExp();
-        });
-
         UpdateLayout();
-        var wa = SystemParameters.WorkArea;
-        Left = wa.Right - ActualWidth - 20;
-        Top = wa.Bottom - ActualHeight - 20;
+        var wa = WorkingArea;
+        Position = new PixelPoint(wa.Right - (int)Math.Ceiling(Bounds.Width * RenderScaling) - 20,
+            wa.Bottom - (int)Math.Ceiling(Bounds.Height * RenderScaling) - 20);
         _placed = true;
 
         SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
@@ -140,12 +169,18 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (req == _loadRequest)
-                MessageBox.Show($"스프라이트 로드 실패 (#{dex}): {ex.Message}", "DeskPokemon");
+                ShowSpriteError($"스프라이트 로드 실패 (#{dex}): {ex.Message}\n우클릭 메뉴에서 다시 불러올 수 있습니다.");
             return false;
         }
-        if (req != _loadRequest) return false;
+        if (req != _loadRequest || _closed)
+        {
+            atlas.Dispose();
+            return false;
+        }
 
+        var previous = _atlas;
         _atlas = atlas;
+        SpriteStatus.IsVisible = false;
         // 캔버스(37~98px, 9세대는 96 고정+여백)가 아니라 실제 몸체 영역을 스테이지로 삼고,
         // 몸체 높이가 항상 BodyTargetHeight가 되도록 소수 배율. 넓은 포켓몬은 폭 상한으로 제한.
         var body = atlas.Body;
@@ -157,6 +192,7 @@ public partial class MainWindow : Window
         // 바운스 스트레치(ScaleY 1.12)가 창 위로 잘리지 않게 여백을 표시 높이에 비례
         TopArea.Margin = new Thickness(0, Math.Ceiling(body.Height * zoom * 0.14) + 4, 0, 0);
         ShowFrame(0);
+        previous?.Dispose();
         UpdateLevelUi();
         return true;
     }
@@ -183,7 +219,7 @@ public partial class MainWindow : Window
         var leveled = _settings.AddExp(_settings.SelectedDex);
         _dirty = true;
         UpdateLevelUi();
-        if (leveled) ((Storyboard)Resources["LevelUp"]).Begin(this, true);
+        if (leveled) _animations["LevelUp"].Play();
     }
 
     private void UpdateLevelUi()
@@ -191,6 +227,7 @@ public partial class MainWindow : Window
         var p = _settings.For(_settings.SelectedDex);
         LevelText.Text = $"Lv. {p.Level}";
         ExpBar.Width = ExpTrack.Width * p.Exp / Settings.ExpToNext(p.Level);
+        ExpBar.IsVisible = p.Exp > 0;
     }
 
     // ---- 알 ----
@@ -201,42 +238,42 @@ public partial class MainWindow : Window
     private void SetEggState(EggState state)
     {
         _eggState = state;
-        var idle = (Storyboard)Resources["EggIdle"];
-        var wait = (Storyboard)Resources["EggWait"];
+        var idle = _animations["EggIdle"];
+        var wait = _animations["EggWait"];
         switch (state)
         {
             case EggState.Waiting:
-                idle.Stop(this);
+                idle.Stop();
                 ShowEgg(true);
                 UpdateBubbleCountdown();
-                wait.Begin(this, true);
+                wait.Play();
                 break;
             case EggState.Ready:
-                wait.Stop(this);
+                wait.Stop();
                 ShowEgg(true);
                 BubbleText.Text = "클릭하여\n부화";
-                idle.Begin(this, true);
+                idle.Play();
                 break;
             case EggState.Hatching:
-                idle.Stop(this);
-                wait.Stop(this); // EggShake가 EggRotate를 쓰므로 루프 정지
+                idle.Stop();
+                wait.Stop(); // EggShake가 EggRotate를 쓰므로 루프 정지
                 BubbleText.Text = "...";
                 break;
             case EggState.Result:
                 // BubbleText/NewText는 HatchAsync가 채움
-                EggStage.Visibility = Visibility.Collapsed;
-                ResultImage.Visibility = Visibility.Visible;
-                NewText.Visibility = Visibility.Visible;
+                EggStage.IsVisible = false;
+                ResultImage.IsVisible = true;
+                NewText.IsVisible = true;
                 break;
         }
     }
 
     private void ShowEgg(bool show)
     {
-        EggStage.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        CrackImage.Visibility = Visibility.Collapsed;
-        ResultImage.Visibility = Visibility.Collapsed;
-        NewText.Visibility = Visibility.Collapsed;
+        EggStage.IsVisible = show;
+        CrackImage.IsVisible = false;
+        ResultImage.IsVisible = false;
+        NewText.IsVisible = false;
     }
 
     private void UpdateBubbleCountdown() =>
@@ -248,12 +285,16 @@ public partial class MainWindow : Window
         try
         {
             var egg = await SpriteAtlas.LoadFramesAsync("egg/egg");
+            if (_closed) { DisposeFrames(egg); return; }
+            _eggFrames = egg;
             if (egg.TryGetValue("egg_0", out var f))
             {
                 EggImage.Source = f.Bitmap;
-                EggFallback.Visibility = Visibility.Collapsed;
+                EggFallback.IsVisible = false;
             }
-            _crackFrames = await SpriteAtlas.LoadFramesAsync("egg/egg_crack");
+            var cracks = await SpriteAtlas.LoadFramesAsync("egg/egg_crack");
+            if (_closed) { DisposeFrames(cracks); return; }
+            _crackFrames = cracks;
         }
         catch
         {
@@ -270,28 +311,30 @@ public partial class MainWindow : Window
         CrackImage.Height = f.Height;
         Canvas.SetLeft(CrackImage, f.OffsetX - 26);
         Canvas.SetTop(CrackImage, f.OffsetY - 25);
-        CrackImage.Visibility = Visibility.Visible;
+        CrackImage.IsVisible = true;
     }
 
-    private async void OnEggClick(object sender, MouseButtonEventArgs e)
+    private async void OnEggClick(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         e.Handled = true; // 드래그로 넘어가지 않게
         if (_eggState != EggState.Ready) return;
-        await HatchAsync();
+        try { await HatchAsync(); }
+        catch (OperationCanceledException) when (_closed) { }
     }
 
     private async Task HatchAsync()
     {
         SetEggState(EggState.Hatching);
-        var shake = (Storyboard)Resources["EggShake"];
+        var shake = _animations["EggShake"];
         for (var stage = 1; stage <= 3; stage++)
         {
             ShowCrack(stage);
-            shake.Begin(this, true);
-            await Task.Delay(550);
+            shake.Play();
+            await Task.Delay(550, _lifetime.Token);
         }
         ShowCrack(4);
-        await Task.Delay(250);
+        await Task.Delay(250, _lifetime.Token);
 
         if (_settings.Hatch() is not { } res)
         {
@@ -304,8 +347,8 @@ public partial class MainWindow : Window
         if (res.Dex == _settings.SelectedDex) UpdateLevelUi();
         RefreshIconCell(res.Dex);
 
-        ((Storyboard)Resources["FlashOut"]).Begin(this, true); // From=1이라 Opacity 직접 설정 불필요(이전 애니메이션이 값을 잡고 있어 무시됨)
-        await Task.Delay(150);
+        _animations["FlashOut"].Play(); // From=1이라 Opacity 직접 설정 불필요(이전 애니메이션이 값을 잡고 있어 무시됨)
+        await Task.Delay(150, _lifetime.Token);
 
         ResultImage.Source = null;
         try
@@ -317,16 +360,17 @@ public partial class MainWindow : Window
         {
             // 아이콘 없어도 이름은 표시됨
         }
+        if (_closed) return;
         NewText.Text = res.IsNew ? "NEW!" : $"Lv.{res.Level} ↑";
         BubbleText.Text = PokemonNames.Of(res.Dex);
         SetEggState(EggState.Result);
-        ((Storyboard)Resources["ResultPop"]).Begin(this, true);
+        _animations["ResultPop"].Play();
         _resultTimer.Stop();
         _resultTimer.Start();
     }
 
     /// <summary>테스트용: 알을 즉시 준비 상태로.</summary>
-    private void OnDebugEgg(object sender, RoutedEventArgs e)
+    private void OnDebugEgg(object? sender, RoutedEventArgs e)
     {
         if (_eggState is EggState.Hatching or EggState.Result) return;
         if (_settings.Eggs == 0)
@@ -341,18 +385,19 @@ public partial class MainWindow : Window
     // ---- 메뉴 탭 / 서랍 ----
 
     // ToggleButton이라 같은 탭을 다시 누르면 Unchecked → 접힘. 다른 탭을 누르면 나머지를 코드에서 해제.
-    private void OnMenuChecked(object sender, RoutedEventArgs e)
+    private void OnMenuChecked(object? sender, RoutedEventArgs e)
     {
-        var btn = (ToggleButton)sender;
+        var btn = (ToggleButton)sender!;
+        if (btn.IsChecked != true) { OnMenuUnchecked(sender, e); return; }
         foreach (ToggleButton other in MenuTabs.Children)
             if (other != btn) other.IsChecked = false;
-        var isDex = (string)btn.Tag == "dex";
-        DexPanel.Visibility = isDex ? Visibility.Visible : Visibility.Collapsed;
-        PlaceholderPanel.Visibility = isDex ? Visibility.Collapsed : Visibility.Visible;
+        var isDex = (string)btn.Tag! == "dex";
+        DexPanel.IsVisible = isDex;
+        PlaceholderPanel.IsVisible = !isDex;
         AnimateDrawer(open: true);
     }
 
-    private void OnMenuUnchecked(object sender, RoutedEventArgs e)
+    private void OnMenuUnchecked(object? sender, RoutedEventArgs e)
     {
         foreach (ToggleButton other in MenuTabs.Children)
             if (other.IsChecked == true) return; // 다른 탭으로 전환 중이면 그 탭이 열어 줌
@@ -360,34 +405,36 @@ public partial class MainWindow : Window
     }
 
     /// <summary>서랍 Height를 0↔내용 높이로. 펼치는 동안 창 상단을 고정해 아래로 내려오게 하고, 끝나면 작업 영역 안으로 보정.</summary>
+    private Timeline? _drawerAnimation;
+
     private void AnimateDrawer(bool open)
     {
+        _drawerAnimation?.Dispose();
         DrawerContent.Measure(new Size(300, double.PositiveInfinity));
         var target = open ? DrawerContent.DesiredSize.Height : 0;
-        if (open && !_drawerOpen) _topBeforeDrawer = Top; // 화면 아래 걸려 위로 밀렸다가 접히면 원위치
+        if (open && !_drawerOpen) _topBeforeDrawer = Position.Y;
         _drawerOpen = open;
         _anchorTop = true;
-        var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(250))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-        };
-        anim.Completed += (_, _) =>
-        {
-            _anchorTop = false;
-            if (!open && _topBeforeDrawer is { } top) Top = top;
-        };
-        Drawer.BeginAnimation(HeightProperty, anim);
+        _drawerAnimation = new Timeline(false,
+            [new(v => Drawer.Height = v, Drawer.Height, [new(0, Drawer.Height), new(.25, target, Ease.OutCubic)])],
+            () =>
+            {
+                _anchorTop = false;
+                if (!open && _topBeforeDrawer is { } top) Position = new PixelPoint(Position.X, (int)top);
+                ClampToScreen();
+            });
+        _drawerAnimation.Play();
     }
 
     // ---- 도감/선택 패널 ----
 
     private void BuildGenTabs()
     {
-        var style = (Style)Resources["GenTab"];
+        var style = (ControlTheme)Resources["GenTab"]!;
         foreach (var g in PokemonIcons.Generations)
         {
-            var rb = new RadioButton { Content = g.Gen, Tag = g.Gen, GroupName = "Gen", Style = style };
-            rb.Checked += OnGenChecked;
+            var rb = new RadioButton { Content = g.Gen, Tag = g.Gen, GroupName = "Gen", Theme = style };
+            rb.IsCheckedChanged += OnGenChecked;
             GenTabs.Children.Add(rb);
         }
     }
@@ -395,32 +442,33 @@ public partial class MainWindow : Window
     private void SelectGenTab(int gen)
     {
         foreach (RadioButton rb in GenTabs.Children)
-            if ((int)rb.Tag == gen) rb.IsChecked = true;
+            if ((int)rb.Tag! == gen) rb.IsChecked = true;
     }
 
-    private async void OnGenChecked(object sender, RoutedEventArgs e)
+    private async void OnGenChecked(object? sender, RoutedEventArgs e)
     {
-        var tab = (RadioButton)sender;
-        var gen = (int)tab.Tag;
+        var tab = (RadioButton)sender!;
+        if (tab.IsChecked != true) return;
+        var gen = (int)tab.Tag!;
 
-        Dictionary<int, BitmapSource> icons;
+        Dictionary<int, Bitmap> icons;
         try
         {
             icons = await PokemonIcons.LoadGenAsync(gen);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"아이콘 로드 실패 ({gen}세대): {ex.Message}", "DeskPokemon");
+            ShowSpriteError($"아이콘 로드 실패 ({gen}세대): {ex.Message}");
             return;
         }
-        if (tab.IsChecked != true) return; // 로드 중 다른 탭 선택됨
+        if (_closed || tab.IsChecked != true) return; // 로드 중 다른 탭 선택됨
 
         RebuildIconGrid(gen, icons);
-        IconScroll.ScrollToTop();
+        IconScroll.Offset = default;
     }
 
     /// <summary>현재 탭 세대의 격자를 다시 채움. "보유만 보기"면 보유 종만.</summary>
-    private void RebuildIconGrid(int gen, Dictionary<int, BitmapSource> icons)
+    private void RebuildIconGrid(int gen, Dictionary<int, Bitmap> icons)
     {
         var ownedOnly = OwnedOnly.IsChecked == true;
         var (_, first, last) = PokemonIcons.Generations[gen - 1];
@@ -436,16 +484,16 @@ public partial class MainWindow : Window
     private int? CheckedGen()
     {
         foreach (RadioButton rb in GenTabs.Children)
-            if (rb.IsChecked == true) return (int)rb.Tag;
+            if (rb.IsChecked == true) return (int)rb.Tag!;
         return null;
     }
 
-    private void OnOwnedOnlyChanged(object sender, RoutedEventArgs e)
+    private void OnOwnedOnlyChanged(object? sender, RoutedEventArgs e)
     {
         if (CheckedGen() is not { } gen) return;
         if (!PokemonIcons.TryGetCachedGen(gen, out var icons)) return; // 아직 로드 중이면 로드 완료 시 반영됨
         RebuildIconGrid(gen, icons);
-        IconScroll.ScrollToTop();
+        IconScroll.Offset = default;
     }
 
     private void UpdateOwnedCount()
@@ -455,7 +503,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>아이콘 셀. 미보유 종은 실루엣 + 비활성.</summary>
-    private RadioButton MakeIconCell(int dex, BitmapSource bmp)
+    private RadioButton MakeIconCell(int dex, Bitmap bmp)
     {
         var owned = _settings.IsOwned(dex);
         var rb = new RadioButton
@@ -468,13 +516,13 @@ public partial class MainWindow : Window
             },
             Tag = dex,
             GroupName = "Icon",
-            Style = (Style)Resources["IconButton"],
-            ToolTip = owned ? $"#{dex} {PokemonNames.Of(dex)}" : $"#{dex} ??? (미보유)",
+            Theme = (ControlTheme)Resources["IconButton"]!,
             IsEnabled = owned,
-            Cursor = owned ? Cursors.Hand : Cursors.Arrow,
+            Cursor = owned ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow),
             IsChecked = dex == _settings.SelectedDex, // 핸들러 연결 전에 설정해 재선택 방지
         };
-        rb.Checked += OnIconChecked;
+        ToolTip.SetTip(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}" : $"#{dex} ??? (미보유)");
+        rb.IsCheckedChanged += OnIconChecked;
         return rb;
     }
 
@@ -495,10 +543,11 @@ public partial class MainWindow : Window
         if (PokemonIcons.TryGetCachedGen(gen, out var icons)) RebuildIconGrid(gen, icons);
     }
 
-    private async void OnIconChecked(object sender, RoutedEventArgs e)
+    private async void OnIconChecked(object? sender, RoutedEventArgs e)
     {
-        var rb = (RadioButton)sender;
-        var dex = (int)rb.Tag;
+        var rb = (RadioButton)sender!;
+        if (rb.IsChecked != true) return;
+        var dex = (int)rb.Tag!;
         if (!_settings.IsOwned(dex))
         {
             rb.IsChecked = false; // 방어: 비활성 셀이라 보통 도달 안 함
@@ -521,7 +570,7 @@ public partial class MainWindow : Window
             _settings.SelectedDex = prev;
             UpdateLevelUi();
             foreach (RadioButton cell in IconGrid.Children)
-                if ((int)cell.Tag == prev) cell.IsChecked = true;
+                if ((int)cell.Tag! == prev) cell.IsChecked = true;
         }
     }
 
@@ -542,13 +591,10 @@ public partial class MainWindow : Window
     private void SetupReset()
     {
         var item = new MenuItem { Header = "초기화(테스트)" };
-        item.Click += (_, _) =>
+        item.Click += async (_, _) =>
         {
-            if (MessageBox.Show("세이브를 삭제하고 스타팅 선택부터 다시 시작할까요?", "초기화",
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            Settings.Delete();
-            Process.Start(Environment.ProcessPath!);
-            Environment.Exit(0); // Shutdown()은 Closed에서 세이브를 다시 쓰므로 바로 종료
+            if (await AppDialog.ConfirmAsync(this, "초기화", "세이브를 삭제하고 스타팅 선택부터 다시 시작할까요?"))
+                App.ResetSave();
         };
         ContextMenu!.Items.Insert(ContextMenu.Items.Count - 1, item); // "종료" 앞
     }
@@ -558,7 +604,7 @@ public partial class MainWindow : Window
     /// <summary>우클릭 메뉴에 전체 해금 토글 추가. Owned를 건드리지 않아 끄면 원래대로 돌아감.</summary>
     private void SetupUnlockAll()
     {
-        var item = new MenuItem { Header = "전체 해금(치트)", IsCheckable = true };
+        var item = new MenuItem { Header = "전체 해금(치트)", ToggleType = MenuItemToggleType.CheckBox };
         item.Click += async (_, _) => await SetUnlockAll(item.IsChecked);
         ContextMenu!.Items.Insert(ContextMenu.Items.Count - 1, item); // "종료" 앞
     }
@@ -573,6 +619,7 @@ public partial class MainWindow : Window
             _settings.SelectedDex = _settings.StarterDex;
             UpdateLevelUi();
             await LoadPokemonAsync(_settings.StarterDex);
+            if (_closed) return;
             _settings.Save();
             _dirty = false;
         }
@@ -581,7 +628,7 @@ public partial class MainWindow : Window
         if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons))
         {
             RebuildIconGrid(gen, icons);
-            IconScroll.ScrollToTop();
+            IconScroll.Offset = default;
         }
     }
 
@@ -594,7 +641,7 @@ public partial class MainWindow : Window
     /// <summary>우클릭 메뉴에 배치 편집 항목 추가 + 말풍선/알 드래그 핸들러 연결.</summary>
     private void SetupLayoutEditor()
     {
-        var edit = new MenuItem { Header = "배치 편집", IsCheckable = true };
+        var edit = new MenuItem { Header = "배치 편집", ToggleType = MenuItemToggleType.CheckBox };
         edit.Click += (_, _) => SetLayoutEdit(edit.IsChecked);
         var save = new MenuItem { Header = "배치 저장(소스 기본값)" };
         save.Click += (_, _) => SaveLayoutDefaults();
@@ -609,56 +656,56 @@ public partial class MainWindow : Window
         menu.Items.Insert(at, save);
         menu.Items.Insert(at, edit);
 
-        foreach (var el in new FrameworkElement[] { Bubble, EggGroup })
+        foreach (var el in new Control[] { Bubble, EggGroup })
         {
-            el.PreviewMouseLeftButtonDown += OnLayoutDragStart;
-            el.PreviewMouseMove += OnLayoutDragMove;
-            el.PreviewMouseLeftButtonUp += OnLayoutDragEnd;
+            el.AddHandler(PointerPressedEvent, OnLayoutDragStart, RoutingStrategies.Tunnel);
+            el.AddHandler(PointerMovedEvent, OnLayoutDragMove, RoutingStrategies.Tunnel);
+            el.AddHandler(PointerReleasedEvent, OnLayoutDragEnd, RoutingStrategies.Tunnel);
         }
     }
 
     private void SetLayoutEdit(bool on)
     {
         _layoutEdit = on;
-        var vis = on ? Visibility.Visible : Visibility.Collapsed;
-        BubbleEditFrame.Visibility = vis;
-        EggEditFrame.Visibility = vis;
-        Bubble.Cursor = on ? Cursors.SizeAll : null;
-        EggGroup.Cursor = on ? Cursors.SizeAll : null;
+        var vis = on;
+        BubbleEditFrame.IsVisible = vis;
+        EggEditFrame.IsVisible = vis;
+        Bubble.Cursor = on ? new Cursor(StandardCursorType.SizeAll) : null;
+        EggGroup.Cursor = on ? new Cursor(StandardCursorType.SizeAll) : null;
     }
 
-    private void OnLayoutDragStart(object sender, MouseButtonEventArgs e)
+    private void OnLayoutDragStart(object? sender, PointerPressedEventArgs e)
     {
-        if (!_layoutEdit) return;
+        if (!_layoutEdit || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         e.Handled = true; // 창 DragMove·알 부화 클릭 차단
-        var el = (FrameworkElement)sender;
-        var t = (TranslateTransform)el.RenderTransform;
+        var el = (Control)sender!;
+        var t = (TranslateTransform)el.RenderTransform!;
         _dragStart = e.GetPosition(Root);
         _dragOrigin = new Point(t.X, t.Y);
-        el.CaptureMouse();
+        e.Pointer.Capture(el);
     }
 
-    private void OnLayoutDragMove(object sender, MouseEventArgs e)
+    private void OnLayoutDragMove(object? sender, PointerEventArgs e)
     {
         if (_dragStart is not { } start) return;
-        var el = (FrameworkElement)sender;
-        var t = (TranslateTransform)el.RenderTransform;
+        var el = (Control)sender!;
+        var t = (TranslateTransform)el.RenderTransform!;
         var d = e.GetPosition(Root) - start;
         var (prevX, prevY) = (t.X, t.Y);
         t.X = Math.Round(_dragOrigin.X + d.X);
         t.Y = Math.Round(_dragOrigin.Y + d.Y);
         // 창(루트) 밖으로 나가면 잘리므로 축별로 되돌림
-        var bounds = el.TransformToAncestor(Root).TransformBounds(new Rect(el.RenderSize));
-        if (bounds.Left < 0 || bounds.Right > Root.ActualWidth) t.X = prevX;
-        if (bounds.Top < 0 || bounds.Bottom > Root.ActualHeight) t.Y = prevY;
+        var bounds = new Rect(el.Bounds.Size).TransformToAABB(el.TransformToVisual(Root) ?? Matrix.Identity);
+        if (bounds.Left < 0 || bounds.Right > Root.Bounds.Width) t.X = prevX;
+        if (bounds.Top < 0 || bounds.Bottom > Root.Bounds.Height) t.Y = prevY;
     }
 
-    private void OnLayoutDragEnd(object sender, MouseButtonEventArgs e)
+    private void OnLayoutDragEnd(object? sender, PointerReleasedEventArgs e)
     {
         if (_dragStart == null) return;
         e.Handled = true;
         _dragStart = null;
-        ((FrameworkElement)sender).ReleaseMouseCapture();
+        e.Pointer.Capture(null);
     }
 
     /// <summary>현재 오프셋으로 LayoutDefaults.cs를 다시 씀. 다음 빌드부터 기본 위치.</summary>
@@ -667,7 +714,7 @@ public partial class MainWindow : Window
         var path = LayoutDefaults.SourcePath;
         if (!File.Exists(path))
         {
-            MessageBox.Show($"소스 파일을 찾을 수 없음:\n{path}", "배치 저장");
+            _ = AppDialog.ShowAsync(this, $"소스 파일을 찾을 수 없음:\n{path}", "배치 저장");
             return;
         }
         static string N(double v) => v.ToString(CultureInfo.InvariantCulture);
@@ -677,7 +724,7 @@ public partial class MainWindow : Window
         src = Regex.Replace(src, @"EggX = [^,]+, EggY = [^;]+;",
             $"EggX = {N(EggOffset.X)}, EggY = {N(EggOffset.Y)};");
         File.WriteAllText(path, src);
-        MessageBox.Show(
+        _ = AppDialog.ShowAsync(this,
             $"저장됨 — 다시 빌드하면 기본값으로 반영\n\n말풍선 ({N(BubbleOffset.X)}, {N(BubbleOffset.Y)})\n알 ({N(EggOffset.X)}, {N(EggOffset.Y)})\n\n{path}",
             "배치 저장");
     }
@@ -685,22 +732,34 @@ public partial class MainWindow : Window
 
     // ---- 창 ----
 
-    private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+    private PixelRect WorkingArea => (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea
+        ?? new PixelRect(0, 0, 1920, 1080);
+
+    private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         if (!_placed) return;
-        if (_anchorTop)
+        if (!_anchorTop)
         {
-            // 서랍 펼침/접힘 중: 상단 고정(아래로 펼쳐짐). 단, 작업 영역 아래로 나가면 그만큼 위로.
-            var wa = SystemParameters.WorkArea;
-            if (Top + e.NewSize.Height > wa.Bottom) Top = wa.Bottom - e.NewSize.Height;
-            return;
+            Position = new PixelPoint(
+                Position.X + (int)Math.Round((e.PreviousSize.Width - e.NewSize.Width) * RenderScaling / 2),
+                Position.Y + (int)Math.Round((e.PreviousSize.Height - e.NewSize.Height) * RenderScaling));
         }
-        // 스프라이트 교체로 크기가 바뀌어도 발 위치(하단 중앙) 고정
-        if (e.HeightChanged) Top += e.PreviousSize.Height - e.NewSize.Height;
-        if (e.WidthChanged) Left += (e.PreviousSize.Width - e.NewSize.Width) / 2;
+        ClampToScreen();
     }
 
-    private void OnDrag(object sender, MouseButtonEventArgs e) => DragMove();
+    private void ClampToScreen()
+    {
+        var wa = WorkingArea;
+        var width = (int)Math.Ceiling(Bounds.Width * RenderScaling);
+        var height = (int)Math.Ceiling(Bounds.Height * RenderScaling);
+        Position = new PixelPoint(Math.Clamp(Position.X, wa.X, Math.Max(wa.X, wa.Right - width)),
+            Math.Clamp(Position.Y, wa.Y, Math.Max(wa.Y, wa.Bottom - height)));
+    }
 
-    private void OnExit(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
+    private void OnDrag(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e);
+    }
+
+    private void OnExit(object? sender, RoutedEventArgs e) => Close();
 }

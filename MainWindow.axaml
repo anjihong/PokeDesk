@@ -1,0 +1,230 @@
+<Window x:Class="DeskPokemon.MainWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DeskPokemon"
+        SystemDecorations="None" TransparencyLevelHint="Transparent" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" CanResize="False"
+        SizeToContent="WidthAndHeight"
+        RenderOptions.BitmapInterpolationMode="None">
+  <Window.Resources>
+  <ControlTheme x:Key="GenTab" TargetType="RadioButton">
+    <Setter Property="Foreground" Value="#DDDDDD"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Margin" Value="2,0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border" CornerRadius="4" Padding="7,2" Background="#33FFFFFF" BorderThickness="0" BorderBrush="Transparent">
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover /template/ Border#PART_Border">
+      <Setter Property="Background" Value="#55FFFFFF"/>
+    </Style>
+    <Style Selector="^:checked /template/ Border#PART_Border">
+      <Setter Property="Background" Value="#FFD84A"/>
+    </Style>
+    <Style Selector="^:checked"><Setter Property="Foreground" Value="#202020"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="MenuTab" TargetType="ToggleButton">
+    <Setter Property="Foreground" Value="#DDDDDD"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Margin" Value="3,0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border" CornerRadius="4" Padding="10,3" Background="#33FFFFFF" BorderThickness="0" BorderBrush="Transparent">
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover /template/ Border#PART_Border">
+      <Setter Property="Background" Value="#55FFFFFF"/>
+    </Style>
+    <Style Selector="^:checked /template/ Border#PART_Border">
+      <Setter Property="Background" Value="#FFD84A"/>
+    </Style>
+    <Style Selector="^:checked"><Setter Property="Foreground" Value="#202020"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
+  </ControlTheme>
+  <ControlTheme x:Key="IconButton" TargetType="RadioButton">
+    <Setter Property="ToolTip.ShowOnDisabled" Value="True"/>
+    <Setter Property="Margin" Value="1"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_Border" CornerRadius="4" Padding="0" Background="Transparent" BorderThickness="2" BorderBrush="Transparent">
+          <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover /template/ Border#PART_Border">
+      <Setter Property="Background" Value="#55FFFFFF"/>
+    </Style>
+    <Style Selector="^:checked /template/ Border#PART_Border">
+      <Setter Property="BorderBrush" Value="#FFD84A"/>
+    </Style>
+
+    <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/></Style>
+  </ControlTheme>
+  </Window.Resources>
+  <Window.ContextMenu>
+    <ContextMenu>
+      <MenuItem Header="전역 입력 다시 연결" Click="OnRetryInput"/>
+      <MenuItem Header="스프라이트 다시 불러오기" Click="OnRetrySprite"/>
+      <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>
+      <Separator/>
+      <MenuItem Header="종료" Click="OnExit"/>
+    </ContextMenu>
+  </Window.ContextMenu>
+
+  <!-- Background=Transparent: 빈 영역도 히트테스트되어 드래그 가능. 버튼류·알은 클릭을 handled 처리하므로 드래그로 안 넘어감. -->
+  <StackPanel x:Name="Root" Width="300" Background="Transparent" PointerPressed="OnDrag">
+    <!-- 상단: 포켓몬(왼쪽) + 알 열(오른쪽). 위쪽 여백은 스트레치(ScaleY 1.12) 시 잘리지 않도록. -->
+    <Grid x:Name="TopArea" Margin="0,24,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <LayoutTransformControl ClipToBounds="False" x:Name="StageZoom" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0">
+        <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="3" ScaleY="3"/></LayoutTransformControl.LayoutTransform>
+      <Border>
+      <Canvas x:Name="Stage" Width="42" Height="42" RenderTransformOrigin="50%,100%"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom">
+        <Canvas.RenderTransform>
+          <ScaleTransform/>
+        </Canvas.RenderTransform>
+        <Image x:Name="Sprite" Stretch="Fill"/>
+      </Canvas>
+      </Border>
+      </LayoutTransformControl>
+
+      <!-- 알 열: 말풍선 → NEW! → 알(또는 태어난 포켓몬) -->
+      <StackPanel Grid.Column="1" Width="96" VerticalAlignment="Bottom" Margin="0,0,6,0">
+        <!-- 위치 오프셋(BubbleOffset/EggOffset)은 LayoutDefaults에서 코드로 설정. Debug 빌드 배치 편집으로 드래그 조정. -->
+        <Grid x:Name="Bubble" HorizontalAlignment="Center" Margin="0,0,0,2">
+          <Grid.RenderTransform>
+            <TranslateTransform/>
+          </Grid.RenderTransform>
+          <Border Background="#F0FFFFFF" CornerRadius="10" Padding="8,4" Margin="0,0,0,7">
+            <TextBlock x:Name="BubbleText" Text="30:00" Foreground="#202020" FontSize="11" FontWeight="Bold"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="80"/>
+          </Border>
+          <!-- 말풍선 꼬리 -->
+          <Polygon Points="0,0 10,0 3,7" Fill="#F0FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,0"/>
+          <Rectangle x:Name="BubbleEditFrame" Stroke="#FFD84A" StrokeThickness="1" StrokeDashArray="3,2"
+                     IsHitTestVisible="False" IsVisible="False"/>
+        </Grid>
+
+        <!-- 알 묶음: NEW! + 알 + 태어난 포켓몬. 함께 이동. -->
+        <Grid x:Name="EggGroup">
+          <Grid.RenderTransform>
+            <TranslateTransform/>
+          </Grid.RenderTransform>
+          <StackPanel>
+            <TextBlock x:Name="NewText" Text="NEW!" Foreground="#FFD84A" FontWeight="Bold" FontSize="14"
+                       HorizontalAlignment="Center" IsVisible="False" Margin="0,0,0,2">
+              <TextBlock.Effect><DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="4" Color="Black"/></TextBlock.Effect>
+            </TextBlock>
+
+            <!-- 알: 28x30 원본을 2배. 발 기준 회전/스케일. -->
+            <LayoutTransformControl ClipToBounds="False" x:Name="EggZoom" HorizontalAlignment="Center" IsVisible="{Binding IsVisible, ElementName=EggStage}">
+              <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="2" ScaleY="2"/></LayoutTransformControl.LayoutTransform>
+            <Border>
+            <Canvas x:Name="EggStage" Width="28" Height="30" HorizontalAlignment="Center" RenderTransformOrigin="50%,100%"
+                    Cursor="Hand" Background="Transparent" PointerPressed="OnEggClick"
+                    AutomationProperties.Name="알">
+              <Canvas.RenderTransform>
+                <TransformGroup>
+                  <ScaleTransform/>
+                  <RotateTransform/>
+                </TransformGroup>
+              </Canvas.RenderTransform>
+              <!-- 에셋 로드 전/실패 시 대체 -->
+              <Ellipse x:Name="EggFallback" Width="24" Height="30" Canvas.Left="2" Fill="#F1E3C4" Stroke="#B8A47A" StrokeThickness="1"/>
+              <Image x:Name="EggImage" Width="28" Height="30" Stretch="Fill"/>
+              <Image x:Name="CrackImage" Stretch="Fill" IsVisible="False"/>
+              <Ellipse x:Name="Flash" Width="24" Height="30" Canvas.Left="2" Fill="White" Opacity="0" IsHitTestVisible="False"/>
+            </Canvas>
+            </Border>
+            </LayoutTransformControl>
+
+            <!-- 태어난 포켓몬 아이콘(40x30 원본을 2배) -->
+            <LayoutTransformControl ClipToBounds="False" HorizontalAlignment="Center" IsVisible="{Binding IsVisible, ElementName=ResultImage}">
+              <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="2" ScaleY="2"/></LayoutTransformControl.LayoutTransform>
+            <Border>
+            <Image x:Name="ResultImage" Width="40" Height="30" Stretch="None" HorizontalAlignment="Center"
+                   RenderTransformOrigin="50%,100%" IsVisible="False" AutomationProperties.Name="부화결과">
+              <Image.RenderTransform>
+                <ScaleTransform/>
+              </Image.RenderTransform>
+            </Image>
+            </Border>
+            </LayoutTransformControl>
+          </StackPanel>
+          <Rectangle x:Name="EggEditFrame" Stroke="#FFD84A" StrokeThickness="1" StrokeDashArray="3,2"
+                     IsHitTestVisible="False" IsVisible="False"/>
+        </Grid>
+      </StackPanel>
+    </Grid>
+
+    <!-- 레벨 + 경험치 바. 오른쪽 여백 = 알 열 폭(96) + 여백(6) → 포켓몬 열(Grid 0열)과 같은 중앙선. -->
+    <StackPanel HorizontalAlignment="Center" Margin="0,4,102,6">
+      <TextBlock x:Name="LevelText" Text="Lv. 1" Foreground="White" FontWeight="Bold" FontSize="14"
+                 HorizontalAlignment="Center" RenderTransformOrigin="50%,50%">
+        <TextBlock.RenderTransform>
+          <ScaleTransform/>
+        </TextBlock.RenderTransform>
+        <TextBlock.Effect><DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="4" Color="Black"/></TextBlock.Effect>
+      </TextBlock>
+      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0">
+        <Rectangle x:Name="ExpBar" HorizontalAlignment="Left" Width="0" Fill="#FFD84A" RadiusX="3" RadiusY="3"/>
+      </Border>
+    </StackPanel>
+
+    <!-- 메뉴 탭. 누르면 아래 서랍이 펼쳐지고 다시 누르면 접힘. 2·3은 추후. -->
+    <Border Background="#CC202020" CornerRadius="8" Padding="6,5" Width="210" HorizontalAlignment="Center">
+      <StackPanel x:Name="MenuTabs" Orientation="Horizontal" HorizontalAlignment="Left">
+        <ToggleButton Content="도감" Tag="dex" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked"/>
+        <ToggleButton Content="메뉴 2" Tag="menu2" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" IsEnabled="False"/>
+        <ToggleButton Content="메뉴 3" Tag="menu3" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" IsEnabled="False"/>
+      </StackPanel>
+    </Border>
+
+    <!-- 서랍: Height를 0↔내용 높이로 애니메이션 -->
+    <Border x:Name="Drawer" Height="0" ClipToBounds="True">
+      <Border x:Name="DrawerContent" Background="#CC202020" CornerRadius="8" Padding="6" Margin="0,4,0,0" VerticalAlignment="Top">
+        <Grid>
+          <!-- 도감: 세대 탭 + 보유만 보기 + 아이콘 격자 (코드에서 채움). 미보유 종은 실루엣·선택 불가. -->
+          <StackPanel x:Name="DexPanel">
+            <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+            <Grid Margin="2,0,2,4">
+              <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
+                        HorizontalAlignment="Left" IsCheckedChanged="OnOwnedOnlyChanged"/>
+              <TextBlock x:Name="OwnedCount" Text="보유 1/1025" Foreground="#DDDDDD" FontSize="11"
+                         HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+            <ScrollViewer x:Name="IconScroll" Height="150"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <WrapPanel x:Name="IconGrid"/>
+            </ScrollViewer>
+          </StackPanel>
+          <TextBlock x:Name="PlaceholderPanel" Text="준비 중" Foreground="#DDDDDD" HorizontalAlignment="Center"
+                     Margin="0,40" IsVisible="False"/>
+        </Grid>
+      </Border>
+    </Border>
+    <Border x:Name="InputNotice" IsVisible="False" Background="#E6202020" CornerRadius="8" Padding="8" Margin="0,4,0,0">
+      <StackPanel Spacing="6">
+        <TextBlock x:Name="InputStatusText" Foreground="#DDDDDD" FontSize="11" TextWrapping="Wrap"/>
+        <Button Content="권한 요청 / 다시 연결" Click="OnRetryInput" HorizontalAlignment="Center" FontSize="11"/>
+      </StackPanel>
+    </Border>
+    <TextBlock x:Name="SpriteStatus" IsVisible="False" Foreground="White" Background="#E6202020" FontSize="11" TextWrapping="Wrap" Margin="6"/>
+  </StackPanel>
+</Window>

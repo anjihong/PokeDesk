@@ -1,0 +1,34 @@
+<Window x:Class="DeskPokemon.StarterWindow"
+        xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DeskPokemon - 스타팅 선택" SystemDecorations="None" TransparencyLevelHint="Transparent"
+        Background="Transparent" Topmost="True" CanResize="False" SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterScreen" RenderOptions.BitmapInterpolationMode="None">
+  <Window.Resources>
+    <ControlTheme x:Key="Choice" TargetType="Button">
+      <Setter Property="Margin" Value="4,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_Border" CornerRadius="6" Padding="8,6" Background="#33FFFFFF" BorderThickness="2" BorderBrush="Transparent">
+            <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Border#PART_Border">
+        <Setter Property="Background" Value="#55FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#FFD84A"/>
+      </Style>
+    </ControlTheme>
+  </Window.Resources>
+  <Border Background="#E6202020" CornerRadius="10" Padding="12,10" PointerPressed="OnDrag">
+    <StackPanel>
+      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+        <TextBlock Text="스타팅 포켓몬을 골라줘" Foreground="White" FontWeight="Bold" FontSize="14"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Button Grid.Column="1" Content="×" Click="OnClose" Foreground="#DDDDDD" Background="Transparent"
+                BorderThickness="0" Cursor="Hand" Padding="4,0" ToolTip.Tip="종료"/>
+      </Grid>
+      <StackPanel x:Name="Choices" Orientation="Horizontal" HorizontalAlignment="Center"/>
+    </StackPanel>
+  </Border>
+</Window>

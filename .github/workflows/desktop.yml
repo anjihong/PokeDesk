@@ -1,0 +1,120 @@
+name: Windows and macOS
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-publish:
+    name: ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            runtime: win-x64
+          - os: macos-15
+            runtime: osx-arm64
+          - os: macos-15-intel
+            runtime: osx-x64
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build the shared desktop UI
+        run: dotnet build DeskPokemon.csproj --configuration Release
+      - name: Test
+        run: >-
+          dotnet test Tests/DeskPokemon.Tests/DeskPokemon.Tests.csproj
+          --configuration Release
+          --logger "trx;LogFileName=tests.trx"
+          --results-directory artifacts/test-results
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tests-${{ matrix.runtime }}
+          path: artifacts/test-results
+          if-no-files-found: ignore
+      - name: Publish a self-contained application
+        run: >-
+          dotnet publish DeskPokemon.csproj --configuration Release
+          --runtime ${{ matrix.runtime }} --self-contained true
+          --output artifacts/publish/${{ matrix.runtime }}
+          -p:PublishSingleFile=false -p:PublishTrimmed=false
+      - name: Package macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash scripts/package-macos.sh "artifacts/publish/${{ matrix.runtime }}" "artifacts/package/${{ matrix.runtime }}"
+      - name: Upload Windows application
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: DeskPokemon-${{ matrix.runtime }}
+          path: artifacts/publish/${{ matrix.runtime }}
+          if-no-files-found: error
+      - name: Upload macOS application archive
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: DeskPokemon-${{ matrix.runtime }}
+          path: artifacts/package/${{ matrix.runtime }}/DeskPokemon.zip
+          if-no-files-found: error
+
+  compare-screenshots:
+    name: Compare Windows and macOS screenshots
+    needs: build-test-publish
+    if: always() && !cancelled()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download native runner test artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: tests-*
+          path: artifacts/native-tests
+          merge-multiple: false
+      - name: Install image comparison dependency
+        run: |
+          python3 -m venv .visual-venv
+          .visual-venv/bin/python -m pip install Pillow==12.3.0
+      - name: Compare shared UI renders across platforms
+        run: >-
+          .visual-venv/bin/python scripts/compare-screenshots.py
+          --artifacts-root artifacts/native-tests
+          --output artifacts/visual-comparison
+      - name: Publish comparison summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f artifacts/visual-comparison/summary.md ]]; then
+            cat artifacts/visual-comparison/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Screenshot comparison did not run; inspect the preceding job steps.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload comparison report and visual diffs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-visual-comparison
+          path: artifacts/visual-comparison
+          if-no-files-found: warn
