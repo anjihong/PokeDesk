@@ -2,7 +2,8 @@
         xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DeskPokemon - 스타팅 선택" SystemDecorations="None" TransparencyLevelHint="Transparent"
         Background="Transparent" Topmost="True" CanResize="False" SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterScreen" RenderOptions.BitmapInterpolationMode="None">
+        WindowStartupLocation="CenterScreen" RenderOptions.BitmapInterpolationMode="None"
+        RenderOptions.TextRenderingMode="Antialias">
   <Window.Resources>
     <ControlTheme x:Key="Choice" TargetType="Button">
       <Setter Property="Margin" Value="4,0"/>
@@ -26,7 +27,9 @@
         <TextBlock Text="스타팅 포켓몬을 골라줘" Foreground="White" FontWeight="Bold" FontSize="14"
                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
         <Button Grid.Column="1" Content="×" Click="OnClose" Foreground="#DDDDDD" Background="Transparent"
-                BorderThickness="0" Cursor="Hand" Padding="4,0" ToolTip.Tip="종료"/>
+                BorderThickness="0" Cursor="Hand" Padding="4,0">
+          <ToolTip.Tip><ToolTip Content="종료" RenderOptions.TextRenderingMode="Antialias"/></ToolTip.Tip>
+        </Button>
       </Grid>
       <StackPanel x:Name="Choices" Orientation="Horizontal" HorizontalAlignment="Center"/>
     </StackPanel>

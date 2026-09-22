@@ -5,7 +5,8 @@
         SystemDecorations="None" TransparencyLevelHint="Transparent" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" CanResize="False"
         SizeToContent="WidthAndHeight"
-        RenderOptions.BitmapInterpolationMode="None">
+        RenderOptions.BitmapInterpolationMode="None"
+        RenderOptions.TextRenderingMode="Antialias">
   <Window.Resources>
   <ControlTheme x:Key="GenTab" TargetType="RadioButton">
     <Setter Property="Foreground" Value="#DDDDDD"/>
@@ -73,7 +74,7 @@
   </ControlTheme>
   </Window.Resources>
   <Window.ContextMenu>
-    <ContextMenu>
+    <ContextMenu RenderOptions.TextRenderingMode="Antialias">
       <MenuItem Header="전역 입력 다시 연결" Click="OnRetryInput"/>
       <MenuItem Header="스프라이트 다시 불러오기" Click="OnRetrySprite"/>
       <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>

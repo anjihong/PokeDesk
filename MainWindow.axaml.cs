@@ -521,7 +521,7 @@ public partial class MainWindow : Window
             Cursor = owned ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow),
             IsChecked = dex == _settings.SelectedDex, // 핸들러 연결 전에 설정해 재선택 방지
         };
-        ToolTip.SetTip(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}" : $"#{dex} ??? (미보유)");
+        UiToolTips.Set(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}" : $"#{dex} ??? (미보유)");
         rb.IsCheckedChanged += OnIconChecked;
         return rb;
     }

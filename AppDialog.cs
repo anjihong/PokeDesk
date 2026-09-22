@@ -20,6 +20,7 @@ internal static class AppDialog
             CanResize = false, SizeToContent = SizeToContent.WidthAndHeight,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Topmost = true,
         };
+        RenderOptions.SetTextRenderingMode(dialog, TextRenderingMode.Antialias);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         if (confirm)
         {

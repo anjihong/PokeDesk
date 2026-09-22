@@ -48,7 +48,7 @@ public partial class StarterWindow : Window
         });
 
         var button = new Button { Content = panel, Theme = (ControlTheme)Resources["Choice"]! };
-        ToolTip.SetTip(button, $"#{dex} {PokemonNames.Of(dex)}");
+        UiToolTips.Set(button, $"#{dex} {PokemonNames.Of(dex)}");
         button.Click += (_, _) =>
         {
             SelectedDex = dex;

@@ -27,6 +27,7 @@ public class UiTests
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
             Assert.Equal(SystemDecorations.None, window.SystemDecorations);
+            Assert.Equal(TextRenderingMode.Antialias, RenderOptions.GetTextRenderingMode(window));
             Assert.Contains("NanumGothic", window.FontFamily.Name);
             Assert.Contains(WindowTransparencyLevel.Transparent, window.TransparencyLevelHint);
             var choices = window.FindControl<StackPanel>("Choices")!;
@@ -78,6 +79,7 @@ public class UiTests
             Assert.Equal(9, window.FindControl<StackPanel>("GenTabs")!.Children.Count);
             Assert.Equal(300, window.Bounds.Width);
             Assert.True(window.Topmost);
+            Assert.Equal(TextRenderingMode.Antialias, RenderOptions.GetTextRenderingMode(window));
             Assert.False(window.ShowInTaskbar);
             Assert.False(window.FindControl<Border>("InputNotice")!.IsVisible);
             var closedHeight = window.Bounds.Height;
