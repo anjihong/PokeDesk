@@ -10,10 +10,18 @@ public class ProgressTests
         var settings = Settings.New(906);
         Assert.Equal(906, settings.SelectedDex);
         Assert.Equal(new[] { 906 }, settings.Owned);
-        for (var i = 0; i < 9; i++) Assert.False(settings.AddExp(906));
+        for (var i = 0; i < 29; i++) Assert.False(settings.AddExp(906));
         Assert.True(settings.AddExp(906));
         Assert.Equal((2, 0), (settings.For(906).Level, settings.For(906).Exp));
         Assert.Equal((1, 0), (settings.For(4).Level, settings.For(4).Exp));
+    }
+
+    [Fact]
+    public void TenThousandInputsReachLevel26AndKeepRemainingExperience()
+    {
+        var settings = Settings.New(4);
+        for (var i = 0; i < 10_000; i++) settings.AddExp(4);
+        Assert.Equal((26, 250), (settings.For(4).Level, settings.For(4).Exp));
     }
 
     [Fact]

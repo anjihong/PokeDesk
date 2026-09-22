@@ -39,8 +39,8 @@ public sealed class Settings
     public int Eggs { get; set; }                       // 보유 알
     public double EggSeconds { get; set; }              // 다음 알까지 누적 실행 시간(초)
 
-    /// <summary>다음 레벨까지 필요한 입력 횟수. 레벨에 비례.</summary>
-    public static int ExpToNext(int level) => level * 10;
+    /// <summary>다음 레벨까지 필요한 입력 횟수: 현재 레벨 × 30.</summary>
+    public static int ExpToNext(int level) => level * 30;
 
     public PokemonProgress For(int dex)
     {

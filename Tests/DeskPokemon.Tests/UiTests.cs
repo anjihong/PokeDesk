@@ -52,7 +52,7 @@ public class UiTests
     public async Task SharedMainViewOpensDexAndRestoresCollapsedHeight(int scale)
     {
         var settings = Settings.New(4);
-        settings.For(4).Exp = 5;
+        settings.For(4).Exp = 15;
         var window = new MainWindow(settings, false);
         using var icon = TestSprite();
         try
