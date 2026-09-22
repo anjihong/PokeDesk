@@ -60,21 +60,21 @@ public sealed class SpriteAtlas
     }
 
     /// <summary>
-    /// 일반: PokeRogue exp/ → 기본 → PokeAPI GIF.
-    /// 아틀라스가 정지이고 GIF가 없으면 정지 아틀라스를 유지한다.
+    /// 일반: PokeRogue exp/ → 기본 → PokeAPI GIF. 이로치: exp/shiny/ → shiny/ → shiny GIF → shiny 정지 PNG.
+    /// 아틀라스가 정지이고 GIF가 없으면 정지 아틀라스를 유지한다. 색상 간 대체는 하지 않는다.
     /// </summary>
-    public static async Task<SpriteAtlas> LoadAsync(int dexId)
+    public static async Task<SpriteAtlas> LoadAsync(int dexId, bool isShiny = false)
     {
         var key = PokemonForms.SpriteKey(dexId);
         SpriteAtlas? still = null;
-        foreach (var dir in new[] { "pokemon/exp/", "pokemon/" })
+        foreach (var dir in isShiny ? new[] { "pokemon/exp/shiny/", "pokemon/shiny/" } : new[] { "pokemon/exp/", "pokemon/" })
         {
             try
             {
                 still = Parse(await CachedAsync($"{dir}{key}.json"), await CachedAsync($"{dir}{key}.png"));
                 break;
             }
-            catch (HttpRequestException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 // 그 경로에 없음 → 다음 후보
             }
@@ -83,11 +83,23 @@ public sealed class SpriteAtlas
 
         try
         {
-            return ParseGif(await CachedAsync($"pokeapi/{dexId}.gif", $"{GifUrl}{dexId}.gif"));
+            var color = isShiny ? "shiny/" : "";
+            return ParseGif(await CachedAsync($"pokeapi/{color}{dexId}.gif", $"{GifUrl}{color}{dexId}.gif"));
         }
-        catch (HttpRequestException) when (still != null)
+        catch (Exception ex) when (still != null && ex is HttpRequestException or TaskCanceledException)
         {
             return still; // GIF도 없음 → 정지 그대로
+        }
+        catch (Exception ex) when (isShiny && ex is HttpRequestException or TaskCanceledException)
+        {
+            // 이로치 애니메이션이 없는 종도 색상은 유지한다. 일반 이미지로 대체하지 않는다.
+            var sheet = LoadSheet(await CachedAsync($"pokeapi/shiny/{dexId}.png",
+                $"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/{dexId}.png"));
+            var pixels = new byte[sheet.PixelWidth * sheet.PixelHeight * 4];
+            new FormatConvertedBitmap(sheet, PixelFormats.Bgra32, null, 0)
+                .CopyPixels(pixels, sheet.PixelWidth * 4, 0);
+            return new SpriteAtlas(sheet.PixelWidth, sheet.PixelHeight,
+                [Snapshot(pixels, sheet.PixelWidth, sheet.PixelHeight)]);
         }
     }
 
