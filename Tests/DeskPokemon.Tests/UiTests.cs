@@ -3,7 +3,9 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -137,6 +139,268 @@ public class UiTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task ExperienceTooltipOpensOnHoverAndUpdatesInPlaceWhenLevelChanges()
+    {
+        var settings = Settings.New(4);
+        settings.For(4).Exp = 29;
+        var window = new MainWindow(settings, false);
+        try
+        {
+            ShowAndLayout(window);
+            var track = window.FindControl<Border>("ExpTrack")!;
+            var tooltip = Assert.IsType<ToolTip>(ToolTip.GetTip(track));
+            Assert.Equal(PlacementMode.Top, ToolTip.GetPlacement(track));
+            Assert.Equal(300, ToolTip.GetShowDelay(track));
+            Assert.Equal("현재 경험치: 29\n필요 경험치: 30", tooltip.Content);
+            Assert.False(ToolTip.GetIsOpen(track));
+
+            Hover(window, track);
+            Assert.True(track.IsPointerOver);
+            await EventuallyAsync(window, () => ToolTip.GetIsOpen(track));
+            Assert.NotNull(tooltip.GetVisualRoot());
+            await EventuallyAsync(window, () => tooltip.Bounds.Width > 0 && tooltip.Bounds.Height > 0 && tooltip.Opacity == 1);
+            Capture(tooltip, "exp-tooltip", 1);
+            Capture(tooltip, "exp-tooltip", 2);
+
+            Invoke(window, "AddExp");
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Equal(2, settings.For(4).Level);
+            Assert.Equal(0, settings.For(4).Exp);
+            Assert.Equal("Lv. 2", window.FindControl<TextBlock>("LevelText")!.Text);
+            Assert.Same(tooltip, ToolTip.GetTip(track));
+            Assert.True(ToolTip.GetIsOpen(track));
+            Assert.Equal("현재 경험치: 0\n필요 경험치: 60", tooltip.Content);
+            Assert.False(window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.IsVisible);
+
+            // The same already-visible tooltip must continue updating, without a second hover.
+            Invoke(window, "AddExp");
+            Assert.Same(tooltip, ToolTip.GetTip(track));
+            Assert.True(ToolTip.GetIsOpen(track));
+            Assert.Equal("현재 경험치: 1\n필요 경험치: 60", tooltip.Content);
+
+            window.MouseMove(new Point(-1, -1), RawInputModifiers.None);
+            await EventuallyAsync(window, () => !ToolTip.GetIsOpen(track));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task EmptyExperienceBarStillHasAFullWidthHoverTarget()
+    {
+        var window = new MainWindow(Settings.New(4), false);
+        try
+        {
+            ShowAndLayout(window);
+            var track = window.FindControl<Border>("ExpTrack")!;
+            var bar = window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!;
+            Assert.Equal(0, bar.Width);
+            Assert.False(bar.IsVisible);
+            Assert.Equal(100, track.Bounds.Width);
+
+            // Hover near the right edge of the background track, where no fill exists.
+            Hover(window, track, new Point(track.Bounds.Width - 2, track.Bounds.Height / 2));
+            Assert.True(track.IsPointerOver);
+            await EventuallyAsync(window, () => ToolTip.GetIsOpen(track));
+            var tooltip = Assert.IsType<ToolTip>(ToolTip.GetTip(track));
+            Assert.Equal("현재 경험치: 0\n필요 경험치: 30", tooltip.Content);
+            Assert.NotNull(tooltip.GetVisualRoot());
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task DrawerMovesUpByItsExpansionAndReturnsToEachChosenPositionWithoutDrift()
+    {
+        var window = new MainWindow(Settings.New(4), false);
+        try
+        {
+            var (tab, drawer, area, expansion) = PreparePositionedDrawer(window);
+            var baselineHeight = window.Bounds.Height;
+            for (var cycle = 0; cycle < 3; cycle++)
+            {
+                var origin = new PixelPoint(area.X + 137 + cycle * 17,
+                    area.Y + (int)Math.Ceiling(expansion * window.DesktopScaling) + 73 + cycle * 11);
+                window.Position = origin;
+                Assert.Equal(origin, window.Position);
+
+                tab.IsChecked = true;
+                await EventuallyAsync(window, () => Math.Abs(drawer.Height - expansion) < .001);
+                Assert.True(window.Bounds.Height > baselineHeight + 150);
+                Assert.Equal(origin.X, window.Position.X);
+                Assert.Equal(origin.Y - (int)Math.Round((window.Bounds.Height - baselineHeight) * window.DesktopScaling),
+                    window.Position.Y);
+
+                tab.IsChecked = false;
+                await EventuallyAsync(window, () => drawer.Height == 0);
+                Assert.Equal(baselineHeight, window.Bounds.Height);
+                Assert.Equal(origin, window.Position);
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task MovingAnOpenDrawerThenResizingThePetKeepsTheNewBottomAnchor()
+    {
+        var window = new MainWindow(Settings.New(4), false);
+        try
+        {
+            var (tab, drawer, area, expansion) = PreparePositionedDrawer(window);
+            var origin = new PixelPoint(area.X + 123,
+                area.Y + (int)Math.Ceiling(expansion * window.DesktopScaling) + 160);
+            window.Position = origin;
+            tab.IsChecked = true;
+            await EventuallyAsync(window, () => Math.Abs(drawer.Height - expansion) < .001);
+
+            var draggedPosition = new PixelPoint(origin.X + 61, window.Position.Y + 97);
+            window.Position = draggedPosition;
+            Assert.Equal(draggedPosition, window.Position);
+            var heightBeforePetResize = window.Bounds.Height;
+            var widthBeforePetResize = window.Bounds.Width;
+
+            // A sprite change can resize the pet while its drawer remains open.
+            // Change the real measured content, not the positioning callback or anchor fields.
+            window.FindControl<Canvas>("Stage")!.Height += 18.25;
+            await EventuallyAsync(window, () => window.Bounds.Height > heightBeforePetResize);
+            var resizedOpenHeight = window.Bounds.Height;
+            var resizedOpenPosition = window.Position;
+            Assert.Equal(widthBeforePetResize, window.Bounds.Width);
+            Assert.Equal(draggedPosition.X, resizedOpenPosition.X);
+            Assert.Equal(draggedPosition.Y - (int)Math.Round(
+                (resizedOpenHeight - heightBeforePetResize) * window.DesktopScaling), resizedOpenPosition.Y);
+
+            tab.IsChecked = false;
+            await EventuallyAsync(window, () => drawer.Height == 0);
+            Assert.True(resizedOpenHeight > window.Bounds.Height);
+            Assert.Equal(draggedPosition.X, window.Position.X);
+            Assert.Equal(resizedOpenPosition.Y + (int)Math.Round(
+                (resizedOpenHeight - window.Bounds.Height) * window.DesktopScaling), window.Position.Y);
+            Assert.NotEqual(origin, window.Position);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ReversingTheDrawerMidAnimationKeepsTheOriginalPositionAnchor()
+    {
+        var window = new MainWindow(Settings.New(4), false);
+        try
+        {
+            var (tab, drawer, area, expansion) = PreparePositionedDrawer(window);
+            var baselineHeight = window.Bounds.Height;
+            var origin = new PixelPoint(area.X + 151,
+                area.Y + (int)Math.Ceiling(expansion * window.DesktopScaling) + 81);
+            window.Position = origin;
+            tab.IsChecked = true;
+
+            // Freeze the real timeline at an intermediate frame, then let headless
+            // resize events settle without racing its wall-clock completion.
+            SeekDrawerFrameWithoutClock(window, .07);
+            await EventuallyAsync(window, () => window.Bounds.Height > baselineHeight);
+            Assert.True(drawer.Height < expansion);
+            Assert.InRange(window.Position.Y, area.Y + 1, origin.Y - 1);
+            var partialHeight = window.Bounds.Height;
+            tab.IsChecked = false;
+
+            SeekDrawerFrameWithoutClock(window, .10);
+            await EventuallyAsync(window, () => window.Bounds.Height < partialHeight);
+            Assert.True(window.Bounds.Height > baselineHeight);
+            tab.IsChecked = true;
+            await EventuallyAsync(window, () => Math.Abs(drawer.Height - expansion) < .001);
+            Assert.Equal(origin.X, window.Position.X);
+            Assert.Equal(origin.Y - (int)Math.Round((window.Bounds.Height - baselineHeight) * window.DesktopScaling),
+                window.Position.Y);
+
+            tab.IsChecked = false;
+            await EventuallyAsync(window, () => drawer.Height == 0);
+            Assert.Equal(baselineHeight, window.Bounds.Height);
+            Assert.Equal(origin, window.Position);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task DrawerClampsAtTheScreenTopAndStillReturnsToItsOriginalPosition()
+    {
+        var window = new MainWindow(Settings.New(4), false);
+        try
+        {
+            var (tab, drawer, area, expansion) = PreparePositionedDrawer(window);
+            var baselineHeight = window.Bounds.Height;
+            var origin = new PixelPoint(area.X + 127, area.Y + 5);
+            window.Position = origin;
+            for (var cycle = 0; cycle < 2; cycle++)
+            {
+                tab.IsChecked = true;
+                await EventuallyAsync(window, () => Math.Abs(drawer.Height - expansion) < .001);
+                Assert.Equal(origin.X, window.Position.X);
+                Assert.Equal(area.Y, window.Position.Y);
+
+                tab.IsChecked = false;
+                await EventuallyAsync(window, () => drawer.Height == 0);
+                Assert.Equal(baselineHeight, window.Bounds.Height);
+                Assert.Equal(origin, window.Position);
+            }
+        }
+        finally { window.Close(); }
+    }
+
+    private static void ShowAndLayout(MainWindow window)
+    {
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+    }
+
+    private static void Hover(MainWindow window, Control control, Point? point = null)
+    {
+        var local = point ?? new Point(control.Bounds.Width / 2, control.Bounds.Height / 2);
+        var position = control.TranslatePoint(local, window);
+        Assert.NotNull(position);
+        window.MouseMove(position.Value, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    private static async Task EventuallyAsync(MainWindow window, Func<bool> condition)
+    {
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        do
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            if (condition()) return;
+            await Task.Delay(20);
+        } while (timeout.Elapsed < TimeSpan.FromSeconds(3));
+        Assert.True(condition(), "The expected UI state was not reached within three seconds.");
+    }
+
+    private static void SeekDrawerFrameWithoutClock(MainWindow window, double seconds)
+    {
+        var animation = (Timeline)typeof(MainWindow).GetField("_drawerAnimation", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(window)!;
+        animation.Dispose(); // Stop automatic ticks; the next toggle replaces this timeline normally.
+        typeof(Timeline).GetMethod("Apply", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(animation, [seconds]);
+    }
+
+    private static (ToggleButton Tab, Border Drawer, PixelRect Area, double Expansion) PreparePositionedDrawer(MainWindow window)
+    {
+        ShowAndLayout(window);
+        var drawer = window.FindControl<Border>("Drawer")!;
+        var content = window.FindControl<Border>("DrawerContent")!;
+        content.Measure(new Size(300, double.PositiveInfinity));
+        var expansion = content.DesiredSize.Height;
+        var area = (PixelRect)typeof(MainWindow).GetProperty("WorkingArea", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(window)!;
+        // startServices=false deliberately skips native startup; enable its positioning
+        // path after initial layout. This tests the headless backend's real DesktopScaling,
+        // not the 2x bitmap export used by the screenshot tests above.
+        typeof(MainWindow).GetField("_placed", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(window, true);
+        var tab = (ToggleButton)window.FindControl<StackPanel>("MenuTabs")!.Children[0];
+        return (tab, drawer, area, expansion);
+    }
+
     private static void Invoke(MainWindow window, string method, params object[] args) =>
         typeof(MainWindow).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, args);
 
@@ -173,7 +437,7 @@ public class UiTests
         Dispatcher.UIThread.RunJobs();
     }
 
-    private static void Capture(Window window, string name, int scale)
+    private static void Capture(Control window, string name, int scale)
     {
         window.UpdateLayout();
         var size = window.Bounds.Size;

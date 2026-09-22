@@ -183,7 +183,8 @@
         </TextBlock.RenderTransform>
         <TextBlock.Effect><DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="4" Color="Black"/></TextBlock.Effect>
       </TextBlock>
-      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0">
+      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0"
+              ToolTip.Placement="Top" ToolTip.ShowDelay="300">
         <Rectangle x:Name="ExpBar" HorizontalAlignment="Left" Width="0" Fill="#FFD84A" RadiusX="3" RadiusY="3"/>
       </Border>
     </StackPanel>

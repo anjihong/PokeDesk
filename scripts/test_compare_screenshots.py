@@ -53,7 +53,7 @@ class ComparisonTests(unittest.TestCase):
 
     def test_identical_images_and_layout_pass(self):
         report = self.run_comparison(0)
-        self.assertEqual(len(report["comparisons"]), 27)
+        self.assertEqual(len(report["comparisons"]), 33)
 
     def test_one_pixel_text_move_cannot_hide_in_antialias_tolerance(self):
         shifted = Image.new("RGBA", self.image.size, (40, 40, 40, 255))

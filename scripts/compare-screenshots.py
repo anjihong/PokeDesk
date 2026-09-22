@@ -37,6 +37,8 @@ REQUIRED_SCREENSHOTS = {
     "main-owned-1x.png",
     "main-owned-2x.png",
     "egg-result-2x.png",
+    "exp-tooltip-1x.png",
+    "exp-tooltip-2x.png",
 }
 
 

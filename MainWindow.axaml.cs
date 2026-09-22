@@ -31,9 +31,9 @@ public partial class MainWindow : Window
     private bool _dirty;      // 설정 변경됨, 주기 저장 대기
     private bool _placed;     // 초기 위치 잡은 뒤부터 크기 변화에 맞춰 하단 고정
     private DateTime _lastEggTick; // 알 타이머 직전 틱 시각(UTC)
-    private bool _anchorTop;       // 서랍 펼침/접힘 중: 창 상단 고정(아래로 펼쳐지게)
-    private bool _drawerOpen;
-    private double? _topBeforeDrawer;
+    private PixelPoint? _positionBeforeDrawer;
+    private PixelPoint _lastDrawerPosition;
+    private double _heightBeforeDrawer;
 
     private enum EggState { Waiting, Ready, Hatching, Result }
     private EggState _eggState;
@@ -150,8 +150,8 @@ public partial class MainWindow : Window
 
         UpdateLayout();
         var wa = WorkingArea;
-        Position = new PixelPoint(wa.Right - (int)Math.Ceiling(Bounds.Width * RenderScaling) - 20,
-            wa.Bottom - (int)Math.Ceiling(Bounds.Height * RenderScaling) - 20);
+        Position = new PixelPoint(wa.Right - (int)Math.Ceiling(Bounds.Width * DesktopScaling) - 20,
+            wa.Bottom - (int)Math.Ceiling(Bounds.Height * DesktopScaling) - 20);
         _placed = true;
 
         SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
@@ -225,9 +225,11 @@ public partial class MainWindow : Window
     private void UpdateLevelUi()
     {
         var p = _settings.For(_settings.SelectedDex);
+        var required = Settings.ExpToNext(p.Level);
         LevelText.Text = $"Lv. {p.Level}";
-        ExpBar.Width = ExpTrack.Width * p.Exp / Settings.ExpToNext(p.Level);
+        ExpBar.Width = ExpTrack.Width * p.Exp / required;
         ExpBar.IsVisible = p.Exp > 0;
+        UiToolTips.Set(ExpTrack, $"현재 경험치: {p.Exp:N0}\n필요 경험치: {required:N0}");
     }
 
     // ---- 알 ----
@@ -404,7 +406,7 @@ public partial class MainWindow : Window
         AnimateDrawer(open: false);
     }
 
-    /// <summary>서랍 Height를 0↔내용 높이로. 펼치는 동안 창 상단을 고정해 아래로 내려오게 하고, 끝나면 작업 영역 안으로 보정.</summary>
+    /// <summary>서랍 높이만큼 위로 이동해 창 하단을 유지하고, 접으면 펼치기 전 위치로 돌아온다.</summary>
     private Timeline? _drawerAnimation;
 
     private void AnimateDrawer(bool open)
@@ -412,16 +414,23 @@ public partial class MainWindow : Window
         _drawerAnimation?.Dispose();
         DrawerContent.Measure(new Size(300, double.PositiveInfinity));
         var target = open ? DrawerContent.DesiredSize.Height : 0;
-        if (open && !_drawerOpen) _topBeforeDrawer = Position.Y;
-        _drawerOpen = open;
-        _anchorTop = true;
+        if (_positionBeforeDrawer != null && Position != _lastDrawerPosition)
+            _positionBeforeDrawer = null; // 펼친 채 실제로 이동했을 때만 새 위치를 기준으로 삼는다.
+        if (_positionBeforeDrawer == null)
+        {
+            // 펼친 채 드래그한 경우에도 현재 위치를 기준으로 접는다.
+            _positionBeforeDrawer = new PixelPoint(Position.X,
+                Position.Y + (int)Math.Round(Drawer.Height * DesktopScaling));
+            _heightBeforeDrawer = Bounds.Height - Drawer.Height;
+        }
+        _lastDrawerPosition = Position;
         _drawerAnimation = new Timeline(false,
             [new(v => Drawer.Height = v, Drawer.Height, [new(0, Drawer.Height), new(.25, target, Ease.OutCubic)])],
             () =>
             {
-                _anchorTop = false;
-                if (!open && _topBeforeDrawer is { } top) Position = new PixelPoint(Position.X, (int)top);
+                UpdateLayout();
                 ClampToScreen();
+                if (!open) _positionBeforeDrawer = null;
             });
         _drawerAnimation.Play();
     }
@@ -738,22 +747,43 @@ public partial class MainWindow : Window
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         if (!_placed) return;
-        if (!_anchorTop)
+        if (_positionBeforeDrawer is { } origin)
+        {
+            // 드래그 이후 포켓몬 교체 등으로 높이가 변해도 이동한 자리의 하단을 유지한다.
+            if (Position != _lastDrawerPosition)
+            {
+                origin = new PixelPoint(Position.X,
+                    Position.Y + (int)Math.Round((e.PreviousSize.Height - _heightBeforeDrawer) * DesktopScaling));
+                _positionBeforeDrawer = origin;
+            }
+            // 프레임별 반올림을 누적하지 않고 펼치기 전 위치에서 총 높이 차이를 뺀다.
+            Position = DrawerPosition(origin, e.NewSize.Height);
+        }
+        else
         {
             Position = new PixelPoint(
-                Position.X + (int)Math.Round((e.PreviousSize.Width - e.NewSize.Width) * RenderScaling / 2),
-                Position.Y + (int)Math.Round((e.PreviousSize.Height - e.NewSize.Height) * RenderScaling));
+                Position.X + (int)Math.Round((e.PreviousSize.Width - e.NewSize.Width) * DesktopScaling / 2),
+                Position.Y + (int)Math.Round((e.PreviousSize.Height - e.NewSize.Height) * DesktopScaling));
         }
         ClampToScreen();
     }
 
+    private PixelPoint DrawerPosition(PixelPoint origin, double height) => new(origin.X,
+        origin.Y - (int)Math.Round((height - _heightBeforeDrawer) * DesktopScaling));
+
     private void ClampToScreen()
     {
+        Position = ConstrainToScreen(Position);
+        _lastDrawerPosition = Position;
+    }
+
+    private PixelPoint ConstrainToScreen(PixelPoint position)
+    {
         var wa = WorkingArea;
-        var width = (int)Math.Ceiling(Bounds.Width * RenderScaling);
-        var height = (int)Math.Ceiling(Bounds.Height * RenderScaling);
-        Position = new PixelPoint(Math.Clamp(Position.X, wa.X, Math.Max(wa.X, wa.Right - width)),
-            Math.Clamp(Position.Y, wa.Y, Math.Max(wa.Y, wa.Bottom - height)));
+        var width = (int)Math.Ceiling(Bounds.Width * DesktopScaling);
+        var height = (int)Math.Ceiling(Bounds.Height * DesktopScaling);
+        return new PixelPoint(Math.Clamp(position.X, wa.X, Math.Max(wa.X, wa.Right - width)),
+            Math.Clamp(position.Y, wa.Y, Math.Max(wa.Y, wa.Bottom - height)));
     }
 
     private void OnDrag(object? sender, PointerPressedEventArgs e)
