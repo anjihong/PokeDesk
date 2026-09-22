@@ -35,9 +35,9 @@ public partial class MainWindow : Window
     private bool _dirty;      // 설정 변경됨, 주기 저장 대기
     private bool _placed;     // 초기 위치 잡은 뒤부터 크기 변화에 맞춰 하단 고정
     private DateTime _lastEggTick; // 알 타이머 직전 틱 시각(UTC)
-    private bool _anchorTop;       // 서랍 펼침/접힘 중: 창 상단 고정(아래로 펼쳐지게)
-    private bool _drawerOpen;
-    private double? _topBeforeDrawer;
+    private Point? _positionBeforeDrawer; // 서랍을 펼치기 전 위치. 빠르게 접었다 펼쳐도 유지.
+    private double _heightBeforeDrawer;
+    private int _drawerAnimationVersion;
 
     private enum EggState { Waiting, Ready, Hatching, Result }
     private EggState _eggState;
@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     {
         _settings = settings;
         InitializeComponent();
+        UpdateLevelUi();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
 #if DEBUG
         SetupLayoutEditor();
@@ -238,8 +239,11 @@ public partial class MainWindow : Window
     private void UpdateLevelUi()
     {
         var p = _settings.For(_settings.SelectedDex, _settings.SelectedShiny);
+        var required = Settings.ExpToNext(p.Level);
         LevelText.Text = $"{(_settings.SelectedShiny ? "★ " : "")}Lv. {p.Level}";
-        ExpBar.Width = ExpTrack.Width * p.Exp / Settings.ExpToNext(p.Level);
+        ExpBar.Width = ExpTrack.Width * p.Exp / required;
+        // ToolTip 인스턴스는 유지하고 내용만 바꿔 이미 열린 툴팁에도 즉시 반영한다.
+        ExpToolTip.Content = $"현재 경험치: {p.Exp:N0}\n필요 경험치: {required:N0}";
     }
 
     // ---- 알 ----
@@ -473,22 +477,37 @@ public partial class MainWindow : Window
         AnimateDrawer(open: false);
     }
 
-    /// <summary>서랍 Height를 0↔내용 높이로. 펼치는 동안 창 상단을 고정해 아래로 내려오게 하고, 끝나면 작업 영역 안으로 보정.</summary>
+    /// <summary>서랍 높이만큼 위로 이동해 하단을 유지하고, 접으면 펼치기 전 위치로 돌아온다.</summary>
     private void AnimateDrawer(bool open)
     {
+        var version = ++_drawerAnimationVersion;
+        UpdateLayout();
         DrawerContent.Measure(new Size(300, double.PositiveInfinity));
         var target = open ? DrawerContent.DesiredSize.Height : 0;
-        if (open && !_drawerOpen) _topBeforeDrawer = Top; // 화면 아래 걸려 위로 밀렸다가 접히면 원위치
-        _drawerOpen = open;
-        _anchorTop = true;
-        var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(250))
+        if (_positionBeforeDrawer == null)
+        {
+            // 펼친 채 드래그했다면 현재 위치에서 서랍이 접힌 위치를 새 원점으로 삼는다.
+            _positionBeforeDrawer = new Point(Left, Top + Drawer.ActualHeight);
+            _heightBeforeDrawer = ActualHeight - Drawer.ActualHeight;
+        }
+        var anim = new DoubleAnimation(Drawer.ActualHeight, target, TimeSpan.FromMilliseconds(250))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
         };
         anim.Completed += (_, _) =>
         {
-            _anchorTop = false;
-            if (!open && _topBeforeDrawer is { } top) Top = top;
+            if (version != _drawerAnimationVersion) return;
+            // 완료된 애니메이션의 HoldEnd 값을 제거해 실제 Height를 최종값으로 확정한다.
+            Drawer.Height = target;
+            Drawer.BeginAnimation(HeightProperty, null);
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                if (version != _drawerAnimationVersion) return;
+                UpdateLayout();
+                PositionForDrawer(ActualHeight);
+                // 최종 SizeChanged까지 원점을 유지해야 접는 마지막 프레임에서 위치가 밀리지 않는다.
+                if (!open) _positionBeforeDrawer = null;
+            }));
         };
         Drawer.BeginAnimation(HeightProperty, anim);
     }
@@ -845,11 +864,9 @@ public partial class MainWindow : Window
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (!_placed) return;
-        if (_anchorTop)
+        if (_positionBeforeDrawer != null)
         {
-            // 서랍 펼침/접힘 중: 상단 고정(아래로 펼쳐짐). 단, 작업 영역 아래로 나가면 그만큼 위로.
-            var wa = SystemParameters.WorkArea;
-            if (Top + e.NewSize.Height > wa.Bottom) Top = wa.Bottom - e.NewSize.Height;
+            PositionForDrawer(e.NewSize.Height);
             return;
         }
         // 스프라이트 교체로 크기가 바뀌어도 발 위치(하단 중앙) 고정
@@ -857,7 +874,22 @@ public partial class MainWindow : Window
         if (e.WidthChanged) Left += (e.PreviousSize.Width - e.NewSize.Width) / 2;
     }
 
-    private void OnDrag(object sender, MouseButtonEventArgs e) => DragMove();
+    private void PositionForDrawer(double height)
+    {
+        if (_positionBeforeDrawer is not { } origin) return;
+        // 누적 이동 대신 원점과 전체 높이 차이를 사용하므로 clamp/애니메이션 반전에도 복귀 위치가 보존된다.
+        Left = origin.X;
+        var wa = SystemParameters.WorkArea;
+        Top = Math.Clamp(origin.Y - (height - _heightBeforeDrawer), wa.Top, Math.Max(wa.Top, wa.Bottom - height));
+    }
+
+    private void OnDrag(object sender, MouseButtonEventArgs e)
+    {
+        var before = new Point(Left, Top);
+        DragMove();
+        // DragMove는 드래그가 끝나면 반환한다. 이동 없는 클릭은 복귀 원점을 보존한다.
+        if (new Point(Left, Top) != before) _positionBeforeDrawer = null;
+    }
 
     private void OnExit(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
 }
