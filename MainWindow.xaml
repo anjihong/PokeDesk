@@ -1,4 +1,4 @@
-﻿<Window x:Class="DeskPokemon.MainWindow"
+<Window x:Class="DeskPokemon.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DeskPokemon"
@@ -209,8 +209,6 @@
   </Window.Resources>
   <Window.ContextMenu>
     <ContextMenu>
-      <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>
-      <Separator/>
       <MenuItem Header="종료" Click="OnExit"/>
     </ContextMenu>
   </Window.ContextMenu>

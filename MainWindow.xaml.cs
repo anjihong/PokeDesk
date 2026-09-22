@@ -21,6 +21,9 @@ public partial class MainWindow : Window
     private readonly Settings _settings;
     private SpriteAtlas? _atlas;
     private int _frame;
+    private int _eggArtRequest;
+    private bool _closed;
+    private bool _saveErrorReported;
     private int _loadRequest; // 최신 스프라이트 로드 요청 번호. 빠른 연속 선택 시 옛 결과 무시.
     private bool _dirty;      // 설정 변경됨, 주기 저장 대기
     private bool _placed;     // 초기 위치 잡은 뒤부터 크기 변화에 맞춰 하단 고정
@@ -43,11 +46,13 @@ public partial class MainWindow : Window
         SetupLayoutEditor();
         SetupUnlockAll();
         SetupReset();
+        SetupTestEggs();
 #endif
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
         Closed += (_, _) =>
         {
+            _closed = true;
             _hook.Dispose();
             _settings.Save();
         };
@@ -87,7 +92,7 @@ public partial class MainWindow : Window
         egg.Tick += (_, _) =>
         {
             var now = DateTime.UtcNow;
-            var dt = Math.Min((now - _lastEggTick).TotalSeconds, 5);
+            var dt = Math.Clamp((now - _lastEggTick).TotalSeconds, 0, 5);
             _lastEggTick = now;
             if (_settings.TickEgg(dt))
             {
@@ -109,7 +114,7 @@ public partial class MainWindow : Window
         };
         SetEggState(_settings.Eggs > 0 ? EggState.Ready : EggState.Waiting);
         UpdateOwnedCount();
-        _ = LoadEggAssetsAsync();
+        _ = LoadCrackAssetsAsync();
 
         var bounce = (Storyboard)Resources["Bounce"];
         // 훅 콜백은 빨리 반환해야 하므로 애니메이션 시작은 큐에 넘김
@@ -193,6 +198,25 @@ public partial class MainWindow : Window
         ExpBar.Width = ExpTrack.Width * p.Exp / Settings.ExpToNext(p.Level);
     }
 
+    private bool TrySaveSettings()
+    {
+        try
+        {
+            _settings.Save();
+            _dirty = false;
+            _saveErrorReported = false;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _dirty = true;
+            if (!_saveErrorReported)
+                MessageBox.Show($"저장하지 못했습니다. 저장 위치를 확인해 주세요.\n{ex.Message}", "저장 실패");
+            _saveErrorReported = true;
+            return false;
+        }
+    }
+
     // ---- 알 ----
 
     /// <summary>
@@ -201,6 +225,7 @@ public partial class MainWindow : Window
     private void SetEggState(EggState state)
     {
         _eggState = state;
+        if (state is EggState.Waiting or EggState.Ready) _ = LoadEggAssetsAsync();
         var idle = (Storyboard)Resources["EggIdle"];
         var wait = (Storyboard)Resources["EggWait"];
         switch (state)
@@ -214,7 +239,7 @@ public partial class MainWindow : Window
             case EggState.Ready:
                 wait.Stop(this);
                 ShowEgg(true);
-                BubbleText.Text = "클릭하여\n부화";
+                BubbleText.Text = $"{EggName(_settings.PendingEgg!.Kind)}\n클릭하여 부화";
                 idle.Begin(this, true);
                 break;
             case EggState.Hatching:
@@ -239,20 +264,37 @@ public partial class MainWindow : Window
         NewText.Visibility = Visibility.Collapsed;
     }
 
-    private void UpdateBubbleCountdown() =>
-        BubbleText.Text = TimeSpan.FromSeconds(_settings.RemainingEggSeconds).ToString(@"mm\:ss");
+    private static string EggName(EggKind kind) => kind switch
+    {
+        EggKind.Common => "커먼 알", EggKind.Rare => "레어 알", EggKind.Epic => "에픽 알",
+        EggKind.Legendary => "레전더리 알", EggKind.Shiny => "이로치알", _ => "알"
+    };
 
-    /// <summary>알 본체(egg/egg의 egg_0) + 균열 오버레이(egg/egg_crack). 실패하면 대체 타원 유지, 균열 없이 진행.</summary>
+    private void UpdateBubbleCountdown() =>
+        BubbleText.Text = $"{EggName(_settings.PendingEgg!.Kind)}\n{TimeSpan.FromSeconds(_settings.RemainingEggSeconds):mm\\:ss}";
+
+    /// <summary>표시 정의만 사용해 알 외형을 로딩한다. 부화 결과는 로딩하지 않는다.</summary>
     private async Task LoadEggAssetsAsync()
+    {
+        var request = ++_eggArtRequest;
+        var kind = _settings.PendingEgg!.Kind;
+        EggImage.Source = null;
+        EggFallback.Visibility = Visibility.Visible;
+        EggStage.ToolTip = EggName(kind);
+        try
+        {
+            var f = await EggArtwork.LoadAsync(kind);
+            if (_closed || request != _eggArtRequest) return;
+            EggImage.Source = f.Bitmap;
+            EggFallback.Visibility = Visibility.Collapsed;
+        }
+        catch { /* 등급 이름과 대체 알을 유지한다. */ }
+    }
+
+    private async Task LoadCrackAssetsAsync()
     {
         try
         {
-            var egg = await SpriteAtlas.LoadFramesAsync("egg/egg");
-            if (egg.TryGetValue("egg_0", out var f))
-            {
-                EggImage.Source = f.Bitmap;
-                EggFallback.Visibility = Visibility.Collapsed;
-            }
             _crackFrames = await SpriteAtlas.LoadFramesAsync("egg/egg_crack");
         }
         catch
@@ -298,7 +340,6 @@ public partial class MainWindow : Window
             SetEggState(EggState.Waiting);
             return;
         }
-        _settings.Save();
         _dirty = false;
         UpdateOwnedCount();
         if (res.Dex == _settings.SelectedDex) UpdateLevelUi();
@@ -323,19 +364,6 @@ public partial class MainWindow : Window
         ((Storyboard)Resources["ResultPop"]).Begin(this, true);
         _resultTimer.Stop();
         _resultTimer.Start();
-    }
-
-    /// <summary>테스트용: 알을 즉시 준비 상태로.</summary>
-    private void OnDebugEgg(object sender, RoutedEventArgs e)
-    {
-        if (_eggState is EggState.Hatching or EggState.Result) return;
-        if (_settings.Eggs == 0)
-        {
-            _settings.Eggs = 1;
-            _settings.EggSeconds = 0;
-            _settings.Save();
-        }
-        SetEggState(EggState.Ready);
     }
 
     // ---- 메뉴 탭 / 서랍 ----
@@ -536,6 +564,31 @@ public partial class MainWindow : Window
     }
 
 #if DEBUG
+    private void SetupTestEggs()
+    {
+        var menu = new MenuItem { Header = "테스트 알 즉시 지급 (기존 알 교체)" };
+        foreach (var kind in Enum.GetValues<EggKind>())
+        {
+            var item = new MenuItem { Header = $"{EggName(kind)} 즉시 지급" };
+            item.Click += (_, _) =>
+            {
+                if (_eggState is EggState.Hatching or EggState.Result) return;
+                var previous = (_settings.PendingEgg, _settings.Eggs, _settings.EggSeconds);
+                _settings.GrantTestEgg(kind, false);
+                if (!TrySaveSettings())
+                {
+                    (_settings.PendingEgg, _settings.Eggs, _settings.EggSeconds) = previous;
+                    return;
+                }
+                _lastEggTick = DateTime.UtcNow;
+                SetEggState(EggState.Ready);
+            };
+            menu.Items.Add(item);
+        }
+        ContextMenu!.Opened += (_, _) => menu.IsEnabled = _eggState is not (EggState.Hatching or EggState.Result);
+        ContextMenu.Items.Insert(0, menu);
+    }
+
     // ---- 초기화(개발자, Debug 빌드 전용) ----
 
     /// <summary>우클릭 메뉴에 초기화 항목 추가. 세이브 삭제 후 앱을 다시 띄워 스타팅 선택부터.</summary>

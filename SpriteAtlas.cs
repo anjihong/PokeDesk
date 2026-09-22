@@ -26,10 +26,11 @@ public sealed class SpriteAtlas
     private const string GifUrl =
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/";
 
-    private static readonly string CacheDir = Path.Combine(
+    internal static string CacheDirectory { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "sprites");
 
-    private static readonly HttpClient Http = new();
+    internal static HttpClient Http { get; set; } = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly Dictionary<string, Task<string>> Downloads = new(StringComparer.OrdinalIgnoreCase);
 
     public int Width { get; }
     public int Height { get; }
@@ -59,8 +60,8 @@ public sealed class SpriteAtlas
     }
 
     /// <summary>
-    /// 우선순위: PokeRogue exp/(애니메이션 보강) → PokeRogue 기본 → 기본이 정지면 PokeAPI GIF.
-    /// 6~9세대 정지 334종 중 exp가 278종, GIF가 19종을 메우고 37종은 정지로 남음.
+    /// 일반: PokeRogue exp/ → 기본 → PokeAPI GIF.
+    /// 아틀라스가 정지이고 GIF가 없으면 정지 아틀라스를 유지한다.
     /// </summary>
     public static async Task<SpriteAtlas> LoadAsync(int dexId)
     {
@@ -93,13 +94,36 @@ public sealed class SpriteAtlas
     /// <summary>캐시 기준 상대 경로를 받아 캐시 경로 반환. 없으면 url(생략 시 pokerogue-assets images/)에서 다운로드.</summary>
     internal static async Task<string> CachedAsync(string relative, string? url = null)
     {
-        var path = Path.Combine(CacheDir, relative);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        if (!File.Exists(path))
+        var path = Path.GetFullPath(Path.Combine(CacheDirectory, relative));
+        Task<string> download;
+        lock (Downloads)
         {
-            var bytes = await Http.GetByteArrayAsync(url ?? BaseUrl + relative);
-            await File.WriteAllBytesAsync(path, bytes);
+            if (!Downloads.TryGetValue(path, out download!))
+                Downloads[path] = download = DownloadAsync(path, url ?? BaseUrl + relative);
         }
+        try { return await download; }
+        finally
+        {
+            lock (Downloads)
+            {
+                if (Downloads.TryGetValue(path, out var pending) && ReferenceEquals(pending, download))
+                    Downloads.Remove(path); // 성공·실패 모두 제거하여 실패한 요청도 재시도할 수 있다.
+            }
+        }
+    }
+
+    private static async Task<string> DownloadAsync(string path, string url)
+    {
+        if (File.Exists(path)) return path;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            var bytes = await Http.GetByteArrayAsync(url).ConfigureAwait(false);
+            await File.WriteAllBytesAsync(temporary, bytes).ConfigureAwait(false);
+            File.Move(temporary, path, overwrite: true); // 완성된 파일만 캐시 경로에 공개한다.
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
         return path;
     }
 
@@ -164,10 +188,11 @@ public sealed class SpriteAtlas
     /// 이름 프레임 아틀라스(egg/egg, egg/egg_crack 등). 파일명(확장자 제외) → 프레임.
     /// 오프셋은 spriteSourceSize 기준(trimmed 프레임을 원래 캔버스에 놓을 위치).
     /// </summary>
-    internal static async Task<Dictionary<string, SpriteFrame>> LoadFramesAsync(string relativeBase)
+    internal static async Task<Dictionary<string, SpriteFrame>> LoadFramesAsync(string relativeBase, string? version = null)
     {
-        var jsonPath = await CachedAsync($"{relativeBase}.json");
-        var pngPath = await CachedAsync($"{relativeBase}.png");
+        var cacheBase = version == null ? relativeBase : $"art/{version}/{relativeBase}";
+        var jsonPath = await CachedAsync($"{cacheBase}.json", BaseUrl + relativeBase + ".json");
+        var pngPath = await CachedAsync($"{cacheBase}.png", BaseUrl + relativeBase + ".png");
         var sheet = LoadSheet(pngPath);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(jsonPath));
