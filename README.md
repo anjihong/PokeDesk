@@ -85,7 +85,8 @@ open artifacts/package/osx-arm64/DeskPokemon.app
 
 [GitHub Actions](.github/workflows/desktop.yml)는 Windows x64, Mac ARM64, Mac x64에서
 빌드·테스트 후 실행 파일을 아티팩트로 보관합니다. 같은 테스트 자산으로 만든 9개 화면 PNG도
-OS 간 비교하며, 크기 차이와 허용 범위를 넘는 픽셀 차이를 실패 처리합니다.
+OS 간 비교하며, 레이아웃·텍스트·폰트·기록된 색상은 정확하게 일치해야 합니다.
+이미지는 OS별 글자 래스터화 차이를 제한적으로 허용하고, 원본 오차와 판별된 경계 차이를 함께 보고합니다.
 `desktop-visual-comparison` 아티팩트에서 비교 결과와 차이 이미지를 확인할 수 있습니다.
 실제 양쪽 화면, DPI/Retina, 권한과 전역 입력 확인은
 [Windows/macOS QA](docs/cross-platform-qa.md)에 따라 별도로 기록합니다.

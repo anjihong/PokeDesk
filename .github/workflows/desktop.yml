@@ -96,7 +96,9 @@ jobs:
       - name: Install image comparison dependency
         run: |
           python3 -m venv .visual-venv
-          .visual-venv/bin/python -m pip install Pillow==12.3.0
+          .visual-venv/bin/python -m pip install Pillow==12.3.0 pixelmatch==0.4.0
+      - name: Verify screenshot comparator regression detection
+        run: .visual-venv/bin/python scripts/test_compare_screenshots.py
       - name: Compare shared UI renders across platforms
         run: >-
           .visual-venv/bin/python scripts/compare-screenshots.py

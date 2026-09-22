@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -185,5 +186,34 @@ public class UiTests
         var output = Path.Combine(root?.FullName ?? AppContext.BaseDirectory, "artifacts", "test-results", "screenshots");
         Directory.CreateDirectory(output);
         bitmap.Save(Path.Combine(output, $"{name}-{scale}x.png"));
+        var layout = new List<object>();
+        CaptureLayout(window, "root", layout);
+        File.WriteAllText(Path.Combine(output, $"{name}-{scale}x.layout.json"),
+            JsonSerializer.Serialize(layout, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    private static void CaptureLayout(Visual visual, string path, List<object> layout)
+    {
+        if (!visual.IsVisible) return;
+        var bounds = visual.Bounds;
+        var matrix = visual.RenderTransform?.Value ?? Matrix.Identity;
+        layout.Add(new
+        {
+            path,
+            type = visual.GetType().Name,
+            name = (visual as Control)?.Name,
+            bounds = new[] { bounds.X, bounds.Y, bounds.Width, bounds.Height }.Select(v => Math.Round(v, 3)).ToArray(),
+            text = (visual as TextBlock)?.Text,
+            font = (visual as TextBlock)?.FontFamily.Name,
+            fontSize = (visual as TextBlock)?.FontSize,
+            foreground = (visual as TextBlock)?.Foreground?.ToString(),
+            background = (visual as Border)?.Background?.ToString(),
+            opacity = Math.Round(visual.Opacity, 3),
+            clip = visual.ClipToBounds,
+            transform = new[] { matrix.M11, matrix.M12, matrix.M21, matrix.M22, matrix.M31, matrix.M32 }
+                .Select(v => Math.Round(v, 3)).ToArray(),
+        });
+        var children = visual.GetVisualChildren().ToArray();
+        for (var i = 0; i < children.Length; i++) CaptureLayout(children[i], $"{path}/{i}", layout);
     }
 }

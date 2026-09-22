@@ -5,3 +5,5 @@ artifacts/
 .packages/
 .DS_Store
 TestResults/
+__pycache__/
+.visual-venv/
