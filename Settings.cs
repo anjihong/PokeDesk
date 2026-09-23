@@ -10,50 +10,45 @@ public sealed class PokemonProgress
     public int Exp { get; set; }
 }
 
-/// <summary>%LOCALAPPDATA%\DeskPokemon\settings.json — 선택 포켓몬 + 포켓몬별 레벨/경험치 + 도감 보유 + 알.</summary>
+/// <summary>색상별 보유·성장 및 생성 시 확정된 알 결과를 저장한다.</summary>
 public sealed class Settings
 {
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "settings.json");
-
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
-    /// <summary>1~9세대 스타팅(풀·불꽃·물).</summary>
+    private string savePath = FilePath;
     private static readonly int[] GrassStarters = [1, 152, 252, 387, 495, 650, 722, 810, 906];
     private static readonly int[] FireStarters = [4, 155, 255, 390, 498, 653, 725, 813, 909];
     private static readonly int[] WaterStarters = [7, 158, 258, 393, 501, 656, 728, 816, 912];
-
-    /// <summary>스타팅 후보: 풀·불꽃·물 각각 1~9세대 중 무작위 1종.</summary>
     public static int[] RollStarterChoices() =>
         [.. new[] { GrassStarters, FireStarters, WaterStarters }.Select(t => t[Random.Shared.Next(t.Length)])];
-    private const int LegacyStarter = 4;  // 파이리: 스타팅 도입 이전 세이브의 고정 스타팅
-    private const int CurrentSchema = 1;  // 1: 알/도감 도입
-
-    /// <summary>실행 시간 기준 알 지급 간격(초).</summary>
+    private const int LegacyStarter = 4;
+    private const int CurrentSchema = 2;
     public const int EggIntervalSeconds = 30 * 60;
 
-    public int SchemaVersion { get; set; }              // 0 = 알 기능 이전 파일
-    public int StarterDex { get; set; }                 // 0 = 스타팅 도입 이전 파일
+    public int SchemaVersion { get; set; }
+    public int StarterDex { get; set; }
     public int SelectedDex { get; set; }
+    public bool SelectedShiny { get; set; }
     public Dictionary<int, PokemonProgress> Progress { get; set; } = new();
-    public HashSet<int> Owned { get; set; } = new();    // 도감에 등록된(부화한) 종
-    public int Eggs { get; set; }                       // 보유 알
-    public double EggSeconds { get; set; }              // 다음 알까지 누적 실행 시간(초)
+    public HashSet<int> Owned { get; set; } = new();
+    public Dictionary<int, PokemonProgress> ShinyProgress { get; set; } = new();
+    public HashSet<int> ShinyOwned { get; set; } = new();
+    public int Eggs { get; set; }
+    public double EggSeconds { get; set; }
+    public PendingEgg? PendingEgg { get; set; }
 
-    /// <summary>다음 레벨까지 필요한 입력 횟수. 레벨에 비례.</summary>
-    public static int ExpToNext(int level) => level * 10;
-
-    public PokemonProgress For(int dex)
+    public static int ExpToNext(int level) => level * 30;
+    public PokemonProgress For(int dex, bool shiny = false)
     {
-        if (!Progress.TryGetValue(dex, out var p))
-            Progress[dex] = p = new PokemonProgress();
+        var progress = shiny ? ShinyProgress : Progress;
+        if (!progress.TryGetValue(dex, out var p)) progress[dex] = p = new PokemonProgress();
         return p;
     }
 
-    /// <summary>입력 1회 = Exp +1. 레벨업했으면 true.</summary>
-    public bool AddExp(int dex)
+    public bool AddExp(int dex, bool shiny = false)
     {
-        var p = For(dex);
+        var p = For(dex, shiny);
         p.Exp++;
         if (p.Exp < ExpToNext(p.Level)) return false;
         p.Exp -= ExpToNext(p.Level);
@@ -61,24 +56,18 @@ public sealed class Settings
         return true;
     }
 
-    // ---- 도감 / 알 ----
-
-    /// <summary>Debug 치트: 전체 해금. 저장 안 함 — 끄면 원래 Owned로 돌아감.</summary>
     [JsonIgnore] public bool UnlockAll { get; set; }
-
-    public bool IsOwned(int dex) => UnlockAll || Owned.Contains(dex);
-
-    /// <summary>도감 등록. 이미 있으면 레벨 +1(Exp는 유지)하고 false.</summary>
-    public bool AddOwned(int dex)
+    public bool IsOwned(int dex, bool shiny = false) => UnlockAll || (shiny ? ShinyOwned : Owned).Contains(dex);
+    public bool AddOwned(int dex, bool shiny = false)
     {
-        if (Owned.Add(dex)) return true;
-        For(dex).Level++;
+        if ((shiny ? ShinyOwned : Owned).Add(dex)) return true;
+        For(dex, shiny).Level++;
         return false;
     }
 
-    /// <summary>실행 시간 누적. 간격 채우면 알 1개. 알이 이미 있으면 깔 때까지 일시정지. 지급됐으면 true.</summary>
     public bool TickEgg(double seconds)
     {
+        if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
         if (Eggs > 0) return false;
         EggSeconds += seconds;
         if (EggSeconds < EggIntervalSeconds) return false;
@@ -87,63 +76,135 @@ public sealed class Settings
         return true;
     }
 
-    [JsonIgnore]
-    public int RemainingEggSeconds => (int)Math.Ceiling(EggIntervalSeconds - EggSeconds);
+    [JsonIgnore] public int RemainingEggSeconds => Eggs > 0 ? 0 : (int)Math.Ceiling(EggIntervalSeconds - EggSeconds);
 
-    /// <summary>알 1개 소비해 부화. 알이 없으면 null.</summary>
+    /// <summary>확정 결과 지급과 다음 알 생성을 하나의 파일 교체로 저장한다. 실패하면 메모리도 복구한다.</summary>
     public HatchResult? Hatch()
     {
         if (Eggs <= 0) return null;
-        Eggs--;
-        var dex = EggHatcher.Roll();
-        var isNew = AddOwned(dex);
-        return new HatchResult(dex, isNew, For(dex).Level);
-    }
-
-    /// <summary>구버전 파일 보정. 기존 세이브의 스타팅은 파이리. 알 도입 시 보유 목록은 스타팅만으로 초기화(레벨 기록은 유지).</summary>
-    private void Migrate()
-    {
-        if (StarterDex == 0) StarterDex = LegacyStarter;
-        if (SchemaVersion < 1)
-        {
-            Owned = new HashSet<int> { StarterDex };
-            SchemaVersion = CurrentSchema;
-        }
-        Owned.Add(StarterDex); // 안전장치: 최소 1종은 항상 보유
-        if (!Owned.Contains(SelectedDex)) SelectedDex = StarterDex;
-    }
-
-    /// <summary>세이브 로드. 없거나 깨졌으면 null → 스타팅 선택부터 새로 시작.</summary>
-    public static Settings? Load()
-    {
-        Settings? s = null;
+        var egg = PendingEgg ?? throw new InvalidOperationException("Missing pending egg result.");
+        var owned = egg.IsShiny ? ShinyOwned : Owned;
+        var progress = egg.IsShiny ? ShinyProgress : Progress;
+        var alreadyOwned = owned.Contains(egg.Dex);
+        var hadProgress = progress.TryGetValue(egg.Dex, out var oldProgress);
+        var oldLevel = oldProgress?.Level ?? 1;
+        var oldEggs = Eggs;
+        var oldSeconds = EggSeconds;
         try
         {
-            if (File.Exists(FilePath))
-                s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
+            var isNew = AddOwned(egg.Dex, egg.IsShiny);
+            var result = new HatchResult(egg.Dex, egg.IsShiny, isNew, For(egg.Dex, egg.IsShiny).Level);
+            Eggs = 0;
+            EggSeconds = 0;
+            PendingEgg = EggHatcher.Create();
+            Save();
+            return result;
         }
         catch
         {
-            // 깨진 파일은 새로 시작
+            if (!alreadyOwned) owned.Remove(egg.Dex);
+            if (hadProgress) oldProgress!.Level = oldLevel;
+            else progress.Remove(egg.Dex);
+            Eggs = oldEggs;
+            EggSeconds = oldSeconds;
+            PendingEgg = egg;
+            throw;
         }
-        s?.Migrate();
-        return s;
     }
 
-    /// <summary>고른 스타팅으로 새 세이브. 스타팅만 보유·선택.</summary>
-    public static Settings New(int starterDex)
+#if DEBUG
+    public void GrantTestEgg(EggKind kind, bool forceShiny)
     {
-        var s = new Settings { StarterDex = starterDex };
-        s.Migrate();
+        PendingEgg = EggHatcher.Create(kind, forceShiny);
+        Eggs = 1;
+        EggSeconds = 0;
+    }
+#endif
+
+    private bool Migrate()
+    {
+        var changed = SchemaVersion < CurrentSchema;
+        if (StarterDex <= 0 || StarterDex > 1025) { StarterDex = LegacyStarter; changed = true; }
+        if (Owned is null || Progress is null || ShinyOwned is null || ShinyProgress is null) changed = true;
+        Owned ??= new();
+        Progress ??= new();
+        ShinyOwned ??= new();
+        ShinyProgress ??= new();
+        if (SchemaVersion < 1) Owned = new HashSet<int> { StarterDex };
+        if (SchemaVersion < 2)
+        {
+            SelectedShiny = false;
+            PendingEgg = EggHatcher.Create(Eggs > 0 ? EggKind.Common : null);
+        }
+        if (PendingEgg is null || !Enum.IsDefined(PendingEgg.Kind) || !BaseSpecies.Dex.Contains(PendingEgg.Dex))
+        {
+            PendingEgg = EggHatcher.Create(Eggs > 0 ? EggKind.Common : null);
+            changed = true;
+        }
+        if (Owned.Add(StarterDex)) changed = true;
+        if (!(SelectedShiny ? ShinyOwned : Owned).Contains(SelectedDex))
+        {
+            SelectedDex = StarterDex;
+            SelectedShiny = false;
+            changed = true;
+        }
+        var eggs = Math.Clamp(Eggs, 0, 1);
+        var seconds = double.IsFinite(EggSeconds) ? Math.Clamp(EggSeconds, 0, EggIntervalSeconds) : 0;
+        if (Eggs != eggs || EggSeconds != seconds) changed = true;
+        Eggs = eggs;
+        EggSeconds = seconds;
+        SchemaVersion = CurrentSchema;
+        return changed;
+    }
+
+    public static Settings? Load() => LoadFrom(FilePath);
+
+    // Explicit path keeps tests entirely separate from the user's save.
+    internal static Settings? LoadFrom(string path)
+    {
+        if (!File.Exists(path)) return null;
+        Settings? s;
+        try { s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)); }
+        catch (JsonException) { return null; }
+        if (s is null) return null;
+        if (s.SchemaVersion > CurrentSchema)
+            throw new InvalidDataException($"Save schema {s.SchemaVersion} requires a newer version of DeskPokemon.");
+        s.savePath = path;
+        var oldSchema = s.SchemaVersion;
+        if (s.Migrate())
+        {
+            if (oldSchema < CurrentSchema && !File.Exists(path + $".schema{oldSchema}.bak"))
+                File.Copy(path, path + $".schema{oldSchema}.bak", overwrite: false);
+            s.Save();
+        }
         return s;
     }
 
-    /// <summary>세이브 파일 삭제(초기화).</summary>
+    public static Settings New(int starterDex) => NewAt(starterDex, FilePath);
+    internal static Settings NewAt(int starterDex, string path)
+    {
+        var s = new Settings { StarterDex = starterDex, savePath = path };
+        s.Migrate();
+        s.Save();
+        return s;
+    }
     public static void Delete() => File.Delete(FilePath);
 
     public void Save()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOptions));
+        var path = Path.GetFullPath(savePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, this, JsonOptions);
+                stream.Flush(flushToDisk: true);
+            }
+            if (File.Exists(path)) File.Replace(temporary, path, null);
+            else File.Move(temporary, path);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 }

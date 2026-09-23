@@ -10,7 +10,14 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown; // 선택 창이 닫혀도 바로 종료되지 않게
 
-        var settings = Settings.Load();
+        Settings? settings;
+        try { settings = Settings.Load(); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"세이브를 불러오거나 변환하지 못했습니다. 원본 파일은 유지됩니다.\n{ex.Message}", "DeskPokemon");
+            Shutdown();
+            return;
+        }
         if (settings == null)
         {
             var picker = new StarterWindow();
@@ -19,8 +26,13 @@ public partial class App : Application
                 Shutdown();
                 return;
             }
-            settings = Settings.New(picker.SelectedDex);
-            settings.Save();
+            try { settings = Settings.New(picker.SelectedDex); }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"새 게임을 저장하지 못했습니다.\n{ex.Message}", "DeskPokemon");
+                Shutdown();
+                return;
+            }
         }
 
         MainWindow = new MainWindow(settings);

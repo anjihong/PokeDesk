@@ -209,8 +209,6 @@
   </Window.Resources>
   <Window.ContextMenu>
     <ContextMenu>
-      <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>
-      <Separator/>
       <MenuItem Header="종료" Click="OnExit"/>
     </ContextMenu>
   </Window.ContextMenu>
@@ -233,6 +231,8 @@
           <ScaleTransform x:Name="Squash"/>
         </Canvas.RenderTransform>
         <Image x:Name="Sprite" Stretch="Fill"/>
+        <TextBlock x:Name="SpriteMissing" Visibility="Collapsed" Width="60" FontSize="6"
+                   Foreground="White" TextAlignment="Center" TextWrapping="Wrap"/>
       </Canvas>
 
       <!-- 알 열: 말풍선 → NEW! → 알(또는 태어난 포켓몬) -->
@@ -285,16 +285,17 @@
               <Ellipse x:Name="Flash" Width="24" Height="30" Canvas.Left="2" Fill="White" Opacity="0" IsHitTestVisible="False"/>
             </Canvas>
 
-            <!-- 태어난 포켓몬 아이콘(40x30 원본을 2배) -->
-            <Image x:Name="ResultImage" Width="40" Height="30" Stretch="None" HorizontalAlignment="Center"
+            <!-- 부화 결과도 본체와 동일한 프레임을 재생한다. -->
+            <Canvas x:Name="ResultStage" Width="40" Height="30" HorizontalAlignment="Center"
                    RenderTransformOrigin="0.5,1" Visibility="Collapsed" AutomationProperties.Name="부화결과">
-              <Image.LayoutTransform>
-                <ScaleTransform ScaleX="2" ScaleY="2"/>
-              </Image.LayoutTransform>
-              <Image.RenderTransform>
+              <Canvas.LayoutTransform>
+                <ScaleTransform x:Name="ResultZoom" ScaleX="2" ScaleY="2"/>
+              </Canvas.LayoutTransform>
+              <Canvas.RenderTransform>
                 <ScaleTransform x:Name="ResultScale"/>
-              </Image.RenderTransform>
-            </Image>
+              </Canvas.RenderTransform>
+              <Image x:Name="ResultImage" Stretch="Fill"/>
+            </Canvas>
           </StackPanel>
           <Rectangle x:Name="EggEditFrame" Stroke="#FFD84A" StrokeThickness="1" StrokeDashArray="3,2"
                      IsHitTestVisible="False" Visibility="Collapsed"/>
@@ -335,8 +336,12 @@
           <StackPanel x:Name="DexPanel">
             <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4"/>
             <Grid Margin="2,0,2,4">
-              <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
-                        HorizontalAlignment="Left" Checked="OnOwnedOnlyChanged" Unchecked="OnOwnedOnlyChanged"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
+                          Checked="OnOwnedOnlyChanged" Unchecked="OnOwnedOnlyChanged"/>
+                <CheckBox x:Name="ShinyDex" Content="이로치 도감" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"
+                          Checked="OnShinyDexChanged" Unchecked="OnShinyDexChanged"/>
+              </StackPanel>
               <TextBlock x:Name="OwnedCount" Text="보유 1/1025" Foreground="#DDDDDD" FontSize="11"
                          HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>
