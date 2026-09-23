@@ -314,11 +314,7 @@
           <DropShadowEffect ShadowDepth="0" BlurRadius="4" Color="Black"/>
         </TextBlock.Effect>
       </TextBlock>
-      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0"
-              ToolTipService.InitialShowDelay="300">
-        <Border.ToolTip>
-          <ToolTip x:Name="ExpToolTip" Placement="Top"/>
-        </Border.ToolTip>
+      <Border x:Name="ExpTrack" Width="100" Height="6" CornerRadius="3" Background="#A0000000" Margin="0,2,0,0">
         <Rectangle x:Name="ExpBar" HorizontalAlignment="Left" Width="0" Fill="#FFD84A" RadiusX="3" RadiusY="3"/>
       </Border>
     </StackPanel>
