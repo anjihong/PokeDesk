@@ -1,7 +1,7 @@
 # DeskPokemon
 
-Windows 데스크톱 포켓몬 펫. 투명 오버레이 창에 애니메이션 스프라이트를 띄우고,
-키 입력·마우스 클릭마다 바운스합니다. WPF / .NET 9, 외부 패키지 없음.
+Windows 데스크톱 포켓몬 펫. 투명 오버레이에서 포켓몬을 키우고, 알을 부화해 일반·이로치 도감을 채운다.
+WPF / .NET 9 기반이며 외부 NuGet 패키지는 사용하지 않는다.
 
 ## 실행
 
@@ -11,25 +11,22 @@ dotnet run
 
 - 좌클릭 드래그: 이동
 - 우클릭 → 종료
-- 포켓몬 아래 도감 패널: 세대 탭(1~9) 선택 후 아이콘 클릭으로 포켓몬 교체. 아직 획득하지 못한
-  포켓몬은 실루엣으로 표시되고 선택 불가. 처음에는 파이리만 보유. "보유만 보기"로 현재 세대의
-  보유 포켓몬만 볼 수 있고, 아이콘에 마우스를 올리면 번호와 이름이 뜸
-- 알: 포켓몬 오른쪽 알의 말풍선에 다음 알까지 남은 시간(앱 실행 시간 기준 30분). 시간이 되면 "클릭하여 부화"가
-  뜨고 알을 클릭하면 부화 애니메이션 후 진화 전 포켓몬(진화하지 않는 포켓몬 포함) 중 랜덤으로 도감에 등록됨(새 포켓몬이면 NEW!).
-  이미 있는 포켓몬이면 그 포켓몬의 레벨 +1. 알은 한 번에 하나만, 깔 때까지 타이머는 멈춤.
-  확률은 공식 포획률(capture rate)에 비례해 전설일수록 드묾. 우클릭 메뉴 "알 즉시 획득(테스트)"로 바로 받아볼 수 있음
-- 메뉴 탭(도감 / 메뉴 2 / 메뉴 3): 누르면 아래로 패널이 펼쳐지고 다시 누르면 접힘. 2·3은 추후 추가 예정
-- 레벨: 키 입력·마우스 클릭마다 경험치 +1, 레벨 × 30회마다 레벨업. 포켓몬별로 따로 기록되며
-  `%LOCALAPPDATA%\DeskPokemon\settings.json` 에 저장
+- 첫 실행: 1~9세대 풀·불꽃·물 스타팅 후보 3종 중 1종 선택
+- 도감: 세대별 목록, 미보유 실루엣, 보유만 보기, 일반·이로치 도감 전환
+- 알: 실행 시간 30분마다 1개 지급. 커먼·레어·에픽·레전더리·이로치알에 따라 부화 풀이 달라짐
+- 성장: 전역 키·마우스 입력 1회당 경험치 +1. 다음 레벨 요구 경험치는 `현재 레벨 × 30`
+- 저장: 일반·이로치의 보유 목록, 레벨, 경험치와 확정된 다음 알을 `%LOCALAPPDATA%\DeskPokemon\settings.json`에 저장
+
+전체 동작과 이슈별 구현 상태는 [기능 명세](Docs/spec/01-overview.md)를 참고한다.
 
 ## 스프라이트 출처 및 라이선스
 
 스프라이트는 앱에 포함되지 않으며, 첫 실행 시
 [pagefaultgames/pokerogue-assets](https://github.com/pagefaultgames/pokerogue-assets) 의
-`images/pokemon/`, `images/pokemon/exp/`, `images/pokemon_icons_*`, `images/egg/` 에서 받아 `%LOCALAPPDATA%\DeskPokemon\sprites` 에 캐시합니다.
+`images/pokemon/`, `images/pokemon/exp/`, 각 경로의 `shiny/`, `images/pokemon_icons_*`, `images/egg/`에서 받아 `%LOCALAPPDATA%\DeskPokemon\sprites`에 캐시합니다.
 PokéRogue 쪽 스프라이트가 정지(1프레임)인 일부 종은
 [PokeAPI/sprites](https://github.com/PokeAPI/sprites) 의 `versions/generation-v/black-white/animated/` GIF를 대신 사용합니다.
-포획률 수치는 [PokeAPI](https://github.com/PokeAPI/pokeapi) `pokemon_species.csv` 에서 가져와 코드에 포함했습니다.
+포획률 수치는 [PokeAPI](https://github.com/PokeAPI/pokeapi) `pokemon_species.csv`에서 가져와 코드에 포함했지만 현재 부화 추첨에는 사용하지 않습니다.
 
 - 재생 방식(프레임 정렬, 10fps 루프)은 PokéRogue와 동일합니다.
 - 해당 저장소 자산은 라이선스 가능한 범위에서 CC-BY-NC-SA-4.0이며, 원작 스프라이트는
