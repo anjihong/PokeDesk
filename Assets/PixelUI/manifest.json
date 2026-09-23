@@ -1,0 +1,332 @@
+{
+  "version": 2,
+  "reference_canvas": [
+    1246,
+    1263
+  ],
+  "pixel_grid": 2,
+  "generator": "design/draw_reference_pixel_ui.py",
+  "method": "Measured reference geometry, newly plotted pixels; source screenshot is never loaded into components.",
+  "assets": {
+    "drawer_frame": {
+      "size": [
+        704,
+        718
+      ],
+      "position": [
+        255,
+        498
+      ],
+      "role": "panel"
+    },
+    "tab_rail": {
+      "size": [
+        704,
+        84
+      ],
+      "position": [
+        255,
+        418
+      ],
+      "role": "panel"
+    },
+    "tab_selected": {
+      "size": [
+        218,
+        82
+      ],
+      "position": [
+        280,
+        419
+      ],
+      "role": "panel"
+    },
+    "tab_box": {
+      "size": [
+        228,
+        82
+      ],
+      "position": [
+        494,
+        419
+      ],
+      "role": "panel"
+    },
+    "tab_settings": {
+      "size": [
+        232,
+        82
+      ],
+      "position": [
+        718,
+        419
+      ],
+      "role": "panel"
+    },
+    "toolbar_bg": {
+      "size": [
+        676,
+        78
+      ],
+      "position": [
+        270,
+        500
+      ],
+      "role": "panel"
+    },
+    "generation_selector": {
+      "size": [
+        234,
+        62
+      ],
+      "position": [
+        280,
+        508
+      ],
+      "role": "panel"
+    },
+    "box_grid_bg": {
+      "size": [
+        672,
+        450
+      ],
+      "position": [
+        272,
+        576
+      ],
+      "role": "panel"
+    },
+    "detail_base": {
+      "size": [
+        672,
+        180
+      ],
+      "position": [
+        272,
+        1022
+      ],
+      "role": "panel"
+    },
+    "detail_panel": {
+      "size": [
+        650,
+        158
+      ],
+      "position": [
+        282,
+        1030
+      ],
+      "role": "panel"
+    },
+    "portrait_frame": {
+      "size": [
+        130,
+        132
+      ],
+      "position": [
+        295,
+        1043
+      ],
+      "role": "panel"
+    },
+    "type_badge": {
+      "size": [
+        96,
+        40
+      ],
+      "position": [
+        551,
+        1047
+      ],
+      "role": "panel"
+    },
+    "number_badge": {
+      "size": [
+        136,
+        42
+      ],
+      "position": [
+        781,
+        1042
+      ],
+      "role": "panel"
+    },
+    "egg_timer_plate": {
+      "size": [
+        196,
+        56
+      ],
+      "position": [
+        710,
+        341
+      ],
+      "role": "panel"
+    },
+    "exp_track": {
+      "size": [
+        284,
+        38
+      ],
+      "position": [
+        372,
+        361
+      ],
+      "role": "panel"
+    },
+    "exp_label_plate": {
+      "size": [
+        76,
+        44
+      ],
+      "position": [
+        302,
+        355
+      ],
+      "role": "panel"
+    },
+    "exp_fill_segment": {
+      "size": [
+        32,
+        22
+      ],
+      "position": null,
+      "role": "fill"
+    },
+    "arrow_left": {
+      "size": [
+        24,
+        34
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "arrow_right": {
+      "size": [
+        24,
+        34
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "checkbox_off": {
+      "size": [
+        38,
+        38
+      ],
+      "position": null,
+      "role": "control"
+    },
+    "checkbox_on": {
+      "size": [
+        38,
+        38
+      ],
+      "position": null,
+      "role": "control"
+    },
+    "slot_normal": {
+      "size": [
+        104,
+        104
+      ],
+      "position": null,
+      "role": "slot"
+    },
+    "slot_selected": {
+      "size": [
+        104,
+        104
+      ],
+      "position": null,
+      "role": "slot"
+    },
+    "slot_empty": {
+      "size": [
+        104,
+        104
+      ],
+      "position": null,
+      "role": "slot"
+    },
+    "slot_unknown": {
+      "size": [
+        104,
+        104
+      ],
+      "position": null,
+      "role": "slot"
+    },
+    "slot_hover": {
+      "size": [
+        104,
+        104
+      ],
+      "position": null,
+      "role": "slot"
+    },
+    "icon_dex": {
+      "size": [
+        44,
+        48
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "icon_box": {
+      "size": [
+        48,
+        48
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "icon_settings": {
+      "size": [
+        48,
+        48
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "icon_unknown": {
+      "size": [
+        40,
+        48
+      ],
+      "position": null,
+      "role": "icon"
+    },
+    "pet_shadow": {
+      "size": [
+        192,
+        34
+      ],
+      "position": null,
+      "role": "shadow"
+    },
+    "egg_shadow": {
+      "size": [
+        144,
+        36
+      ],
+      "position": null,
+      "role": "shadow"
+    }
+  },
+  "font": "Assets/Fonts/Galmuri11-Bold.ttf",
+  "slot_columns": [
+    288,
+    398,
+    504,
+    610,
+    716,
+    822
+  ],
+  "slot_rows": [
+    590,
+    696,
+    802,
+    908
+  ],
+  "preview_content": "Text and cached runtime Pokemon sprites appear only in design/pixel-ui-reference-demo.png"
+}
