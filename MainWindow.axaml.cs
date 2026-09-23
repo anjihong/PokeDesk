@@ -23,11 +23,18 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private bool _closed;
     private bool _discardSave;
-    private Dictionary<string, SpriteFrame>? _eggFrames;
+    private bool _saveErrorReported;
     private readonly Settings _settings;
     private SpriteAtlas? _atlas;
     private int _frame;
     private int _loadRequest; // 최신 스프라이트 로드 요청 번호. 빠른 연속 선택 시 옛 결과 무시.
+    private int _iconRequest;
+    private int _eggArtRequest;
+    private int _resultRequest;
+    private SpriteAtlas? _resultAtlas;
+    private int _resultFrame;
+    private readonly record struct PokemonChoice(int Dex, bool IsShiny);
+    private bool ViewingShiny => ShinyDex.IsChecked == true;
     private bool _dirty;      // 설정 변경됨, 주기 저장 대기
     private bool _placed;     // 초기 위치 잡은 뒤부터 크기 변화에 맞춰 하단 고정
     private DateTime _lastEggTick; // 알 타이머 직전 틱 시각(UTC)
@@ -41,7 +48,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _resultTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
     /// <summary>XAML 디자이너용 미리보기. 실제 실행은 저장 데이터를 전달하는 생성자를 사용.</summary>
-    public MainWindow() : this(Settings.New(4), false) { }
+    public MainWindow() : this(Settings.NewPreview(4), false) { }
 
     public MainWindow(Settings settings) : this(settings, true) { }
 
@@ -57,6 +64,7 @@ public partial class MainWindow : Window
         SetupLayoutEditor();
         SetupUnlockAll();
         SetupReset();
+        SetupTestEggs();
 #endif
         if (startServices) Opened += OnLoaded;
         UpdateLevelUi();
@@ -72,6 +80,10 @@ public partial class MainWindow : Window
         AddHandler(KeyUpEvent, OnLocalKeyUp, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => _localKeys.Clear();
         SizeChanged += OnSizeChanged;
+        Closing += (_, e) =>
+        {
+            if (_startServices && !_discardSave) e.Cancel = !TrySaveSettings();
+        };
         Closed += (_, _) =>
         {
             _closed = true;
@@ -83,10 +95,10 @@ public partial class MainWindow : Window
             _hook?.Dispose();
             Sprite.Source = null;
             _atlas?.Dispose();
+            ResultImage.Source = null;
+            _resultAtlas?.Dispose();
             EggImage.Source = CrackImage.Source = null;
-            DisposeFrames(_eggFrames);
             DisposeFrames(_crackFrames);
-            if (_startServices && !_discardSave) _settings.Save();
         };
     }
 
@@ -94,7 +106,10 @@ public partial class MainWindow : Window
     {
         BuildGenTabs();
 
-        await LoadPokemonAsync(_settings.SelectedDex);
+        var initialLoad = LoadPokemonAsync(_settings.SelectedDex, _settings.SelectedShiny);
+        var initialRequest = _loadRequest;
+        if (!await initialLoad && !_closed && initialRequest == _loadRequest)
+            ShowSpritePlaceholder();
         if (_closed) return;
 
         // PokeRogue와 동일: frameRate 10, 무한 반복
@@ -102,6 +117,8 @@ public partial class MainWindow : Window
         timer.Tick += (_, _) =>
         {
             if (_atlas != null) ShowFrame((_frame + 1) % _atlas.Frames.Length);
+            if (_eggState == EggState.Result && _resultAtlas != null)
+                ShowResultFrame((_resultFrame + 1) % _resultAtlas.Frames.Length);
         };
         _timers.Add(timer);
         timer.Start();
@@ -111,8 +128,7 @@ public partial class MainWindow : Window
         save.Tick += (_, _) =>
         {
             if (!_dirty) return;
-            _settings.Save();
-            _dirty = false;
+            TrySaveSettings();
         };
         _timers.Add(save);
         save.Start();
@@ -127,14 +143,14 @@ public partial class MainWindow : Window
             _lastEggTick = now;
             if (_settings.TickEgg(dt))
             {
-                _settings.Save();
-                _dirty = false;
+                _dirty = true;
+                TrySaveSettings();
                 if (_eggState == EggState.Waiting) SetEggState(EggState.Ready);
             }
-            else if (_eggState == EggState.Waiting)
+            else if (_settings.Eggs == 0)
             {
                 _dirty = true;
-                UpdateBubbleCountdown();
+                if (_eggState == EggState.Waiting) UpdateBubbleCountdown();
             }
         };
         _timers.Add(egg);
@@ -146,7 +162,7 @@ public partial class MainWindow : Window
         };
         SetEggState(_settings.Eggs > 0 ? EggState.Ready : EggState.Waiting);
         UpdateOwnedCount();
-        _ = LoadEggAssetsAsync();
+        _ = LoadCrackAssetsAsync();
 
         UpdateLayout();
         var wa = WorkingArea;
@@ -158,18 +174,18 @@ public partial class MainWindow : Window
     }
 
     /// <summary>스프라이트 교체. 실패 시 메시지 띄우고 false(이전 포켓몬 유지). 더 최신 요청이 있으면 조용히 false.</summary>
-    private async Task<bool> LoadPokemonAsync(int dex)
+    private async Task<bool> LoadPokemonAsync(int dex, bool shiny = false)
     {
         var req = ++_loadRequest;
         SpriteAtlas atlas;
         try
         {
-            atlas = await SpriteAtlas.LoadAsync(dex);
+            atlas = await SpriteAtlas.LoadAsync(dex, shiny);
         }
         catch (Exception ex)
         {
-            if (req == _loadRequest)
-                ShowSpriteError($"스프라이트 로드 실패 (#{dex}): {ex.Message}\n우클릭 메뉴에서 다시 불러올 수 있습니다.");
+            if (!_closed && req == _loadRequest)
+                ShowSpriteError($"스프라이트 로드 실패 (#{dex}{(shiny ? " 이로치" : "")}): {ex.Message}\n우클릭 메뉴에서 다시 불러올 수 있습니다.");
             return false;
         }
         if (req != _loadRequest || _closed)
@@ -180,6 +196,7 @@ public partial class MainWindow : Window
 
         var previous = _atlas;
         _atlas = atlas;
+        SpriteMissing.IsVisible = false;
         SpriteStatus.IsVisible = false;
         // 캔버스(37~98px, 9세대는 96 고정+여백)가 아니라 실제 몸체 영역을 스테이지로 삼고,
         // 몸체 높이가 항상 BodyTargetHeight가 되도록 소수 배율. 넓은 포켓몬은 폭 상한으로 제한.
@@ -195,6 +212,38 @@ public partial class MainWindow : Window
         previous?.Dispose();
         UpdateLevelUi();
         return true;
+    }
+
+    private void ShowSpritePlaceholder()
+    {
+        Sprite.Source = null;
+        _atlas?.Dispose();
+        _atlas = null;
+        Stage.Width = 60;
+        Stage.Height = 42;
+        Zoom.ScaleX = Zoom.ScaleY = 2;
+        SpriteMissing.Text = $"{PokemonNames.Of(_settings.SelectedDex)}\n{(_settings.SelectedShiny ? "이로치\n" : "")}이미지 없음";
+        SpriteMissing.IsVisible = true;
+        UpdateLevelUi();
+    }
+
+    private bool TrySaveSettings()
+    {
+        try
+        {
+            _settings.Save();
+            _dirty = false;
+            _saveErrorReported = false;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _dirty = true;
+            if (!_saveErrorReported && !_closed)
+                _ = AppDialog.ShowAsync(this, $"저장하지 못했습니다. 저장 위치를 확인해 주세요.\n{ex.Message}", "저장 실패");
+            _saveErrorReported = true;
+            return false;
+        }
     }
 
     private const double BodyTargetHeight = 110;
@@ -216,7 +265,7 @@ public partial class MainWindow : Window
 
     private void AddExp()
     {
-        var leveled = _settings.AddExp(_settings.SelectedDex);
+        var leveled = _settings.AddExp(_settings.SelectedDex, _settings.SelectedShiny);
         _dirty = true;
         UpdateLevelUi();
         if (leveled) _animations["LevelUp"].Play();
@@ -224,164 +273,12 @@ public partial class MainWindow : Window
 
     private void UpdateLevelUi()
     {
-        var p = _settings.For(_settings.SelectedDex);
+        var p = _settings.For(_settings.SelectedDex, _settings.SelectedShiny);
         var required = Settings.ExpToNext(p.Level);
-        LevelText.Text = $"Lv. {p.Level}";
+        LevelText.Text = $"{(_settings.SelectedShiny ? "★ " : "")}Lv. {p.Level}";
         ExpBar.Width = ExpTrack.Width * p.Exp / required;
         ExpBar.IsVisible = p.Exp > 0;
         UiToolTips.Set(ExpTrack, $"현재 경험치: {p.Exp:N0}\n필요 경험치: {required:N0}");
-    }
-
-    // ---- 알 ----
-
-    /// <summary>
-    /// 알 상태 머신. Waiting(카운트다운) → Ready(클릭하여 부화, 통통) → Hatching(흔들림+균열+플래시) → Result(아이콘+이름+NEW!, 5초) → Waiting.
-    /// </summary>
-    private void SetEggState(EggState state)
-    {
-        _eggState = state;
-        var idle = _animations["EggIdle"];
-        var wait = _animations["EggWait"];
-        switch (state)
-        {
-            case EggState.Waiting:
-                idle.Stop();
-                ShowEgg(true);
-                UpdateBubbleCountdown();
-                wait.Play();
-                break;
-            case EggState.Ready:
-                wait.Stop();
-                ShowEgg(true);
-                BubbleText.Text = "클릭하여\n부화";
-                idle.Play();
-                break;
-            case EggState.Hatching:
-                idle.Stop();
-                wait.Stop(); // EggShake가 EggRotate를 쓰므로 루프 정지
-                BubbleText.Text = "...";
-                break;
-            case EggState.Result:
-                // BubbleText/NewText는 HatchAsync가 채움
-                EggStage.IsVisible = false;
-                ResultImage.IsVisible = true;
-                NewText.IsVisible = true;
-                break;
-        }
-    }
-
-    private void ShowEgg(bool show)
-    {
-        EggStage.IsVisible = show;
-        CrackImage.IsVisible = false;
-        ResultImage.IsVisible = false;
-        NewText.IsVisible = false;
-    }
-
-    private void UpdateBubbleCountdown() =>
-        BubbleText.Text = TimeSpan.FromSeconds(_settings.RemainingEggSeconds).ToString(@"mm\:ss");
-
-    /// <summary>알 본체(egg/egg의 egg_0) + 균열 오버레이(egg/egg_crack). 실패하면 대체 타원 유지, 균열 없이 진행.</summary>
-    private async Task LoadEggAssetsAsync()
-    {
-        try
-        {
-            var egg = await SpriteAtlas.LoadFramesAsync("egg/egg");
-            if (_closed) { DisposeFrames(egg); return; }
-            _eggFrames = egg;
-            if (egg.TryGetValue("egg_0", out var f))
-            {
-                EggImage.Source = f.Bitmap;
-                EggFallback.IsVisible = false;
-            }
-            var cracks = await SpriteAtlas.LoadFramesAsync("egg/egg_crack");
-            if (_closed) { DisposeFrames(cracks); return; }
-            _crackFrames = cracks;
-        }
-        catch
-        {
-            // 네트워크 실패 등: 대체 타원으로 진행
-        }
-    }
-
-    /// <summary>균열 단계(1~4) 오버레이. 균열 캔버스는 80x80이고 알(28x30)은 그 중앙 → (26,25) 기준으로 배치.</summary>
-    private void ShowCrack(int stage)
-    {
-        if (_crackFrames == null || !_crackFrames.TryGetValue(stage.ToString(), out var f)) return;
-        CrackImage.Source = f.Bitmap;
-        CrackImage.Width = f.Width;
-        CrackImage.Height = f.Height;
-        Canvas.SetLeft(CrackImage, f.OffsetX - 26);
-        Canvas.SetTop(CrackImage, f.OffsetY - 25);
-        CrackImage.IsVisible = true;
-    }
-
-    private async void OnEggClick(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        e.Handled = true; // 드래그로 넘어가지 않게
-        if (_eggState != EggState.Ready) return;
-        try { await HatchAsync(); }
-        catch (OperationCanceledException) when (_closed) { }
-    }
-
-    private async Task HatchAsync()
-    {
-        SetEggState(EggState.Hatching);
-        var shake = _animations["EggShake"];
-        for (var stage = 1; stage <= 3; stage++)
-        {
-            ShowCrack(stage);
-            shake.Play();
-            await Task.Delay(550, _lifetime.Token);
-        }
-        ShowCrack(4);
-        await Task.Delay(250, _lifetime.Token);
-
-        if (_settings.Hatch() is not { } res)
-        {
-            SetEggState(EggState.Waiting);
-            return;
-        }
-        _settings.Save();
-        _dirty = false;
-        UpdateOwnedCount();
-        if (res.Dex == _settings.SelectedDex) UpdateLevelUi();
-        RefreshIconCell(res.Dex);
-
-        _animations["FlashOut"].Play(); // From=1이라 Opacity 직접 설정 불필요(이전 애니메이션이 값을 잡고 있어 무시됨)
-        await Task.Delay(150, _lifetime.Token);
-
-        ResultImage.Source = null;
-        try
-        {
-            var icons = await PokemonIcons.LoadGenAsync(PokemonIcons.GenOf(res.Dex));
-            if (icons.TryGetValue(res.Dex, out var bmp)) ResultImage.Source = bmp;
-        }
-        catch
-        {
-            // 아이콘 없어도 이름은 표시됨
-        }
-        if (_closed) return;
-        NewText.Text = res.IsNew ? "NEW!" : $"Lv.{res.Level} ↑";
-        BubbleText.Text = PokemonNames.Of(res.Dex);
-        SetEggState(EggState.Result);
-        _animations["ResultPop"].Play();
-        _resultTimer.Stop();
-        _resultTimer.Start();
-    }
-
-    /// <summary>테스트용: 알을 즉시 준비 상태로.</summary>
-    private void OnDebugEgg(object? sender, RoutedEventArgs e)
-    {
-        if (_eggState is EggState.Hatching or EggState.Result) return;
-        if (_settings.Eggs == 0)
-        {
-            _settings.Eggs = 1;
-            _settings.EggSeconds = 0;
-            _settings.Save();
-        }
-        SetEggState(EggState.Ready);
     }
 
     // ---- 메뉴 탭 / 서랍 ----
@@ -456,37 +353,47 @@ public partial class MainWindow : Window
 
     private async void OnGenChecked(object? sender, RoutedEventArgs e)
     {
-        var tab = (RadioButton)sender!;
-        if (tab.IsChecked != true) return;
-        var gen = (int)tab.Tag!;
+        if (sender is RadioButton { IsChecked: true }) await RefreshDexAsync();
+    }
 
-        Dictionary<int, Bitmap> icons;
+    private async void OnShinyDexChanged(object? sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        UpdateOwnedCount();
+        await RefreshDexAsync();
+    }
+
+    private async Task RefreshDexAsync()
+    {
+        if (CheckedGen() is not { } gen) return;
+        var shiny = ViewingShiny;
+        var request = ++_iconRequest;
+        IconGrid.Children.Clear();
         try
         {
-            icons = await PokemonIcons.LoadGenAsync(gen);
+            var icons = await PokemonIcons.LoadGenAsync(gen, shiny);
+            if (_closed || request != _iconRequest || CheckedGen() != gen || ViewingShiny != shiny) return;
+            RebuildIconGrid(gen, icons);
+            IconScroll.Offset = default;
         }
         catch (Exception ex)
         {
-            ShowSpriteError($"아이콘 로드 실패 ({gen}세대): {ex.Message}");
-            return;
+            if (!_closed && request == _iconRequest)
+                ShowSpriteError($"아이콘 로드 실패 ({gen}세대): {ex.Message}");
         }
-        if (_closed || tab.IsChecked != true) return; // 로드 중 다른 탭 선택됨
-
-        RebuildIconGrid(gen, icons);
-        IconScroll.Offset = default;
     }
 
-    /// <summary>현재 탭 세대의 격자를 다시 채움. "보유만 보기"면 보유 종만.</summary>
     private void RebuildIconGrid(int gen, Dictionary<int, Bitmap> icons)
     {
         var ownedOnly = OwnedOnly.IsChecked == true;
+        var shiny = ViewingShiny;
         var (_, first, last) = PokemonIcons.Generations[gen - 1];
         IconGrid.Children.Clear();
         for (var dex = first; dex <= last; dex++)
         {
             if (!icons.TryGetValue(dex, out var bmp)) continue;
-            if (ownedOnly && !_settings.IsOwned(dex)) continue;
-            IconGrid.Children.Add(MakeIconCell(dex, bmp));
+            if (ownedOnly && !_settings.IsOwned(dex, shiny)) continue;
+            IconGrid.Children.Add(MakeIconCell(dex, shiny, bmp));
         }
     }
 
@@ -500,7 +407,7 @@ public partial class MainWindow : Window
     private void OnOwnedOnlyChanged(object? sender, RoutedEventArgs e)
     {
         if (CheckedGen() is not { } gen) return;
-        if (!PokemonIcons.TryGetCachedGen(gen, out var icons)) return; // 아직 로드 중이면 로드 완료 시 반영됨
+        if (!PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny)) return;
         RebuildIconGrid(gen, icons);
         IconScroll.Offset = default;
     }
@@ -508,78 +415,80 @@ public partial class MainWindow : Window
     private void UpdateOwnedCount()
     {
         var total = PokemonIcons.Generations[^1].Last;
-        OwnedCount.Text = $"보유 {(_settings.UnlockAll ? total : _settings.Owned.Count)}/{total}";
+        var owned = ViewingShiny ? _settings.ShinyOwned : _settings.Owned;
+        OwnedCount.Text = $"보유 {(_settings.UnlockAll ? total : owned.Count)}/{total}";
     }
 
-    /// <summary>아이콘 셀. 미보유 종은 실루엣 + 비활성.</summary>
-    private RadioButton MakeIconCell(int dex, Bitmap bmp)
+    private RadioButton MakeIconCell(int dex, bool shiny, Bitmap bmp)
     {
-        var owned = _settings.IsOwned(dex);
+        var owned = _settings.IsOwned(dex, shiny);
+        var records = shiny ? _settings.ShinyProgress : _settings.Progress;
+        var level = records.TryGetValue(dex, out var progress) ? progress.Level : 1;
         var rb = new RadioButton
         {
-            // 40x30 캔버스에 원본 크기로 중앙 배치
             Content = new Image
             {
-                Source = owned ? bmp : PokemonIcons.SilhouetteOf(dex, bmp),
+                Source = owned ? bmp : PokemonIcons.SilhouetteOf(dex, bmp, shiny),
                 Width = 40, Height = 30, Stretch = Stretch.None,
             },
-            Tag = dex,
+            Tag = new PokemonChoice(dex, shiny),
             GroupName = "Icon",
             Theme = (ControlTheme)Resources["IconButton"]!,
             IsEnabled = owned,
             Cursor = owned ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow),
-            IsChecked = dex == _settings.SelectedDex, // 핸들러 연결 전에 설정해 재선택 방지
+            IsChecked = dex == _settings.SelectedDex && shiny == _settings.SelectedShiny,
         };
-        UiToolTips.Set(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}" : $"#{dex} ??? (미보유)");
+        UiToolTips.Set(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}"
+            : $"#{dex} ???{(shiny ? " ★ 이로치" : "")} (미보유)");
         rb.IsCheckedChanged += OnIconChecked;
         return rb;
     }
 
-    /// <summary>현재 격자에 해당 종이 있으면 보유 상태를 반영해 셀 교체(부화 직후 실루엣 해제).</summary>
-    private void RefreshIconCell(int dex)
+    private void RefreshIconCell(int dex, bool shiny)
     {
-        // 격자가 그 세대를 표시 중이면 원본 아이콘은 이미 세대 캐시에 있음
+        if (shiny != ViewingShiny) return;
         var gen = PokemonIcons.GenOf(dex);
         if (CheckedGen() != gen) return;
-        if (!PokemonIcons.TryGetCached(gen, dex, out var bmp)) return;
-        for (var i = 0; i < IconGrid.Children.Count; i++)
-        {
-            if (IconGrid.Children[i] is not RadioButton { Tag: int tag } || tag != dex) continue;
-            IconGrid.Children[i] = MakeIconCell(dex, bmp);
-            return;
-        }
-        // "보유만 보기"로 숨겨져 있던 신규 종 → 격자 다시 채워 나타나게
-        if (PokemonIcons.TryGetCachedGen(gen, out var icons)) RebuildIconGrid(gen, icons);
+        if (PokemonIcons.TryGetCachedGen(gen, out var icons, shiny)) RebuildIconGrid(gen, icons);
     }
 
     private async void OnIconChecked(object? sender, RoutedEventArgs e)
     {
         var rb = (RadioButton)sender!;
         if (rb.IsChecked != true) return;
-        var dex = (int)rb.Tag!;
-        if (!_settings.IsOwned(dex))
+        var choice = (PokemonChoice)rb.Tag!;
+        if (!_settings.IsOwned(choice.Dex, choice.IsShiny))
         {
-            rb.IsChecked = false; // 방어: 비활성 셀이라 보통 도달 안 함
+            rb.IsChecked = false;
             return;
         }
-        if (dex == _settings.SelectedDex) return;
-
-        var prev = _settings.SelectedDex;
-        _settings.SelectedDex = dex;
-        UpdateLevelUi();
-
-        if (await LoadPokemonAsync(dex))
+        if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
         {
-            _settings.Save();
-            _dirty = false;
+            ++_loadRequest; // 이전 비동기 선택을 취소하고 현재 표시를 유지한다.
+            return;
         }
-        else if (_settings.SelectedDex == dex)
+        var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
+        var request = _loadRequest;
+        if (await task)
         {
-            // 실패했고 그 사이 다른 선택도 없었음 → 이전 포켓몬으로 되돌림
-            _settings.SelectedDex = prev;
+            // 이미지가 준비되기 전에는 선택/경험치/세이브를 바꾸지 않는다.
+            _settings.SelectedDex = choice.Dex;
+            _settings.SelectedShiny = choice.IsShiny;
             UpdateLevelUi();
-            foreach (RadioButton cell in IconGrid.Children)
-                if ((int)cell.Tag! == prev) cell.IsChecked = true;
+            _dirty = true;
+            TrySaveSettings();
+            SyncSelectedIcon();
+        }
+        else if (!_closed && request == _loadRequest) SyncSelectedIcon();
+    }
+
+    private void SyncSelectedIcon()
+    {
+        foreach (RadioButton cell in IconGrid.Children)
+        {
+            cell.IsCheckedChanged -= OnIconChecked;
+            cell.IsChecked = (PokemonChoice)cell.Tag! == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny);
+            cell.IsCheckedChanged += OnIconChecked;
         }
     }
 
@@ -623,18 +532,25 @@ public partial class MainWindow : Window
         _settings.UnlockAll = on;
 
         // 끌 때 미보유 종을 보고 있었으면 기본 포켓몬으로 복귀
-        if (!on && !_settings.IsOwned(_settings.SelectedDex))
+        if (!on)
         {
-            _settings.SelectedDex = _settings.StarterDex;
-            UpdateLevelUi();
-            await LoadPokemonAsync(_settings.StarterDex);
-            if (_closed) return;
-            _settings.Save();
-            _dirty = false;
+            ++_loadRequest; // 해금 상태로 시작한 요청이 뒤늦게 적용되는 것을 막는다.
+            if (!_settings.IsOwned(_settings.SelectedDex, _settings.SelectedShiny))
+            {
+                _settings.SelectedDex = _settings.StarterDex;
+                _settings.SelectedShiny = false;
+                var starterLoad = LoadPokemonAsync(_settings.StarterDex);
+                var starterRequest = _loadRequest;
+                if (!await starterLoad && !_closed && starterRequest == _loadRequest)
+                    ShowSpritePlaceholder();
+                if (_closed) return;
+                UpdateLevelUi();
+                TrySaveSettings();
+            }
         }
 
         UpdateOwnedCount();
-        if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons))
+        if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny))
         {
             RebuildIconGrid(gen, icons);
             IconScroll.Offset = default;

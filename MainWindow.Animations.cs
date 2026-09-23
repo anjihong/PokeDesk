@@ -8,7 +8,8 @@ public partial class MainWindow
     private ScaleTransform LevelPulse => (ScaleTransform)LevelText.RenderTransform!;
     private ScaleTransform EggScale => (ScaleTransform)((TransformGroup)EggStage.RenderTransform!).Children[0];
     private RotateTransform EggRotate => (RotateTransform)((TransformGroup)EggStage.RenderTransform!).Children[1];
-    private ScaleTransform ResultScale => (ScaleTransform)ResultImage.RenderTransform!;
+    private ScaleTransform ResultScale => (ScaleTransform)ResultStage.RenderTransform!;
+    private ScaleTransform ResultZoomScale => (ScaleTransform)ResultZoom.LayoutTransform!;
     private TranslateTransform BubbleOffset => (TranslateTransform)Bubble.RenderTransform!;
     private TranslateTransform EggOffset => (TranslateTransform)EggGroup.RenderTransform!;
     private readonly Dictionary<string, Timeline> _animations = new();

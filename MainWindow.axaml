@@ -77,7 +77,6 @@
     <ContextMenu RenderOptions.TextRenderingMode="Antialias">
       <MenuItem Header="전역 입력 다시 연결" Click="OnRetryInput"/>
       <MenuItem Header="스프라이트 다시 불러오기" Click="OnRetrySprite"/>
-      <MenuItem Header="알 즉시 획득(테스트)" Click="OnDebugEgg"/>
       <Separator/>
       <MenuItem Header="종료" Click="OnExit"/>
     </ContextMenu>
@@ -101,6 +100,8 @@
           <ScaleTransform/>
         </Canvas.RenderTransform>
         <Image x:Name="Sprite" Stretch="Fill"/>
+        <TextBlock x:Name="SpriteMissing" IsVisible="False" Width="60" FontSize="6"
+                   Foreground="White" TextAlignment="Center" TextWrapping="Wrap"/>
       </Canvas>
       </Border>
       </LayoutTransformControl>
@@ -155,16 +156,17 @@
             </Border>
             </LayoutTransformControl>
 
-            <!-- 태어난 포켓몬 아이콘(40x30 원본을 2배) -->
-            <LayoutTransformControl ClipToBounds="False" HorizontalAlignment="Center" IsVisible="{Binding IsVisible, ElementName=ResultImage}">
+            <!-- 부화 결과도 본체와 동일한 색상의 애니메이션을 재생한다. -->
+            <LayoutTransformControl x:Name="ResultZoom" ClipToBounds="False" HorizontalAlignment="Center" IsVisible="{Binding IsVisible, ElementName=ResultStage}">
               <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="2" ScaleY="2"/></LayoutTransformControl.LayoutTransform>
             <Border>
-            <Image x:Name="ResultImage" Width="40" Height="30" Stretch="None" HorizontalAlignment="Center"
+            <Canvas x:Name="ResultStage" Width="40" Height="30" HorizontalAlignment="Center"
                    RenderTransformOrigin="50%,100%" IsVisible="False" AutomationProperties.Name="부화결과">
-              <Image.RenderTransform>
+              <Canvas.RenderTransform>
                 <ScaleTransform/>
-              </Image.RenderTransform>
-            </Image>
+              </Canvas.RenderTransform>
+              <Image x:Name="ResultImage" Stretch="Fill"/>
+            </Canvas>
             </Border>
             </LayoutTransformControl>
           </StackPanel>
@@ -206,8 +208,12 @@
           <StackPanel x:Name="DexPanel">
             <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4"/>
             <Grid Margin="2,0,2,4">
-              <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
-                        HorizontalAlignment="Left" IsCheckedChanged="OnOwnedOnlyChanged"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
+                <CheckBox x:Name="OwnedOnly" Content="보유만 보기" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
+                          IsCheckedChanged="OnOwnedOnlyChanged"/>
+                <CheckBox x:Name="ShinyDex" Content="이로치 도감" Foreground="#DDDDDD" FontSize="11" VerticalAlignment="Center"
+                          IsCheckedChanged="OnShinyDexChanged"/>
+              </StackPanel>
               <TextBlock x:Name="OwnedCount" Text="보유 1/1025" Foreground="#DDDDDD" FontSize="11"
                          HorizontalAlignment="Right" VerticalAlignment="Center"/>
             </Grid>

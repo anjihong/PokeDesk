@@ -39,6 +39,13 @@ REQUIRED_SCREENSHOTS = {
     "egg-result-2x.png",
     "exp-tooltip-1x.png",
     "exp-tooltip-2x.png",
+    "main-shiny-1x.png",
+    "main-shiny-2x.png",
+    "egg-ready-Common-2x.png",
+    "egg-ready-Rare-2x.png",
+    "egg-ready-Epic-2x.png",
+    "egg-ready-Legendary-2x.png",
+    "egg-ready-Shiny-2x.png",
 }
 
 

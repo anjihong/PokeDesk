@@ -16,5 +16,6 @@
     </PackageReference>
     <ProjectReference Include="../../DeskPokemon.csproj" />
     <None Update="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Fixtures/atlas.png" />
   </ItemGroup>
 </Project>

@@ -38,14 +38,15 @@ public partial class MainWindow
 
     private async void OnRetrySprite(object? sender, RoutedEventArgs e)
     {
-        await LoadPokemonAsync(_settings.SelectedDex);
+        await LoadPokemonAsync(_settings.SelectedDex, _settings.SelectedShiny);
         if (_closed) return;
         if (CheckedGen() is { } gen)
         {
             var tab = GenTabs.Children.OfType<Avalonia.Controls.RadioButton>().First(t => (int)t.Tag! == gen);
             OnGenChecked(tab, e);
         }
-        if (_eggFrames == null) await LoadEggAssetsAsync();
+        if (_eggState is EggState.Waiting or EggState.Ready) await LoadEggAssetsAsync();
+        if (_crackFrames == null) await LoadCrackAssetsAsync();
     }
 
     // Without OS permission, inputs inside our own window still work, without double-counting a live hook.

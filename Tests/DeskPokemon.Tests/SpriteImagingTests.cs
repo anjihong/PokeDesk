@@ -6,6 +6,7 @@ using Xunit;
 
 namespace DeskPokemon.Tests;
 
+[Collection("Artwork assets")]
 public class SpriteImagingTests
 {
     private static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);

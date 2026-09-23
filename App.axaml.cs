@@ -13,7 +13,11 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
-            ShowStartup(desktop, Settings.Load());
+            try { ShowStartup(desktop, Settings.Load()); }
+            catch (Exception ex)
+            {
+                desktop.MainWindow = AppDialog.StartupError($"세이브를 불러오거나 변환하지 못했습니다.\n{ex.Message}");
+            }
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -28,10 +32,15 @@ public partial class App : Application
 
         var picker = new StarterWindow();
         desktop.MainWindow = picker;
-        picker.Selected += dex =>
+        picker.Selected += async dex =>
         {
-            var next = Settings.New(dex);
-            next.Save();
+            Settings next;
+            try { next = Settings.New(dex); }
+            catch (Exception ex)
+            {
+                await AppDialog.ShowAsync(picker, $"새 게임을 저장하지 못했습니다.\n{ex.Message}", "저장 실패");
+                return;
+            }
             var main = new MainWindow(next);
             // Transfer ownership before closing the picker, or the desktop lifetime shuts down.
             desktop.MainWindow = main;
@@ -44,8 +53,13 @@ public partial class App : Application
     {
         if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
         var previous = desktop.MainWindow;
+        try { Settings.Delete(); }
+        catch (Exception ex)
+        {
+            if (previous != null) _ = AppDialog.ShowAsync(previous, $"세이브를 삭제하지 못했습니다.\n{ex.Message}", "초기화 실패");
+            return;
+        }
         if (previous is MainWindow main) main.DiscardSaveOnClose();
-        Settings.Delete();
         ShowStartup(desktop, null);
         desktop.MainWindow!.Show();
         previous?.Close();

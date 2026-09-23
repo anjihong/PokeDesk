@@ -12,6 +12,16 @@ internal static class AppDialog
     public static Task<bool> ShowAsync(Window owner, string message, string title) => Show(owner, title, message, false);
 
     private static Task<bool> Show(Window owner, string title, string message, bool confirm)
+        => Create(title, message, confirm).ShowDialog<bool>(owner);
+
+    internal static Window StartupError(string message)
+    {
+        var window = Create("불러오기 실패", message, false);
+        window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        return window;
+    }
+
+    private static Window Create(string title, string message, bool confirm)
     {
         var dialog = new Window
         {
@@ -45,6 +55,6 @@ internal static class AppDialog
                 },
             },
         };
-        return dialog.ShowDialog<bool>(owner);
+        return dialog;
     }
 }

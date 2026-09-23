@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
@@ -26,9 +27,10 @@ public sealed class SpriteAtlas : IDisposable
     private const string GifUrl =
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/";
 
-    private static readonly string CacheDir = AppPaths.SpriteCache;
+    internal static string CacheDirectory { get; set; } = AppPaths.SpriteCache;
 
-    private static readonly HttpClient Http = new();
+    internal static HttpClient Http { get; set; } = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly ConcurrentDictionary<string, Lazy<Task<string>>> Downloads = new();
     private bool _disposed;
 
     public int Width { get; }
@@ -59,21 +61,21 @@ public sealed class SpriteAtlas : IDisposable
     }
 
     /// <summary>
-    /// 우선순위: PokeRogue exp/(애니메이션 보강) → PokeRogue 기본 → 기본이 정지면 PokeAPI GIF.
-    /// 6~9세대 정지 334종 중 exp가 278종, GIF가 19종을 메우고 37종은 정지로 남음.
+    /// 일반: exp/ → 기본 → GIF. 이로치: exp/shiny/ → shiny/ → shiny GIF → shiny PNG.
+    /// 정지 아틀라스가 있고 GIF가 없으면 해당 아틀라스를 유지하며 색상 간 대체는 하지 않는다.
     /// </summary>
-    public static async Task<SpriteAtlas> LoadAsync(int dexId)
+    public static async Task<SpriteAtlas> LoadAsync(int dexId, bool isShiny = false)
     {
         var key = PokemonForms.SpriteKey(dexId);
         SpriteAtlas? still = null;
-        foreach (var dir in new[] { "pokemon/exp/", "pokemon/" })
+        foreach (var dir in isShiny ? new[] { "pokemon/exp/shiny/", "pokemon/shiny/" } : new[] { "pokemon/exp/", "pokemon/" })
         {
             try
             {
                 still = Parse(await CachedAsync($"{dir}{key}.json"), await CachedAsync($"{dir}{key}.png"));
                 break;
             }
-            catch (HttpRequestException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
                 // 그 경로에 없음 → 다음 후보
             }
@@ -82,13 +84,20 @@ public sealed class SpriteAtlas : IDisposable
 
         try
         {
-            var animated = ParseGif(await CachedAsync($"pokeapi/{dexId}.gif", $"{GifUrl}{dexId}.gif"));
+            var color = isShiny ? "shiny/" : "";
+            var animated = ParseGif(await CachedAsync($"pokeapi/{color}{dexId}.gif", $"{GifUrl}{color}{dexId}.gif"));
             still?.Dispose();
             return animated;
         }
-        catch (HttpRequestException) when (still != null)
+        catch (Exception ex) when (still != null && (ex is HttpRequestException or TaskCanceledException))
         {
             return still; // GIF도 없음 → 정지 그대로
+        }
+        catch (Exception ex) when (isShiny && (ex is HttpRequestException or TaskCanceledException))
+        {
+            var sheet = LoadSheet(await CachedAsync($"pokeapi/shiny/{dexId}.png",
+                $"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/{dexId}.png"));
+            return new SpriteAtlas(sheet.Width, sheet.Height, [Snapshot(sheet)]);
         }
         catch
         {
@@ -100,16 +109,32 @@ public sealed class SpriteAtlas : IDisposable
     /// <summary>캐시 기준 상대 경로를 받아 캐시 경로 반환. 없으면 url(생략 시 pokerogue-assets images/)에서 다운로드.</summary>
     internal static async Task<string> CachedAsync(string relative, string? url = null)
     {
-        var path = Path.Combine(CacheDir, relative);
+        var path = Path.GetFullPath(Path.Combine(CacheDirectory, relative));
+        var client = Http;
+        var download = Downloads.GetOrAdd(path, _ =>
+            new Lazy<Task<string>>(() => DownloadAsync(path, url ?? BaseUrl + relative, client)));
+        try
+        {
+            return await download.Value;
+        }
+        finally
+        {
+            // 이전 대기자가 후속 재시도를 지우지 않도록 같은 요청만 제거한다.
+            Downloads.TryRemove(new KeyValuePair<string, Lazy<Task<string>>>(path, download));
+        }
+    }
+
+    private static async Task<string> DownloadAsync(string path, string url, HttpClient client)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (!File.Exists(path))
         {
-            var bytes = await Http.GetByteArrayAsync(url ?? BaseUrl + relative);
+            var bytes = await client.GetByteArrayAsync(url).ConfigureAwait(false);
             // 다른 창/프로세스는 완전히 기록된 파일만 보도록 같은 폴더에서 원자적으로 이동한다.
             var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
             try
             {
-                await File.WriteAllBytesAsync(temporary, bytes);
+                await File.WriteAllBytesAsync(temporary, bytes).ConfigureAwait(false);
                 try
                 {
                     File.Move(temporary, path);
@@ -179,16 +204,32 @@ public sealed class SpriteAtlas : IDisposable
     /// 이름 프레임 아틀라스(egg/egg, egg/egg_crack 등). 파일명(확장자 제외) → 프레임.
     /// 오프셋은 spriteSourceSize 기준(trimmed 프레임을 원래 캔버스에 놓을 위치).
     /// </summary>
-    internal static async Task<Dictionary<string, SpriteFrame>> LoadFramesAsync(string relativeBase)
+    internal static async Task<Dictionary<string, SpriteFrame>> LoadFramesAsync(string relativeBase, string? version = null)
     {
-        var jsonPath = await CachedAsync($"{relativeBase}.json");
-        var pngPath = await CachedAsync($"{relativeBase}.png");
+        var cacheBase = version == null ? relativeBase : $"art/{version}/{relativeBase}";
+        var jsonPath = await CachedAsync($"{cacheBase}.json", BaseUrl + relativeBase + ".json");
+        var pngPath = await CachedAsync($"{cacheBase}.png", BaseUrl + relativeBase + ".png");
         var sheet = LoadSheet(pngPath);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(jsonPath));
         var result = new Dictionary<string, SpriteFrame>();
-        foreach (var (name, elem) in EnumerateFrames(doc.RootElement))
-            result[Path.GetFileNameWithoutExtension(name)] = MakeFrame(sheet, elem);
+        try
+        {
+            foreach (var (name, elem) in EnumerateFrames(doc.RootElement))
+            {
+                var frame = MakeFrame(sheet, elem);
+                if (!result.TryAdd(Path.GetFileNameWithoutExtension(name), frame))
+                {
+                    frame.Bitmap.Dispose();
+                    throw new InvalidDataException("중복된 아틀라스 프레임 이름");
+                }
+            }
+        }
+        catch
+        {
+            foreach (var frame in result.Values) frame.Bitmap.Dispose();
+            throw;
+        }
         return result;
     }
 
