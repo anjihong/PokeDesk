@@ -17,7 +17,7 @@ dotnet run
 - 성장: 전역 키·마우스 입력 1회당 경험치 +1. 다음 레벨 요구 경험치는 `현재 레벨 × 30`
 - 저장: 일반·이로치의 보유 목록, 레벨, 경험치와 확정된 다음 알을 `%LOCALAPPDATA%\DeskPokemon\settings.json`에 저장
 
-전체 동작과 이슈별 구현 상태는 [기능 명세](Docs/spec/01-overview.md)를 참고한다.
+전체 동작과 이슈별 구현 상태는 [기능 명세](Docs/spec/01-overview.md)를 참고한다. 이로치 규칙은 [이로치 기능 명세](Docs/spec/10-shiny.md)에 따로 정리했다.
 
 ## 스프라이트 출처 및 라이선스
 

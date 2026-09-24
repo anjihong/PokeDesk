@@ -15,7 +15,7 @@
 | [#4 알 기능](https://github.com/anjihong/PokeDesk/issues/4) | 구현. 현재 확률은 등급·풀 기반 |
 | [#5 설정](https://github.com/anjihong/PokeDesk/issues/5) | 미구현. 설정 탭, 시작 프로그램, 좌우 반전, 배율 조정 없음 |
 | [#6 알 종류 분화](https://github.com/anjihong/PokeDesk/issues/6) | 구현. 5등급, 등급별 풀, 확정 결과 저장 |
-| [#7 이로치](https://github.com/anjihong/PokeDesk/issues/7) | 구현. 7% 판정, 이로치알 100%, 별도 수집·성장 |
+| [#7 이로치](https://github.com/anjihong/PokeDesk/issues/7) | 구현. 7% 판정, 이로치알 100%, 별도 수집·성장. [상세 명세](10-shiny.md) |
 | [#8 이로치 확률](https://github.com/anjihong/PokeDesk/issues/8) | 테스트용 종료 이슈. 별도 요구 사항 없음 |
 | [#9 UI](https://github.com/anjihong/PokeDesk/issues/9) | 일부 구현. 세대 탭, 보유/이로치 필터, 실루엣 제공. 전체 세대 탭·포켓몬 설명·설정 탭·픽셀 UI 적용은 미구현 |
 | [#10 레벨업 디자인](https://github.com/anjihong/PokeDesk/issues/10) | 구현. 요구 경험치 `현재 레벨 × 30` |
