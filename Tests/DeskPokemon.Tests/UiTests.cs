@@ -456,7 +456,7 @@ public partial class UiTests
                     window.Position.Y);
 
                 tab.IsChecked = false;
-                await EventuallyAsync(window, () => drawer.Height == 0);
+                await WaitForDrawerCloseAsync(window);
                 Assert.Equal(baselineHeight, window.Bounds.Height);
                 Assert.Equal(origin, window.Position);
             }
@@ -495,7 +495,7 @@ public partial class UiTests
                 (resizedOpenHeight - heightBeforePetResize) * window.DesktopScaling), resizedOpenPosition.Y);
 
             tab.IsChecked = false;
-            await EventuallyAsync(window, () => drawer.Height == 0);
+            await WaitForDrawerCloseAsync(window);
             Assert.True(resizedOpenHeight > window.Bounds.Height);
             Assert.Equal(draggedPosition.X, window.Position.X);
             Assert.Equal(resizedOpenPosition.Y + (int)Math.Round(
@@ -537,7 +537,7 @@ public partial class UiTests
                 window.Position.Y);
 
             tab.IsChecked = false;
-            await EventuallyAsync(window, () => drawer.Height == 0);
+            await WaitForDrawerCloseAsync(window);
             Assert.Equal(baselineHeight, window.Bounds.Height);
             Assert.Equal(origin, window.Position);
         }
@@ -562,7 +562,7 @@ public partial class UiTests
                 Assert.Equal(area.Y, window.Position.Y);
 
                 tab.IsChecked = false;
-                await EventuallyAsync(window, () => drawer.Height == 0);
+                await WaitForDrawerCloseAsync(window);
                 Assert.Equal(baselineHeight, window.Bounds.Height);
                 Assert.Equal(origin, window.Position);
             }

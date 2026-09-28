@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     private DateTime _lastEggTick; // 알 타이머 직전 틱 시각(UTC)
     private PixelPoint? _positionBeforeDrawer;
     private PixelPoint _lastDrawerPosition;
+    private Size _lastPositionedSize;
     private double _heightBeforeDrawer;
 
     private enum EggState { Waiting, Ready, Hatching, Result }
@@ -371,6 +372,7 @@ public partial class MainWindow : Window
             _positionBeforeDrawer = new PixelPoint(Position.X,
                 Position.Y + (int)Math.Round(Drawer.Height * UiScaleFactor * DesktopScaling));
             _heightBeforeDrawer = Bounds.Height - Drawer.Height * UiScaleFactor;
+            _lastPositionedSize = Bounds.Size;
         }
         _lastDrawerPosition = Position;
         _drawerAnimation = new Timeline(false,
@@ -379,9 +381,18 @@ public partial class MainWindow : Window
             {
                 UpdateLayout();
                 ClampToScreen();
-                if (!open) _positionBeforeDrawer = null;
+                CompleteDrawerCloseWhenPositioned();
             });
         _drawerAnimation.Play();
+    }
+
+    private void CompleteDrawerCloseWhenPositioned()
+    {
+        // A native SizeToContent resize can arrive after the animation's completion.
+        // Retain the original position until that final size has actually been positioned.
+        if (IsDrawerOpen || _drawerTargetHeight != 0 || Drawer.Height != 0 || Drawer.Bounds.Height != 0) return;
+        if (Bounds.Size != UiZoom.DesiredSize || Bounds.Size != UiZoom.Bounds.Size || _lastPositionedSize != Bounds.Size) return;
+        _positionBeforeDrawer = null;
     }
 
     // ---- 배치 ----
@@ -575,6 +586,8 @@ public partial class MainWindow : Window
                 Position.Y + (int)Math.Round((e.PreviousSize.Height - e.NewSize.Height) * DesktopScaling));
         }
         ClampToScreen();
+        _lastPositionedSize = e.NewSize;
+        CompleteDrawerCloseWhenPositioned();
     }
 
     private PixelPoint DrawerPosition(PixelPoint origin, double height) => new(origin.X,
