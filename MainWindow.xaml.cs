@@ -664,7 +664,7 @@ public partial class MainWindow : Window
         {
             ++_loadRequest; // 이전 비동기 선택을 취소하고 현재 표시를 유지한다.
             _selectingPokemon = false;
-            await CheckEvolutionAsync(true);
+            await CheckEvolutionAsync();
             return;
         }
         _selectingPokemon = true;
@@ -681,7 +681,7 @@ public partial class MainWindow : Window
             TrySaveSettings();
             SyncSelectedIcon();
             RefreshEvolutionUi();
-            await CheckEvolutionAsync(true);
+            await CheckEvolutionAsync();
         }
         else if (!_closed && request == _loadRequest)
         {

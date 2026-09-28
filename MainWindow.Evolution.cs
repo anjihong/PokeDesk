@@ -10,8 +10,6 @@ public partial class MainWindow
     private bool _evolving;
     private bool _selectingPokemon;
     private bool _checkEvolutionAgain;
-    private bool _checkChoiceAgain;
-    private readonly HashSet<PokemonProgress> _deferredEvolutionChoices = new();
 
     private void RefreshEvolutionUi()
     {
@@ -57,37 +55,13 @@ public partial class MainWindow
             RefreshEvolutionUi();
             return;
         }
-        await CheckEvolutionAsync(true);
+        await CheckEvolutionAsync();
     }
 
-    private int? ChooseEvolution(int[] targets)
-    {
-        int? selected = null;
-        var panel = new StackPanel { Margin = new Thickness(16) };
-        panel.Children.Add(new TextBlock { Text = "아직 얻지 않은 진화체를 선택하세요.", Margin = new Thickness(0, 0, 0, 10) });
-        var dialog = new Window
-        {
-            Title = "진화 선택", Content = panel, SizeToContent = SizeToContent.WidthAndHeight,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false, Topmost = true
-        };
-        if (IsVisible) dialog.Owner = this;
-        foreach (var target in targets)
-        {
-            var button = new Button { Content = PokemonNames.Of(target), Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 2, 0, 2) };
-            button.Click += (_, _) => { selected = target; dialog.DialogResult = true; };
-            panel.Children.Add(button);
-        }
-        var cancel = new Button { Content = "나중에", IsCancel = true, Margin = new Thickness(0, 10, 0, 0) };
-        panel.Children.Add(cancel);
-        dialog.ShowDialog();
-        return selected;
-    }
-
-    private async Task CheckEvolutionAsync(bool allowChoice = false)
+    private async Task CheckEvolutionAsync()
     {
         if (_closed || _selectingPokemon) return;
-        if (_evolving) { _checkEvolutionAgain = true; _checkChoiceAgain |= allowChoice; return; }
+        if (_evolving) { _checkEvolutionAgain = true; return; }
         _evolving = true;
         var request = _loadRequest;
         try
@@ -100,17 +74,8 @@ public partial class MainWindow
                 if (options.Length == 0 || options[0].FromId != dex) break;
                 var p = _settings.For(dex, shiny);
                 request = ++_loadRequest;
-                int? chosen = p.PendingEvolution;
-                if (chosen is null && _settings.NeedsEvolutionChoice(dex, shiny))
-                {
-                    // 명시적 클릭으로 다시 열 수 있다. 입력마다 닫은 선택창을 반복 표시하지 않는다.
-                    if (!allowChoice && _deferredEvolutionChoices.Contains(p)) break;
-                    chosen = ChooseEvolution(options.Select(r => r.ToId).ToArray());
-                    if (chosen is null) { _deferredEvolutionChoices.Add(p); break; }
-                    _deferredEvolutionChoices.Remove(p);
-                }
                 if (!IsCurrent()) break;
-                var target = _settings.PrepareEvolution(dex, shiny, chosen);
+                var target = _settings.PrepareEvolution(dex, shiny);
                 var atlas = await SpriteAtlas.LoadAsync(target, shiny);
                 if (!IsCurrent()) break;
                 var blink = new DoubleAnimation(1, .15, TimeSpan.FromMilliseconds(150))
@@ -144,8 +109,7 @@ public partial class MainWindow
             if (!_closed) RefreshEvolutionUi();
         }
         var recheck = _checkEvolutionAgain;
-        var choiceAgain = _checkChoiceAgain;
-        _checkEvolutionAgain = _checkChoiceAgain = false;
-        if (recheck && !_closed) await CheckEvolutionAsync(choiceAgain);
+        _checkEvolutionAgain = false;
+        if (recheck && !_closed) await CheckEvolutionAsync();
     }
 }

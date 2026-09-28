@@ -117,9 +117,12 @@ internal static class EvolutionTests
             eevee.For(133).Level = 24;
             check(!Hatch(eevee, 133).IsRestart && eevee.For(133).Level == 25,
                 "duplicate during Eevee rearing adds one level");
-            check(eevee.NeedsEvolutionChoice(133) && eevee.EvolutionOptions(133).Length == 7,
-                "Eevee rearing offers only uncollected branches");
-            foreach (var target in eeveeTargets.Skip(1))
+            check(eevee.EvolutionOptions(133).Length == 7,
+                "Eevee rearing leaves seven uncollected branches");
+            var secondEevee = eevee.PrepareEvolution(133, random: new FixedRandom(0, 6));
+            check(secondEevee == 700, "second Eevee branch randomly selects among remaining seven");
+            eevee.CompleteEvolution(133, false, secondEevee);
+            foreach (var target in eeveeTargets.Skip(1).Where(d => d != secondEevee))
             {
                 if (eevee.For(133).CurrentDex != 133)
                 {
@@ -130,7 +133,7 @@ internal static class EvolutionTests
             }
             check(eeveeTargets.All(d => eevee.HasOwned(d)) && eevee.EvolutionOptions(133).Length == 0,
                 "all eight Eevee branches can be collected");
-            var lastGrowth = eevee.For(700);
+            var lastGrowth = eevee.For(eevee.SelectedDex);
             check(!Hatch(eevee, 133).IsRestart && lastGrowth.Level == 26 && firstGrowth.Level == 25,
                 "Eevee duplicate after all branches gives level bonus to latest run");
             eevee.AddOwned(133, true);
@@ -149,12 +152,16 @@ internal static class EvolutionTests
             Evolve(pending,236,107);
             Hatch(pending,236);
             pending.For(236).Level = 20;
-            check(pending.NeedsEvolutionChoice(236), "second run offers remaining choices");
-            invalid = false;
-            try { pending.PrepareEvolution(236); } catch (InvalidOperationException) { invalid = true; }
-            check(invalid, "second run requires choice if multiple remain");
-            Evolve(pending,236,237);
-            check(!pending.HasOwned(106), "choice does not grant other branch");
+            check(pending.EvolutionOptions(236).Length == 2, "second run excludes collected branch");
+            var secondTyrogue = pending.PrepareEvolution(236, random: new FixedRandom(0, 1));
+            check(secondTyrogue == 237, "second run randomly selects among remaining branches");
+            pending.CompleteEvolution(236, false, secondTyrogue);
+            check(!pending.HasOwned(106), "random result does not grant another branch");
+            check(Hatch(pending, 236).IsRestart, "last remaining branch starts another run");
+            pending.For(236).Level = 20;
+            check(pending.PrepareEvolution(236, random: new FixedRandom(0, 0)) == 106,
+                "single remaining branch is selected without a dialog");
+            pending.CompleteEvolution(236, false, 106);
 
             var wurmple = New(265);
             wurmple.For(265).Level = 7;

@@ -77,11 +77,7 @@ public sealed class Settings
         return rules.Where(r => r.Level <= p.Level && !p.History.Contains(r.ToId)).ToArray();
     }
 
-    public bool NeedsEvolutionChoice(int dex, bool shiny = false) =>
-        EvolutionOptions(dex, shiny).Length > 1 &&
-        EvolutionData.From(For(dex, shiny).CurrentDex).Any(r => HasOwned(r.ToId, shiny));
-
-    /// <summary>첫 무작위 결과도 먼저 저장하여 이미지 실패·재시작 때 재추첨하지 않는다.</summary>
+    /// <summary>모든 분기 진화의 무작위 결과를 먼저 저장하여 이미지 실패·재시작 때 재추첨하지 않는다.</summary>
     public int PrepareEvolution(int dex, bool shiny = false, int? target = null, Random? random = null)
     {
         var p = For(dex, shiny);
@@ -92,7 +88,6 @@ public sealed class Settings
             if (!options.Any(r => r.ToId == pending)) throw new InvalidOperationException("Invalid pending evolution.");
             return pending;
         }
-        if (target is null && NeedsEvolutionChoice(dex, shiny)) throw new InvalidOperationException("Choose an evolution.");
         var chosen = target ?? options[(random ?? Random.Shared).Next(options.Length)].ToId;
         if (!options.Any(r => r.ToId == chosen)) throw new ArgumentOutOfRangeException(nameof(target));
         p.PendingEvolution = chosen;

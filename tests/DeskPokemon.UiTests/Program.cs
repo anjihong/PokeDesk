@@ -227,7 +227,7 @@ internal static class Program
             .Single(c => (int)c.Tag.GetType().GetProperty("Dex")!.GetValue(c.Tag)! == dex);
         Await((Task<bool>)Call(w,"LoadPokemonAsync",4,false)!);
         s.For(4).Level = 16;
-        Await((Task)Call(w,"CheckEvolutionAsync",false)!);
+        Await((Task)Call(w,"CheckEvolutionAsync")!);
         Check(s.SelectedDex == 5 && Cell(5).IsChecked == true, "UI evolution automatically selects target");
         Cell(4).IsChecked = true;
         Until(() => s.SelectedDex == 4);
@@ -258,7 +258,7 @@ internal static class Program
         Until(() => s.SelectedDex == 6);
         Check(s.For(5).PendingEvolution is null && s.Owned.Contains(4), "returning to source resumes pending evolution");
 
-        // Real modal selection can be closed; it must not keep reopening on input.
+        // Repeated branch evolution picks one of the remaining targets without a dialog.
         s.AddOwned(236); s.For(236).Level = 20;
         s.PrepareEvolution(236,target:106); s.CompleteEvolution(236,false,106);
         s.Eggs = 1; s.PendingEgg = new(EggKind.Common,236,false);
@@ -267,31 +267,10 @@ internal static class Program
             Element<TextBlock>(w,"NewText").Text == "새 육성 · Lv.1", "UI hatch shows restart and preserves old branch");
         ((DispatcherTimer)typeof(MainWindow).GetField("_resultTimer",Private)!.GetValue(w)!).Stop();
         s.SelectedDex = 236; s.For(236).Level = 20;
-        var modalTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
-        modalTimer.Tick += (_,_) =>
-        {
-            var dialog = Application.Current.Windows.OfType<Window>().FirstOrDefault(x => x.Title == "진화 선택");
-            if (dialog == null) return;
-            modalTimer.Stop(); dialog.Close();
-        };
-        modalTimer.Start();
-        Await((Task)Call(w,"CheckEvolutionAsync",false)!);
-        Check(s.For(236).PendingEvolution is null && s.SelectedDex == 236, "cancel leaves branch unevolved");
-        Await((Task)Call(w,"CheckEvolutionAsync",false)!);
-        Check(s.For(236).PendingEvolution is null, "cancelled dialog stays deferred");
-        var chooseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
-        chooseTimer.Tick += (_,_) =>
-        {
-            var dialog = Application.Current.Windows.OfType<Window>().FirstOrDefault(x => x.Title == "진화 선택");
-            if (dialog == null) return;
-            chooseTimer.Stop();
-            var buttons = ((Panel)dialog.Content).Children.OfType<Button>().ToArray();
-            Check(buttons.Length == 3, "choice contains two remaining branches and cancel");
-            buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        };
-        chooseTimer.Start();
-        Await((Task)Call(w,"CheckEvolutionAsync",true)!);
-        Check(s.SelectedDex == 107 && s.For(106).Level == 20, "explicit retry selects remaining branch and preserves old growth");
+        Await((Task)Call(w,"CheckEvolutionAsync")!);
+        Check(new[] {107,237}.Contains(s.SelectedDex) && s.For(106).Level == 20 &&
+            Application.Current.Windows.OfType<Window>().All(x => x.Title != "진화 선택"),
+            "repeated branch auto-selects an uncollected target without a dialog");
 
         foreach (var form in EvolutionData.Forms)
         {
@@ -311,8 +290,6 @@ internal static class Program
         Call(w,"UpdateOwnedCount");
         Check(Element<TextBlock>(w,"OwnedCount").Text.EndsWith("/1036"), "collection counts additional forms");
         Layout(root); Render(root,Path.Combine(output,"regional-pokedex.png"));
-        foreach (var window in Application.Current.Windows.OfType<Window>().ToArray())
-            if (window != w && window.Title == "진화 선택") window.Close();
     }
 
     private static void VerifyEeveeEvolution()
@@ -326,7 +303,7 @@ internal static class Program
         Until(() => Element<Panel>(w, "IconGrid").Children.Count == 151);
         Await((Task<bool>)Call(w, "LoadPokemonAsync", 133, false)!);
         s.For(133).Level = 25;
-        Await((Task)Call(w, "CheckEvolutionAsync", false)!);
+        Await((Task)Call(w, "CheckEvolutionAsync")!);
         var first = s.SelectedDex;
         Check(EvolutionData.From(133).Any(r => r.ToId == first) && s.HasOwned(first) &&
             Element<TextBlock>(w, "LevelText").Text.Contains("25"),
@@ -339,6 +316,12 @@ internal static class Program
             Element<TextBlock>(w, "NewText").Text == "새 육성 · Lv.1",
             "Eevee duplicate restarts while first evolution stays grown");
         ((DispatcherTimer)typeof(MainWindow).GetField("_resultTimer", Private)!.GetValue(w)!).Stop();
+        s.SelectedDex = 133;
+        s.For(133).Level = 25;
+        Await((Task)Call(w, "CheckEvolutionAsync")!);
+        Check(s.SelectedDex != first && EvolutionData.From(133).Any(r => r.ToId == s.SelectedDex) &&
+            s.For(first).Level == 25 && Application.Current.Windows.OfType<Window>().All(x => x.Title != "진화 선택"),
+            "second Eevee run auto-selects an uncollected target without a dialog");
     }
 
     private static void VerifyEvolutionRealAssets(string output)

@@ -18,7 +18,7 @@
 | 이슈 | 현재 코드 상태 |
 | --- | --- |
 | [#1 멀티 플레이](https://github.com/anjihong/PokeDesk/issues/1) | 미구현 |
-| [#2 진화 시스템](https://github.com/anjihong/PokeDesk/issues/2) | 구현. 레벨 진화·지역 모습·분기 재육성·알림·선택. [상세 명세](11-evolution.md) |
+| [#2 진화 시스템](https://github.com/anjihong/PokeDesk/issues/2) | 구현. 레벨 진화·지역 모습·무작위 분기 재육성·알림. [상세 명세](11-evolution.md) |
 | [#3 스타팅 선택](https://github.com/anjihong/PokeDesk/issues/3) | 구현 |
 | [#4 알 기능](https://github.com/anjihong/PokeDesk/issues/4) | 구현. 현재 확률은 등급·풀 기반 |
 | [#5 설정](https://github.com/anjihong/PokeDesk/issues/5) | 미구현. 설정 탭, 시작 프로그램, 좌우 반전, 배율 조정 없음 |
