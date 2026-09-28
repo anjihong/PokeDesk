@@ -9,7 +9,7 @@ namespace DeskPokemon.Tests;
 public static class TestAppBuilder
 {
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-        .With(new FontManagerOptions { DefaultFamilyName = "avares://DeskPokemon/Assets/Fonts#NanumGothic" })
+        .With(new FontManagerOptions { DefaultFamilyName = "avares://DeskPokemon/Assets/Fonts#Galmuri11" })
         .UseSkia()
         .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 }

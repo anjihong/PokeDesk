@@ -112,7 +112,7 @@ public partial class MainWindow
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         e.Handled = true;
-        if (_eggState != EggState.Ready) return;
+        if (_eggState != EggState.Ready || _evolving) return;
         try { await HatchAsync(); }
         catch (OperationCanceledException) when (_closed) { }
     }
@@ -158,6 +158,8 @@ public partial class MainWindow
         _animations["ResultPop"].Play();
         _resultTimer.Stop();
         _ = LoadHatchResultAsync(hatched, ++_resultRequest);
+        RefreshEvolutionUi();
+        _ = CheckEvolutionAsync();
     }
 
     private async Task LoadHatchResultAsync(HatchResult result, int request)

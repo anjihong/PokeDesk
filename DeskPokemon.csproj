@@ -12,7 +12,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <AvaloniaResource Include="Assets/**" />
+    <AvaloniaResource Include="Assets/**" Exclude="Assets/Data/*.json" />
+    <EmbeddedResource Include="Assets/Data/*.json" />
     <Compile Remove="Tests/**/*.cs" />
     <AvaloniaXaml Remove="Tests/**/*.axaml" />
   </ItemGroup>

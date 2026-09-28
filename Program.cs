@@ -13,7 +13,7 @@ internal static class Program
         .With(new MacOSPlatformOptions { ShowInDock = false })
         .With(new FontManagerOptions
         {
-            DefaultFamilyName = "avares://DeskPokemon/Assets/Fonts#NanumGothic",
+            DefaultFamilyName = "avares://DeskPokemon/Assets/Fonts#Galmuri11",
         })
         .LogToTrace();
 }

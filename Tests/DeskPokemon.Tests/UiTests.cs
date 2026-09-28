@@ -19,7 +19,7 @@ using Xunit;
 namespace DeskPokemon.Tests;
 
 [Collection("Artwork assets")]
-public class UiTests
+public partial class UiTests
 {
     [AvaloniaTheory]
     [InlineData(1)]
@@ -35,7 +35,7 @@ public class UiTests
             window.UpdateLayout();
             Assert.Equal(SystemDecorations.None, window.SystemDecorations);
             Assert.Equal(TextRenderingMode.Antialias, RenderOptions.GetTextRenderingMode(window));
-            Assert.Contains("NanumGothic", window.FontFamily.Name);
+            Assert.Contains("Galmuri11", window.FontFamily.Name);
             Assert.Contains(WindowTransparencyLevel.Transparent, window.TransparencyLevelHint);
             var choices = window.FindControl<StackPanel>("Choices")!;
             foreach (var image in choices.GetVisualDescendants().OfType<Image>()) image.Source = icon;
@@ -76,16 +76,19 @@ public class UiTests
             var icons = Enumerable.Range(1, 30).ToDictionary(dex => dex, _ => icon);
             Invoke(window, "RebuildIconGrid", 1, icons);
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            Assert.Equal(30, grid.Children.Count);
+            Assert.Equal(151, grid.Children.Count);
+            Assert.IsType<TextBlock>(((RadioButton)grid.Children[150]).Content);
             var unowned = (RadioButton)grid.Children[0];
             Assert.False(unowned.IsEnabled);
             Assert.True(ToolTip.GetShowOnDisabled(unowned));
             Assert.True(((RadioButton)grid.Children[3]).IsChecked);
             Assert.Equal("Lv. 1", window.FindControl<TextBlock>("LevelText")!.Text);
-            Assert.Equal(50, window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.Width);
+            Assert.Equal(68, window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.Width);
             Assert.True(window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.IsVisible);
-            Assert.Equal(9, window.FindControl<StackPanel>("GenTabs")!.Children.Count);
-            Assert.Equal(300, window.Bounds.Width);
+            Assert.Equal(10, window.FindControl<StackPanel>("GenTabs")!.Children.Count);
+            Assert.Equal(352, window.Bounds.Width);
+            Assert.Equal(352, window.FindControl<StackPanel>("Root")!.Width);
+            Assert.Contains("Galmuri11", window.FontFamily.Name);
             Assert.True(window.Topmost);
             Assert.Equal(TextRenderingMode.Antialias, RenderOptions.GetTextRenderingMode(window));
             Assert.False(window.ShowInTaskbar);
@@ -140,15 +143,16 @@ public class UiTests
             Invoke(window, "BuildGenTabs");
             Invoke(window, "SelectGenTab", 1);
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            await EventuallyAsync(window, () => grid.Children.Count == 151);
+            await EventuallyAsync(window, () => grid.Children.Count == 152 && !Field<bool>(window, "_dexLoading"));
             var ownedOnly = window.FindControl<CheckBox>("OwnedOnly")!;
             var shinyFilter = window.FindControl<CheckBox>("ShinyDex")!;
             ownedOnly.IsChecked = true;
-            Assert.Equal(2, grid.Children.Count);
-            Assert.Equal("보유 2/1025", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal(3, grid.Children.Count);
+            Assert.Equal(new[] { (4, false), (4, true), (7, false) }, grid.Children.OfType<RadioButton>().Select(Choice));
+            Assert.Equal("보유 3/2050", window.FindControl<TextBlock>("OwnedCount")!.Text);
 
             shinyFilter.IsChecked = true;
-            await EventuallyAsync(window, () => grid.Children.Count == 1 && Choice((RadioButton)grid.Children[0]).Shiny);
+            await EventuallyAsync(window, () => grid.Children.Count == 1 && Choice((RadioButton)grid.Children[0]).Shiny && !Field<bool>(window, "_dexLoading"));
             Assert.Equal(4, settings.SelectedDex);
             Assert.False(settings.SelectedShiny); // Viewing a collection must not change the pet.
             Assert.Equal("보유 1/1025", window.FindControl<TextBlock>("OwnedCount")!.Text);
@@ -164,12 +168,12 @@ public class UiTests
             Invoke(window, "AddExp");
             Assert.Equal(63, settings.For(4, true).Exp);
             Assert.Equal(17, settings.For(4).Exp);
-            Assert.Equal(30, window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.Width);
+            Assert.Equal(40.8, window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.Width, 6);
 
             var tab = (ToggleButton)window.FindControl<StackPanel>("MenuTabs")!.Children[0];
             tab.IsChecked = true;
             var content = window.FindControl<Border>("DrawerContent")!;
-            content.Measure(new Size(300, double.PositiveInfinity));
+            content.Measure(new Size(352, double.PositiveInfinity));
             await EventuallyAsync(window, () => Math.Abs(window.FindControl<Border>("Drawer")!.Height - content.DesiredSize.Height) < .001);
             var left = BoundsIn(window, ownedOnly);
             var right = BoundsIn(window, shinyFilter);
@@ -181,7 +185,7 @@ public class UiTests
 
             ownedOnly.IsChecked = false;
             Assert.Equal(151, grid.Children.Count);
-            var unownedShiny = grid.Children.OfType<RadioButton>().Single(cell => Choice(cell).Dex == 7);
+            var unownedShiny = grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (7, true));
             Assert.False(unownedShiny.IsEnabled); // Owning normal #7 does not unlock shiny #7.
             Assert.True(ToolTip.GetShowOnDisabled(unownedShiny));
             Assert.Contains("???", TipText(unownedShiny));
@@ -192,9 +196,9 @@ public class UiTests
 
             var selectedSprite = window.FindControl<Image>("Sprite")!.Source;
             shinyFilter.IsChecked = false;
-            await EventuallyAsync(window, () => grid.Children.Count == 151 && !Choice((RadioButton)grid.Children[0]).Shiny);
+            await EventuallyAsync(window, () => grid.Children.Count == 152 && !Choice((RadioButton)grid.Children[0]).Shiny && !Field<bool>(window, "_dexLoading"));
             Assert.True(settings.SelectedShiny);
-            var normalCell = grid.Children.OfType<RadioButton>().Single(cell => Choice(cell).Dex == 4);
+            var normalCell = grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (4, false));
             Assert.Contains("Lv.3", TipText(normalCell));
             Assert.DoesNotContain("이로치", TipText(normalCell));
             normalCell.IsChecked = true;
@@ -224,10 +228,10 @@ public class UiTests
             Invoke(window, "BuildGenTabs");
             Invoke(window, "SelectGenTab", 1);
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            await EventuallyAsync(window, () => grid.Children.Count == 151);
+            await EventuallyAsync(window, () => grid.Children.Count == 152 && !Field<bool>(window, "_dexLoading"));
             window.FindControl<CheckBox>("ShinyDex")!.IsChecked = true;
-            await EventuallyAsync(window, () => grid.Children.Count == 151 && Choice((RadioButton)grid.Children[0]).Shiny);
-            grid.Children.OfType<RadioButton>().Single(cell => Choice(cell).Dex == 7).IsChecked = true;
+            await EventuallyAsync(window, () => grid.Children.Count == 151 && Choice((RadioButton)grid.Children[0]).Shiny && !Field<bool>(window, "_dexLoading"));
+            grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (7, true)).IsChecked = true;
             await EventuallyAsync(window, () => window.FindControl<TextBlock>("SpriteStatus")!.IsVisible && !settings.SelectedShiny);
             Assert.Equal(4, settings.SelectedDex);
             Assert.Same(previousSprite, window.FindControl<Image>("Sprite")!.Source);
@@ -326,9 +330,24 @@ public class UiTests
             var artwork = Assert.IsAssignableFrom<Bitmap>(image.Source);
             Assert.Equal(new PixelSize(28, 30), artwork.PixelSize);
             var pixels = SpritePixels.CopyFrom(artwork);
-            var offset = 10 * pixels.Stride + 8 * 4;
-            Assert.Equal(new byte[] { (byte)(40 + (int)kind * 42), (byte)(170 - (int)kind * 27),
-                (byte)(210 - (int)kind * 31), 255 }, pixels.Pixels[offset..(offset + 4)]);
+            if (kind == EggKind.Shiny)
+            {
+                // The guaranteed-shiny egg is now generated locally, independent of atlas/network colors.
+                Assert.Empty(assets.Requests);
+                Assert.Equal(0, pixels.Pixels[3]); // Transparent outside the egg.
+                Assert.Contains(Enumerable.Range(0, pixels.Width * pixels.Height), pixel =>
+                {
+                    var offset = pixel * 4;
+                    return pixels.Pixels[offset + 3] == 255 && pixels.Pixels[offset + 2] > 200 &&
+                        pixels.Pixels[offset + 1] > 120 && pixels.Pixels[offset] < 100; // Visible golden star.
+                });
+            }
+            else
+            {
+                var offset = 10 * pixels.Stride + 8 * 4;
+                Assert.Equal(new byte[] { (byte)(40 + (int)kind * 42), (byte)(170 - (int)kind * 27),
+                    (byte)(210 - (int)kind * 31), 255 }, pixels.Pixels[offset..(offset + 4)]);
+            }
             Assert.True(window.FindControl<LayoutTransformControl>("EggZoom")!.IsVisible);
             Assert.False(window.FindControl<LayoutTransformControl>("ResultZoom")!.IsVisible);
             Assert.Null(window.FindControl<Image>("ResultImage")!.Source);
@@ -408,7 +427,7 @@ public class UiTests
             var bar = window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!;
             Assert.Equal(0, bar.Width);
             Assert.False(bar.IsVisible);
-            Assert.Equal(100, track.Bounds.Width);
+            Assert.Equal(136, track.Bounds.Width);
 
             // Hover near the right edge of the background track, where no fill exists.
             Hover(window, track, new Point(track.Bounds.Width - 2, track.Bounds.Height / 2));
@@ -597,7 +616,8 @@ public class UiTests
         private readonly byte[] _normal = Sheet(false);
         private readonly byte[] _shiny = Sheet(true);
         private readonly byte[] _eggs = EggSheet();
-        public int MissingSpriteDex { get; init; }
+        public int MissingSpriteDex { get; set; }
+        public int MissingIconGeneration { get; set; }
         public ConcurrentQueue<string> Requests { get; } = new();
 
         public UiAssets()
@@ -616,6 +636,8 @@ public class UiTests
             Requests.Enqueue(path);
             if (MissingSpriteDex != 0 && path.Contains($"/{MissingSpriteDex}."))
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            if (MissingIconGeneration != 0 && path.Contains($"pokemon_icons_{MissingIconGeneration}."))
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
             if (path.Contains("egg_crack")) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
             var shiny = path.Contains("/shiny/");
             var egg = path.Contains("/egg/egg.");
@@ -629,13 +651,17 @@ public class UiTests
                     sourceSize = new { w = width + offsetX + 8, h = height + offsetY + 8 },
                     spriteSourceSize = new { x = offsetX, y = offsetY, w = width, h = height },
                 };
-                if (path.Contains("pokemon_icons_1"))
-                    for (var dex = 1; dex <= 151; dex++)
+                if (path.Contains("pokemon_icons_"))
+                {
+                    var generation = int.Parse(Path.GetFileNameWithoutExtension(path).Split('_')[^1]);
+                    var (_, first, last) = PokemonIcons.Generations[generation - 1];
+                    for (var dex = first; dex <= last; dex++)
                     {
                         var key = PokemonForms.SpriteKey(dex);
                         frames.Add(Frame(key + ".png", 8, 8, 24, 30));
                         frames.Add(Frame(key.Insert(dex.ToString().Length, "s") + ".png", 120, 8, 24, 30));
                     }
+                }
                 else if (egg)
                     foreach (var kind in Enum.GetValues<EggKind>())
                         frames.Add(Frame(kind == EggKind.Shiny ? "egg_manaphy" : "egg_" + (int)kind,
@@ -757,7 +783,7 @@ public class UiTests
         ShowAndLayout(window);
         var drawer = window.FindControl<Border>("Drawer")!;
         var content = window.FindControl<Border>("DrawerContent")!;
-        content.Measure(new Size(300, double.PositiveInfinity));
+        content.Measure(new Size(352, double.PositiveInfinity));
         var expansion = content.DesiredSize.Height;
         var area = (PixelRect)typeof(MainWindow).GetProperty("WorkingArea", BindingFlags.NonPublic | BindingFlags.Instance)!
             .GetValue(window)!;
@@ -838,6 +864,10 @@ public class UiTests
             text = (visual as TextBlock)?.Text,
             font = (visual as TextBlock)?.FontFamily.Name,
             fontSize = (visual as TextBlock)?.FontSize,
+            fontWeight = (visual as TextBlock)?.FontWeight.ToString(),
+            asset = (visual as PixelSurface)?.Asset,
+            slice = visual is PixelSurface surface
+                ? new[] { surface.Slice.Left, surface.Slice.Top, surface.Slice.Right, surface.Slice.Bottom } : null,
             foreground = (visual as TextBlock)?.Foreground?.ToString(),
             background = (visual as Border)?.Background?.ToString(),
             opacity = Math.Round(visual.Opacity, 3),

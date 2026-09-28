@@ -38,6 +38,7 @@ public partial class MainWindow
 
     private async void OnRetrySprite(object? sender, RoutedEventArgs e)
     {
+        if (_closed || _evolving) return;
         await LoadPokemonAsync(_settings.SelectedDex, _settings.SelectedShiny);
         if (_closed) return;
         if (CheckedGen() is { } gen)

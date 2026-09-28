@@ -46,6 +46,12 @@ REQUIRED_SCREENSHOTS = {
     "egg-ready-Epic-2x.png",
     "egg-ready-Legendary-2x.png",
     "egg-ready-Shiny-2x.png",
+    "main-whole-dex-1x.png",
+    "main-whole-dex-2x.png",
+    "settings-1x.png",
+    "settings-2x.png",
+    "evolution-ready-1x.png",
+    "evolution-ready-2x.png",
 }
 
 

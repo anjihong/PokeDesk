@@ -1,0 +1,2858 @@
+[
+  {
+    "FromDex": 1,
+    "TargetDex": 2,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 2,
+    "TargetDex": 3,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 4,
+    "TargetDex": 5,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 5,
+    "TargetDex": 6,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 7,
+    "TargetDex": 8,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 8,
+    "TargetDex": 9,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 10,
+    "TargetDex": 11,
+    "RequiredLevel": 7,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 11,
+    "TargetDex": 12,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 13,
+    "TargetDex": 14,
+    "RequiredLevel": 7,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 14,
+    "TargetDex": 15,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 16,
+    "TargetDex": 17,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 17,
+    "TargetDex": 18,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 19,
+    "TargetDex": 20,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 21,
+    "TargetDex": 22,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 23,
+    "TargetDex": 24,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 172,
+    "TargetDex": 25,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 25,
+    "TargetDex": 26,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 27,
+    "TargetDex": 28,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 29,
+    "TargetDex": 30,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 30,
+    "TargetDex": 31,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 32,
+    "TargetDex": 33,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 33,
+    "TargetDex": 34,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 173,
+    "TargetDex": 35,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 35,
+    "TargetDex": 36,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 37,
+    "TargetDex": 38,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 174,
+    "TargetDex": 39,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 39,
+    "TargetDex": 40,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 41,
+    "TargetDex": 42,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 43,
+    "TargetDex": 44,
+    "RequiredLevel": 21,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 44,
+    "TargetDex": 45,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 46,
+    "TargetDex": 47,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 48,
+    "TargetDex": 49,
+    "RequiredLevel": 31,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 50,
+    "TargetDex": 51,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 52,
+    "TargetDex": 53,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 54,
+    "TargetDex": 55,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 56,
+    "TargetDex": 57,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 58,
+    "TargetDex": 59,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 60,
+    "TargetDex": 61,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 61,
+    "TargetDex": 62,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 63,
+    "TargetDex": 64,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 64,
+    "TargetDex": 65,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 66,
+    "TargetDex": 67,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 67,
+    "TargetDex": 68,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 69,
+    "TargetDex": 70,
+    "RequiredLevel": 21,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 70,
+    "TargetDex": 71,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 72,
+    "TargetDex": 73,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 74,
+    "TargetDex": 75,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 75,
+    "TargetDex": 76,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 77,
+    "TargetDex": 78,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 79,
+    "TargetDex": 80,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 81,
+    "TargetDex": 82,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 84,
+    "TargetDex": 85,
+    "RequiredLevel": 31,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 86,
+    "TargetDex": 87,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 88,
+    "TargetDex": 89,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 90,
+    "TargetDex": 91,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 92,
+    "TargetDex": 93,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 93,
+    "TargetDex": 94,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 96,
+    "TargetDex": 97,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 98,
+    "TargetDex": 99,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 100,
+    "TargetDex": 101,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 102,
+    "TargetDex": 103,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 104,
+    "TargetDex": 105,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 236,
+    "TargetDex": 106,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 236,
+    "TargetDex": 107,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 109,
+    "TargetDex": 110,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 111,
+    "TargetDex": 112,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 440,
+    "TargetDex": 113,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 116,
+    "TargetDex": 117,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 118,
+    "TargetDex": 119,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 120,
+    "TargetDex": 121,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 439,
+    "TargetDex": 122,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 238,
+    "TargetDex": 124,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 239,
+    "TargetDex": 125,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 240,
+    "TargetDex": 126,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 129,
+    "TargetDex": 130,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 138,
+    "TargetDex": 139,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 140,
+    "TargetDex": 141,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 446,
+    "TargetDex": 143,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 147,
+    "TargetDex": 148,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 148,
+    "TargetDex": 149,
+    "RequiredLevel": 55,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 152,
+    "TargetDex": 153,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 153,
+    "TargetDex": 154,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 155,
+    "TargetDex": 156,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 156,
+    "TargetDex": 157,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 158,
+    "TargetDex": 159,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 159,
+    "TargetDex": 160,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 161,
+    "TargetDex": 162,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 163,
+    "TargetDex": 164,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 165,
+    "TargetDex": 166,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 167,
+    "TargetDex": 168,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 42,
+    "TargetDex": 169,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 170,
+    "TargetDex": 171,
+    "RequiredLevel": 27,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 175,
+    "TargetDex": 176,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 177,
+    "TargetDex": 178,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 179,
+    "TargetDex": 180,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 180,
+    "TargetDex": 181,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 44,
+    "TargetDex": 182,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 298,
+    "TargetDex": 183,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 183,
+    "TargetDex": 184,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 438,
+    "TargetDex": 185,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 61,
+    "TargetDex": 186,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 187,
+    "TargetDex": 188,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 188,
+    "TargetDex": 189,
+    "RequiredLevel": 27,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 191,
+    "TargetDex": 192,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 194,
+    "TargetDex": 195,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 79,
+    "TargetDex": 199,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 360,
+    "TargetDex": 202,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 204,
+    "TargetDex": 205,
+    "RequiredLevel": 31,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 95,
+    "TargetDex": 208,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 209,
+    "TargetDex": 210,
+    "RequiredLevel": 23,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 123,
+    "TargetDex": 212,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 216,
+    "TargetDex": 217,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 218,
+    "TargetDex": 219,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 220,
+    "TargetDex": 221,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 223,
+    "TargetDex": 224,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 458,
+    "TargetDex": 226,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 228,
+    "TargetDex": 229,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 117,
+    "TargetDex": 230,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 231,
+    "TargetDex": 232,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 137,
+    "TargetDex": 233,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 236,
+    "TargetDex": 237,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 113,
+    "TargetDex": 242,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 246,
+    "TargetDex": 247,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 247,
+    "TargetDex": 248,
+    "RequiredLevel": 55,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 252,
+    "TargetDex": 253,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 253,
+    "TargetDex": 254,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 255,
+    "TargetDex": 256,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 256,
+    "TargetDex": 257,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 258,
+    "TargetDex": 259,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 259,
+    "TargetDex": 260,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 261,
+    "TargetDex": 262,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 263,
+    "TargetDex": 264,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 265,
+    "TargetDex": 266,
+    "RequiredLevel": 7,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 266,
+    "TargetDex": 267,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 265,
+    "TargetDex": 268,
+    "RequiredLevel": 7,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 268,
+    "TargetDex": 269,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 270,
+    "TargetDex": 271,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 271,
+    "TargetDex": 272,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 273,
+    "TargetDex": 274,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 274,
+    "TargetDex": 275,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 276,
+    "TargetDex": 277,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 278,
+    "TargetDex": 279,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 280,
+    "TargetDex": 281,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 281,
+    "TargetDex": 282,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 283,
+    "TargetDex": 284,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 285,
+    "TargetDex": 286,
+    "RequiredLevel": 23,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 287,
+    "TargetDex": 288,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 288,
+    "TargetDex": 289,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 290,
+    "TargetDex": 291,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 290,
+    "TargetDex": 292,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 293,
+    "TargetDex": 294,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 294,
+    "TargetDex": 295,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 296,
+    "TargetDex": 297,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 300,
+    "TargetDex": 301,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 304,
+    "TargetDex": 305,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 305,
+    "TargetDex": 306,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 307,
+    "TargetDex": 308,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 309,
+    "TargetDex": 310,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 406,
+    "TargetDex": 315,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 316,
+    "TargetDex": 317,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 318,
+    "TargetDex": 319,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 320,
+    "TargetDex": 321,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 322,
+    "TargetDex": 323,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 325,
+    "TargetDex": 326,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 328,
+    "TargetDex": 329,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 329,
+    "TargetDex": 330,
+    "RequiredLevel": 45,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 331,
+    "TargetDex": 332,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 333,
+    "TargetDex": 334,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 339,
+    "TargetDex": 340,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 341,
+    "TargetDex": 342,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 343,
+    "TargetDex": 344,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 345,
+    "TargetDex": 346,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 347,
+    "TargetDex": 348,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 349,
+    "TargetDex": 350,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 353,
+    "TargetDex": 354,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 355,
+    "TargetDex": 356,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 433,
+    "TargetDex": 358,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 361,
+    "TargetDex": 362,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 363,
+    "TargetDex": 364,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 364,
+    "TargetDex": 365,
+    "RequiredLevel": 44,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 366,
+    "TargetDex": 367,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 366,
+    "TargetDex": 368,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 371,
+    "TargetDex": 372,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 372,
+    "TargetDex": 373,
+    "RequiredLevel": 50,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 374,
+    "TargetDex": 375,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 375,
+    "TargetDex": 376,
+    "RequiredLevel": 45,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 387,
+    "TargetDex": 388,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 388,
+    "TargetDex": 389,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 390,
+    "TargetDex": 391,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 391,
+    "TargetDex": 392,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 393,
+    "TargetDex": 394,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 394,
+    "TargetDex": 395,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 396,
+    "TargetDex": 397,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 397,
+    "TargetDex": 398,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 399,
+    "TargetDex": 400,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 401,
+    "TargetDex": 402,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 403,
+    "TargetDex": 404,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 404,
+    "TargetDex": 405,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 315,
+    "TargetDex": 407,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 408,
+    "TargetDex": 409,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 410,
+    "TargetDex": 411,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 412,
+    "TargetDex": 413,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 412,
+    "TargetDex": 414,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 415,
+    "TargetDex": 416,
+    "RequiredLevel": 21,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 418,
+    "TargetDex": 419,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 420,
+    "TargetDex": 421,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 422,
+    "TargetDex": 423,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 190,
+    "TargetDex": 424,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 425,
+    "TargetDex": 426,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 427,
+    "TargetDex": 428,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 200,
+    "TargetDex": 429,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 198,
+    "TargetDex": 430,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 431,
+    "TargetDex": 432,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 434,
+    "TargetDex": 435,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 436,
+    "TargetDex": 437,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 443,
+    "TargetDex": 444,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 444,
+    "TargetDex": 445,
+    "RequiredLevel": 48,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 447,
+    "TargetDex": 448,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 449,
+    "TargetDex": 450,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 451,
+    "TargetDex": 452,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 453,
+    "TargetDex": 454,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 456,
+    "TargetDex": 457,
+    "RequiredLevel": 31,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 459,
+    "TargetDex": 460,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 215,
+    "TargetDex": 461,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 82,
+    "TargetDex": 462,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 108,
+    "TargetDex": 463,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 112,
+    "TargetDex": 464,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 114,
+    "TargetDex": 465,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 125,
+    "TargetDex": 466,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 126,
+    "TargetDex": 467,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 176,
+    "TargetDex": 468,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 193,
+    "TargetDex": 469,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 207,
+    "TargetDex": 472,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 221,
+    "TargetDex": 473,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 233,
+    "TargetDex": 474,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 281,
+    "TargetDex": 475,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 299,
+    "TargetDex": 476,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 356,
+    "TargetDex": 477,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 361,
+    "TargetDex": 478,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 495,
+    "TargetDex": 496,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 496,
+    "TargetDex": 497,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 498,
+    "TargetDex": 499,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 499,
+    "TargetDex": 500,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 501,
+    "TargetDex": 502,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 502,
+    "TargetDex": 503,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 504,
+    "TargetDex": 505,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 506,
+    "TargetDex": 507,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 507,
+    "TargetDex": 508,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 509,
+    "TargetDex": 510,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 511,
+    "TargetDex": 512,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 513,
+    "TargetDex": 514,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 515,
+    "TargetDex": 516,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 517,
+    "TargetDex": 518,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 519,
+    "TargetDex": 520,
+    "RequiredLevel": 21,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 520,
+    "TargetDex": 521,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 522,
+    "TargetDex": 523,
+    "RequiredLevel": 27,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 524,
+    "TargetDex": 525,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 525,
+    "TargetDex": 526,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 527,
+    "TargetDex": 528,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 529,
+    "TargetDex": 530,
+    "RequiredLevel": 31,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 532,
+    "TargetDex": 533,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 533,
+    "TargetDex": 534,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 535,
+    "TargetDex": 536,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 536,
+    "TargetDex": 537,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 540,
+    "TargetDex": 541,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 541,
+    "TargetDex": 542,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 543,
+    "TargetDex": 544,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 544,
+    "TargetDex": 545,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 546,
+    "TargetDex": 547,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 548,
+    "TargetDex": 549,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 551,
+    "TargetDex": 552,
+    "RequiredLevel": 29,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 552,
+    "TargetDex": 553,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 554,
+    "TargetDex": 555,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 557,
+    "TargetDex": 558,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 559,
+    "TargetDex": 560,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 562,
+    "TargetDex": 563,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 564,
+    "TargetDex": 565,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 566,
+    "TargetDex": 567,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 568,
+    "TargetDex": 569,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 570,
+    "TargetDex": 571,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 572,
+    "TargetDex": 573,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 574,
+    "TargetDex": 575,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 575,
+    "TargetDex": 576,
+    "RequiredLevel": 41,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 577,
+    "TargetDex": 578,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 578,
+    "TargetDex": 579,
+    "RequiredLevel": 41,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 580,
+    "TargetDex": 581,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 582,
+    "TargetDex": 583,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 583,
+    "TargetDex": 584,
+    "RequiredLevel": 47,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 585,
+    "TargetDex": 586,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 588,
+    "TargetDex": 589,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 590,
+    "TargetDex": 591,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 592,
+    "TargetDex": 593,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 595,
+    "TargetDex": 596,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 597,
+    "TargetDex": 598,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 599,
+    "TargetDex": 600,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 600,
+    "TargetDex": 601,
+    "RequiredLevel": 49,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 602,
+    "TargetDex": 603,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 603,
+    "TargetDex": 604,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 605,
+    "TargetDex": 606,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 607,
+    "TargetDex": 608,
+    "RequiredLevel": 41,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 608,
+    "TargetDex": 609,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 610,
+    "TargetDex": 611,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 611,
+    "TargetDex": 612,
+    "RequiredLevel": 48,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 613,
+    "TargetDex": 614,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 616,
+    "TargetDex": 617,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 619,
+    "TargetDex": 620,
+    "RequiredLevel": 50,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 622,
+    "TargetDex": 623,
+    "RequiredLevel": 43,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 624,
+    "TargetDex": 625,
+    "RequiredLevel": 52,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 627,
+    "TargetDex": 628,
+    "RequiredLevel": 54,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 629,
+    "TargetDex": 630,
+    "RequiredLevel": 54,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 633,
+    "TargetDex": 634,
+    "RequiredLevel": 50,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 634,
+    "TargetDex": 635,
+    "RequiredLevel": 64,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 636,
+    "TargetDex": 637,
+    "RequiredLevel": 59,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 650,
+    "TargetDex": 651,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 651,
+    "TargetDex": 652,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 653,
+    "TargetDex": 654,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 654,
+    "TargetDex": 655,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 656,
+    "TargetDex": 657,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 657,
+    "TargetDex": 658,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 659,
+    "TargetDex": 660,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 661,
+    "TargetDex": 662,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 662,
+    "TargetDex": 663,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 664,
+    "TargetDex": 665,
+    "RequiredLevel": 9,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 665,
+    "TargetDex": 666,
+    "RequiredLevel": 12,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 667,
+    "TargetDex": 668,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 669,
+    "TargetDex": 670,
+    "RequiredLevel": 19,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 670,
+    "TargetDex": 671,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 672,
+    "TargetDex": 673,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 674,
+    "TargetDex": 675,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 677,
+    "TargetDex": 678,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 679,
+    "TargetDex": 680,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 680,
+    "TargetDex": 681,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 682,
+    "TargetDex": 683,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 684,
+    "TargetDex": 685,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 686,
+    "TargetDex": 687,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 688,
+    "TargetDex": 689,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 690,
+    "TargetDex": 691,
+    "RequiredLevel": 48,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 692,
+    "TargetDex": 693,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 694,
+    "TargetDex": 695,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 696,
+    "TargetDex": 697,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 698,
+    "TargetDex": 699,
+    "RequiredLevel": 39,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 704,
+    "TargetDex": 705,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 705,
+    "TargetDex": 706,
+    "RequiredLevel": 50,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 708,
+    "TargetDex": 709,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 710,
+    "TargetDex": 711,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 712,
+    "TargetDex": 713,
+    "RequiredLevel": 37,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 714,
+    "TargetDex": 715,
+    "RequiredLevel": 48,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 722,
+    "TargetDex": 723,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 723,
+    "TargetDex": 724,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 725,
+    "TargetDex": 726,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 726,
+    "TargetDex": 727,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 728,
+    "TargetDex": 729,
+    "RequiredLevel": 17,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 729,
+    "TargetDex": 730,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 731,
+    "TargetDex": 732,
+    "RequiredLevel": 14,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 732,
+    "TargetDex": 733,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 734,
+    "TargetDex": 735,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 736,
+    "TargetDex": 737,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 737,
+    "TargetDex": 738,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 739,
+    "TargetDex": 740,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 742,
+    "TargetDex": 743,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 744,
+    "TargetDex": 745,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 747,
+    "TargetDex": 748,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 749,
+    "TargetDex": 750,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 751,
+    "TargetDex": 752,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 753,
+    "TargetDex": 754,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 755,
+    "TargetDex": 756,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 757,
+    "TargetDex": 758,
+    "RequiredLevel": 33,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 759,
+    "TargetDex": 760,
+    "RequiredLevel": 27,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 761,
+    "TargetDex": 762,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 762,
+    "TargetDex": 763,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 767,
+    "TargetDex": 768,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 769,
+    "TargetDex": 770,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 772,
+    "TargetDex": 773,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 782,
+    "TargetDex": 783,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 783,
+    "TargetDex": 784,
+    "RequiredLevel": 45,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 789,
+    "TargetDex": 790,
+    "RequiredLevel": 43,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 790,
+    "TargetDex": 791,
+    "RequiredLevel": 53,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 790,
+    "TargetDex": 792,
+    "RequiredLevel": 53,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 803,
+    "TargetDex": 804,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 808,
+    "TargetDex": 809,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 810,
+    "TargetDex": 811,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 811,
+    "TargetDex": 812,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 813,
+    "TargetDex": 814,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 814,
+    "TargetDex": 815,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 816,
+    "TargetDex": 817,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 817,
+    "TargetDex": 818,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 819,
+    "TargetDex": 820,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 821,
+    "TargetDex": 822,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 822,
+    "TargetDex": 823,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 824,
+    "TargetDex": 825,
+    "RequiredLevel": 10,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 825,
+    "TargetDex": 826,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 827,
+    "TargetDex": 828,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 829,
+    "TargetDex": 830,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 831,
+    "TargetDex": 832,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 833,
+    "TargetDex": 834,
+    "RequiredLevel": 22,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 835,
+    "TargetDex": 836,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 837,
+    "TargetDex": 838,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 838,
+    "TargetDex": 839,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 840,
+    "TargetDex": 841,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 840,
+    "TargetDex": 842,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 843,
+    "TargetDex": 844,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 846,
+    "TargetDex": 847,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 848,
+    "TargetDex": 849,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 850,
+    "TargetDex": 851,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 852,
+    "TargetDex": 853,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 854,
+    "TargetDex": 855,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 856,
+    "TargetDex": 857,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 857,
+    "TargetDex": 858,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 859,
+    "TargetDex": 860,
+    "RequiredLevel": 32,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 860,
+    "TargetDex": 861,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 264,
+    "TargetDex": 862,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 52,
+    "TargetDex": 863,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 222,
+    "TargetDex": 864,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 83,
+    "TargetDex": 865,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 122,
+    "TargetDex": 866,
+    "RequiredLevel": 42,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 562,
+    "TargetDex": 867,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 868,
+    "TargetDex": 869,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 872,
+    "TargetDex": 873,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 878,
+    "TargetDex": 879,
+    "RequiredLevel": 34,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 885,
+    "TargetDex": 886,
+    "RequiredLevel": 50,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 886,
+    "TargetDex": 887,
+    "RequiredLevel": 60,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 891,
+    "TargetDex": 892,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 234,
+    "TargetDex": 899,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 123,
+    "TargetDex": 900,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 217,
+    "TargetDex": 901,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 550,
+    "TargetDex": 902,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 215,
+    "TargetDex": 903,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 211,
+    "TargetDex": 904,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 906,
+    "TargetDex": 907,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 907,
+    "TargetDex": 908,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 909,
+    "TargetDex": 910,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 910,
+    "TargetDex": 911,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 912,
+    "TargetDex": 913,
+    "RequiredLevel": 16,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 913,
+    "TargetDex": 914,
+    "RequiredLevel": 36,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 915,
+    "TargetDex": 916,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 917,
+    "TargetDex": 918,
+    "RequiredLevel": 15,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 919,
+    "TargetDex": 920,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 921,
+    "TargetDex": 922,
+    "RequiredLevel": 18,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 922,
+    "TargetDex": 923,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 924,
+    "TargetDex": 925,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 926,
+    "TargetDex": 927,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 928,
+    "TargetDex": 929,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 929,
+    "TargetDex": 930,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 932,
+    "TargetDex": 933,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 933,
+    "TargetDex": 934,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 935,
+    "TargetDex": 936,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 935,
+    "TargetDex": 937,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 938,
+    "TargetDex": 939,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 940,
+    "TargetDex": 941,
+    "RequiredLevel": 25,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 942,
+    "TargetDex": 943,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 944,
+    "TargetDex": 945,
+    "RequiredLevel": 28,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 946,
+    "TargetDex": 947,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 948,
+    "TargetDex": 949,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 951,
+    "TargetDex": 952,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 953,
+    "TargetDex": 954,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 955,
+    "TargetDex": 956,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 957,
+    "TargetDex": 958,
+    "RequiredLevel": 24,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 958,
+    "TargetDex": 959,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 960,
+    "TargetDex": 961,
+    "RequiredLevel": 26,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 963,
+    "TargetDex": 964,
+    "RequiredLevel": 38,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 965,
+    "TargetDex": 966,
+    "RequiredLevel": 40,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 969,
+    "TargetDex": 970,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 971,
+    "TargetDex": 972,
+    "RequiredLevel": 30,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 974,
+    "TargetDex": 975,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 57,
+    "TargetDex": 979,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 194,
+    "TargetDex": 980,
+    "RequiredLevel": 20,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 203,
+    "TargetDex": 981,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 206,
+    "TargetDex": 982,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 625,
+    "TargetDex": 983,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 996,
+    "TargetDex": 997,
+    "RequiredLevel": 35,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 997,
+    "TargetDex": 998,
+    "RequiredLevel": 54,
+    "UsesFallback": false
+  },
+  {
+    "FromDex": 999,
+    "TargetDex": 1000,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 840,
+    "TargetDex": 1011,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 1012,
+    "TargetDex": 1013,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 884,
+    "TargetDex": 1018,
+    "RequiredLevel": 25,
+    "UsesFallback": true
+  },
+  {
+    "FromDex": 1011,
+    "TargetDex": 1019,
+    "RequiredLevel": 40,
+    "UsesFallback": true
+  }
+]

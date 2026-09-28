@@ -183,7 +183,7 @@ public class ArtworkAssetTests
     public async Task EggKindsShareAtlasAndReturnIndependentNormalizedCachedFrames()
     {
         var json = NamedAtlas(("egg_0", 0, 0), ("egg_1", 3, 1), ("egg_2", 0, 0),
-            ("egg_3", 3, 1), ("egg_manaphy", 0, 0));
+            ("egg_3", 3, 1));
         using var assets = new AssetScope((request, _) => Task.FromResult(Reply(
             request.AbsolutePath.EndsWith(".json") ? json : Fixture("atlas.png"))));
 
@@ -192,16 +192,35 @@ public class ArtworkAssetTests
 
         Assert.Equal(5, frames.Length);
         Assert.Equal(2, assets.Requests.Count);
-        Assert.Equal("egg_manaphy", EggArtwork.Definitions[EggKind.Shiny].Frame);
+        Assert.True(EggArtwork.Definitions[EggKind.Shiny].IsGeneratedShiny);
+        Assert.All(EggArtwork.Definitions.Values, definition => Assert.NotEqual("egg_manaphy", definition.Frame));
         Assert.All(frames, frame =>
         {
             Assert.Equal((28, 30, 0, 0), (frame.Width, frame.Height, frame.OffsetX, frame.OffsetY));
+        });
+        Assert.All(frames.Where((_, index) => kinds[index] != EggKind.Shiny), frame =>
+        {
             var pixels = SpritePixels.CopyFrom(frame.Bitmap).Pixels;
             Assert.Equal(0, pixels[3]); // 1×1 square is fitted to 28×28 at the bottom.
             Assert.Equal(255, pixels[(29 * 28 + 27) * 4 + 3]);
         });
         Assert.Equal(5, frames.Select(frame => frame.Bitmap).Distinct().Count());
         Assert.Same(frames[Array.IndexOf(kinds, EggKind.Common)], await EggArtwork.LoadAsync(EggKind.Common));
+    }
+
+    [AvaloniaFact]
+    public async Task ShinyEggIsAnOriginalGoldStarWithoutAnyDownload()
+    {
+        using var assets = new AssetScope((_, _) => throw new InvalidOperationException("Shiny art must be offline"));
+        var frame = await EggArtwork.LoadAsync(EggKind.Shiny);
+        var pixels = SpritePixels.CopyFrom(frame.Bitmap).Pixels;
+
+        Assert.Equal((28, 30, 0, 0), (frame.Width, frame.Height, frame.OffsetX, frame.OffsetY));
+        Assert.Equal(0, pixels[3]);
+        Assert.Equal(new byte[] { 0x28, 0xB8, 0xF2, 255 }, pixels.Skip((17 * 28 + 14) * 4).Take(4));
+        Assert.Equal(new byte[] { 0xA2, 0xE9, 0xF8, 255 }, pixels.Skip((5 * 28 + 14) * 4).Take(4));
+        Assert.Same(frame, await EggArtwork.LoadAsync(EggKind.Shiny));
+        Assert.Empty(assets.Requests);
     }
 
     [AvaloniaFact]

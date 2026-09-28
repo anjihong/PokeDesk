@@ -13,7 +13,7 @@ public partial class StarterWindow : Window
 {
     private static readonly (string Name, string Color)[] Types =
     [
-        ("풀", "#78C850"), ("불꽃", "#F08030"), ("물", "#6890F0"),
+        ("풀", "#2D6E25"), ("불꽃", "#A1391D"), ("물", "#225C9D"),
     ];
 
     public int SelectedDex { get; private set; }
@@ -38,7 +38,7 @@ public partial class StarterWindow : Window
         panel.Children.Add(new LayoutTransformControl { LayoutTransform = new ScaleTransform(2, 2), Child = icon });
         panel.Children.Add(new TextBlock
         {
-            Text = PokemonNames.Of(dex), Foreground = Brushes.White, FontWeight = FontWeight.Bold, FontSize = 12,
+            Text = PokemonNames.Of(dex), Foreground = Brush.Parse("#0C1D36"), FontWeight = FontWeight.Bold, FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(new TextBlock

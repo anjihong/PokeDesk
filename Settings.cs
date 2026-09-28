@@ -29,6 +29,8 @@ public sealed class Settings
     public int StarterDex { get; set; }
     public int SelectedDex { get; set; }
     public bool SelectedShiny { get; set; }
+    public bool FlipHorizontal { get; set; }
+    public int UiScale { get; set; } = 2;
     public Dictionary<int, PokemonProgress> Progress { get; set; } = new();
     public HashSet<int> Owned { get; set; } = new();
     public Dictionary<int, PokemonProgress> ShinyProgress { get; set; } = new();
@@ -62,6 +64,66 @@ public sealed class Settings
         if ((shiny ? ShinyOwned : Owned).Add(dex)) return true;
         For(dex, shiny).Level++;
         return false;
+    }
+
+    /// <summary>Only actual same-color ownership qualifies, including growth earned on an older form.</summary>
+    public int EffectiveEvolutionLevel(int dex, bool shiny = false) => EvolutionProgress(dex, shiny).Level;
+
+    public IReadOnlyList<EvolutionOption> AvailableEvolutions(int dex, bool shiny = false)
+    {
+        var owned = shiny ? ShinyOwned : Owned;
+        if (!owned.Contains(dex)) return Array.Empty<EvolutionOption>();
+        var level = EffectiveEvolutionLevel(dex, shiny);
+        return EvolutionRules.OptionsFor(dex).Where(option => option.RequiredLevel <= level && !owned.Contains(option.TargetDex)).ToArray();
+    }
+
+    public bool CanEvolve(int dex, bool shiny = false) => AvailableEvolutions(dex, shiny).Count > 0;
+
+    private (int Level, int Exp) EvolutionProgress(int dex, bool shiny)
+    {
+        var owned = shiny ? ShinyOwned : Owned;
+        var progress = shiny ? ShinyProgress : Progress;
+        var strongest = (Level: 1, Exp: 0);
+        foreach (var ancestor in EvolutionRules.SelfAndAncestors(dex))
+        {
+            if (!owned.Contains(ancestor) || !progress.TryGetValue(ancestor, out var value)) continue;
+            if (value.Level > strongest.Level || value.Level == strongest.Level && value.Exp > strongest.Exp)
+                strongest = (value.Level, value.Exp);
+        }
+        return strongest;
+    }
+
+    /// <summary>Adds one unowned direct evolution, preserves prior forms, and saves selection/ownership atomically.</summary>
+    public EvolutionResult? Evolve(int dex, int target, bool shiny = false)
+    {
+        if (!AvailableEvolutions(dex, shiny).Any(option => option.TargetDex == target)) return null;
+        var owned = shiny ? ShinyOwned : Owned;
+        var progress = shiny ? ShinyProgress : Progress;
+        var inherited = EvolutionProgress(dex, shiny);
+        var hadProgress = progress.TryGetValue(target, out var previousProgress);
+        // A recoverable orphan record must never lose stronger growth when ownership is restored.
+        if (previousProgress is not null && (previousProgress.Level > inherited.Level ||
+            previousProgress.Level == inherited.Level && previousProgress.Exp > inherited.Exp))
+            inherited = (previousProgress.Level, previousProgress.Exp);
+        var previousDex = SelectedDex;
+        var previousShiny = SelectedShiny;
+        try
+        {
+            owned.Add(target);
+            progress[target] = new PokemonProgress { Level = inherited.Level, Exp = inherited.Exp };
+            if (SelectedDex == dex && SelectedShiny == shiny) SelectedDex = target;
+            Save();
+            return new EvolutionResult(dex, target, shiny, inherited.Level, inherited.Exp);
+        }
+        catch
+        {
+            owned.Remove(target);
+            if (hadProgress) progress[target] = previousProgress!;
+            else progress.Remove(target);
+            SelectedDex = previousDex;
+            SelectedShiny = previousShiny;
+            throw;
+        }
     }
 
     public bool TickEgg(double seconds)
@@ -147,6 +209,7 @@ public sealed class Settings
             SelectedShiny = false;
             changed = true;
         }
+        if (UiScale is not (2 or 4 or 6 or 8)) { UiScale = 2; changed = true; }
         var eggs = Math.Clamp(Eggs, 0, 1);
         var seconds = double.IsFinite(EggSeconds) ? Math.Clamp(EggSeconds, 0, EggIntervalSeconds) : 0;
         if (Eggs != eggs || EggSeconds != seconds) changed = true;
@@ -164,8 +227,8 @@ public sealed class Settings
         if (!File.Exists(path)) return null;
         Settings? s;
         try { s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)); }
-        catch (JsonException) { return null; }
-        if (s is null) return null;
+        catch (JsonException ex) { throw new InvalidDataException("Save data is not a valid settings object.", ex); }
+        if (s is null) throw new InvalidDataException("Save data must contain a settings object.");
         if (s.SchemaVersion > CurrentSchema)
             throw new InvalidDataException($"Save schema {s.SchemaVersion} requires a newer version of DeskPokemon.");
         s.savePath = path;

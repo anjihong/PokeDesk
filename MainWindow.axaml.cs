@@ -52,14 +52,18 @@ public partial class MainWindow : Window
 
     public MainWindow(Settings settings) : this(settings, true) { }
 
-    internal MainWindow(Settings settings, bool startServices)
+    internal MainWindow(Settings settings, bool startServices) : this(settings, startServices, null) { }
+
+    internal MainWindow(Settings settings, bool startServices, IStartupRegistration? startupRegistration)
     {
         _settings = settings;
         _startServices = startServices;
+        _startupRegistration = startupRegistration ?? (startServices ? StartupRegistration.CreateDefault() : null);
         _hook = startServices ? new InputHook() : null;
         InitializeComponent();
         BuildAnimations();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
+        InitializePreferences();
 #if DEBUG
         SetupLayoutEditor();
         SetupUnlockAll();
@@ -69,6 +73,8 @@ public partial class MainWindow : Window
         if (startServices) Opened += OnLoaded;
         UpdateLevelUi();
         UpdateOwnedCount();
+        UpdateDexDetails();
+        RefreshEvolutionUi();
         if (_hook != null)
         {
             _hook.Triggered += OnGlobalInput;
@@ -171,6 +177,8 @@ public partial class MainWindow : Window
         _placed = true;
 
         SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
+        ApplyPresentation();
+        RefreshEvolutionUi();
     }
 
     /// <summary>스프라이트 교체. 실패 시 메시지 띄우고 false(이전 포켓몬 유지). 더 최신 요청이 있으면 조용히 false.</summary>
@@ -193,7 +201,12 @@ public partial class MainWindow : Window
             atlas.Dispose();
             return false;
         }
+        ApplyPokemonAtlas(atlas);
+        return true;
+    }
 
+    private void ApplyPokemonAtlas(SpriteAtlas atlas)
+    {
         var previous = _atlas;
         _atlas = atlas;
         SpriteMissing.IsVisible = false;
@@ -211,7 +224,7 @@ public partial class MainWindow : Window
         ShowFrame(0);
         previous?.Dispose();
         UpdateLevelUi();
-        return true;
+        ApplyPresentation();
     }
 
     private void ShowSpritePlaceholder()
@@ -225,6 +238,7 @@ public partial class MainWindow : Window
         SpriteMissing.Text = $"{PokemonNames.Of(_settings.SelectedDex)}\n{(_settings.SelectedShiny ? "이로치\n" : "")}이미지 없음";
         SpriteMissing.IsVisible = true;
         UpdateLevelUi();
+        ApplyPresentation();
     }
 
     private bool TrySaveSettings()
@@ -268,7 +282,12 @@ public partial class MainWindow : Window
         var leveled = _settings.AddExp(_settings.SelectedDex, _settings.SelectedShiny);
         _dirty = true;
         UpdateLevelUi();
-        if (leveled) _animations["LevelUp"].Play();
+        if (leveled)
+        {
+            _animations["LevelUp"].Play();
+            RefreshEvolutionUi();
+            _ = CheckEvolutionAsync();
+        }
     }
 
     private void UpdateLevelUi()
@@ -276,9 +295,11 @@ public partial class MainWindow : Window
         var p = _settings.For(_settings.SelectedDex, _settings.SelectedShiny);
         var required = Settings.ExpToNext(p.Level);
         LevelText.Text = $"{(_settings.SelectedShiny ? "★ " : "")}Lv. {p.Level}";
+        PetName.Text = PokemonNames.Of(_settings.SelectedDex);
         ExpBar.Width = ExpTrack.Width * p.Exp / required;
         ExpBar.IsVisible = p.Exp > 0;
         UiToolTips.Set(ExpTrack, $"현재 경험치: {p.Exp:N0}\n필요 경험치: {required:N0}");
+        UpdateDexDetails();
     }
 
     // ---- 메뉴 탭 / 서랍 ----
@@ -292,7 +313,9 @@ public partial class MainWindow : Window
             if (other != btn) other.IsChecked = false;
         var isDex = (string)btn.Tag! == "dex";
         DexPanel.IsVisible = isDex;
-        PlaceholderPanel.IsVisible = !isDex;
+        SettingsPanel.IsVisible = !isDex;
+        if (!isDex) RefreshStartupStatus();
+        ConfigureDrawerViewport();
         AnimateDrawer(open: true);
     }
 
@@ -305,20 +328,42 @@ public partial class MainWindow : Window
 
     /// <summary>서랍 높이만큼 위로 이동해 창 하단을 유지하고, 접으면 펼치기 전 위치로 돌아온다.</summary>
     private Timeline? _drawerAnimation;
+    private double _drawerTargetHeight;
+    private bool _drawerRemeasurePending;
+
+    private bool IsDrawerOpen => MenuTabs.Children.OfType<ToggleButton>().Any(tab => tab.IsChecked == true);
+
+    private void OnDrawerContentSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_closed || _drawerRemeasurePending || !IsDrawerOpen) return;
+        _drawerRemeasurePending = true;
+        // The panels are measured inside a vertical ScrollViewer, so their size changes
+        // also report content growing beyond the current drawer. Wait until layout ends
+        // before measuring its natural height and retargeting the existing animation.
+        Dispatcher.UIThread.Post(() =>
+        {
+            _drawerRemeasurePending = false;
+            if (_closed || !IsDrawerOpen) return;
+            DrawerContent.Measure(new Size(Root.Width, double.PositiveInfinity));
+            if (Math.Abs(DrawerContent.DesiredSize.Height - _drawerTargetHeight) > .01)
+                AnimateDrawer(open: true);
+        }, DispatcherPriority.Loaded);
+    }
 
     private void AnimateDrawer(bool open)
     {
         _drawerAnimation?.Dispose();
-        DrawerContent.Measure(new Size(300, double.PositiveInfinity));
+        DrawerContent.Measure(new Size(Root.Width, double.PositiveInfinity));
         var target = open ? DrawerContent.DesiredSize.Height : 0;
+        _drawerTargetHeight = target;
         if (_positionBeforeDrawer != null && Position != _lastDrawerPosition)
             _positionBeforeDrawer = null; // 펼친 채 실제로 이동했을 때만 새 위치를 기준으로 삼는다.
         if (_positionBeforeDrawer == null)
         {
             // 펼친 채 드래그한 경우에도 현재 위치를 기준으로 접는다.
             _positionBeforeDrawer = new PixelPoint(Position.X,
-                Position.Y + (int)Math.Round(Drawer.Height * DesktopScaling));
-            _heightBeforeDrawer = Bounds.Height - Drawer.Height;
+                Position.Y + (int)Math.Round(Drawer.Height * UiScaleFactor * DesktopScaling));
+            _heightBeforeDrawer = Bounds.Height - Drawer.Height * UiScaleFactor;
         }
         _lastDrawerPosition = Position;
         _drawerAnimation = new Timeline(false,
@@ -330,166 +375,6 @@ public partial class MainWindow : Window
                 if (!open) _positionBeforeDrawer = null;
             });
         _drawerAnimation.Play();
-    }
-
-    // ---- 도감/선택 패널 ----
-
-    private void BuildGenTabs()
-    {
-        var style = (ControlTheme)Resources["GenTab"]!;
-        foreach (var g in PokemonIcons.Generations)
-        {
-            var rb = new RadioButton { Content = g.Gen, Tag = g.Gen, GroupName = "Gen", Theme = style };
-            rb.IsCheckedChanged += OnGenChecked;
-            GenTabs.Children.Add(rb);
-        }
-    }
-
-    private void SelectGenTab(int gen)
-    {
-        foreach (RadioButton rb in GenTabs.Children)
-            if ((int)rb.Tag! == gen) rb.IsChecked = true;
-    }
-
-    private async void OnGenChecked(object? sender, RoutedEventArgs e)
-    {
-        if (sender is RadioButton { IsChecked: true }) await RefreshDexAsync();
-    }
-
-    private async void OnShinyDexChanged(object? sender, RoutedEventArgs e)
-    {
-        if (!IsLoaded) return;
-        UpdateOwnedCount();
-        await RefreshDexAsync();
-    }
-
-    private async Task RefreshDexAsync()
-    {
-        if (CheckedGen() is not { } gen) return;
-        var shiny = ViewingShiny;
-        var request = ++_iconRequest;
-        IconGrid.Children.Clear();
-        try
-        {
-            var icons = await PokemonIcons.LoadGenAsync(gen, shiny);
-            if (_closed || request != _iconRequest || CheckedGen() != gen || ViewingShiny != shiny) return;
-            RebuildIconGrid(gen, icons);
-            IconScroll.Offset = default;
-        }
-        catch (Exception ex)
-        {
-            if (!_closed && request == _iconRequest)
-                ShowSpriteError($"아이콘 로드 실패 ({gen}세대): {ex.Message}");
-        }
-    }
-
-    private void RebuildIconGrid(int gen, Dictionary<int, Bitmap> icons)
-    {
-        var ownedOnly = OwnedOnly.IsChecked == true;
-        var shiny = ViewingShiny;
-        var (_, first, last) = PokemonIcons.Generations[gen - 1];
-        IconGrid.Children.Clear();
-        for (var dex = first; dex <= last; dex++)
-        {
-            if (!icons.TryGetValue(dex, out var bmp)) continue;
-            if (ownedOnly && !_settings.IsOwned(dex, shiny)) continue;
-            IconGrid.Children.Add(MakeIconCell(dex, shiny, bmp));
-        }
-    }
-
-    private int? CheckedGen()
-    {
-        foreach (RadioButton rb in GenTabs.Children)
-            if (rb.IsChecked == true) return (int)rb.Tag!;
-        return null;
-    }
-
-    private void OnOwnedOnlyChanged(object? sender, RoutedEventArgs e)
-    {
-        if (CheckedGen() is not { } gen) return;
-        if (!PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny)) return;
-        RebuildIconGrid(gen, icons);
-        IconScroll.Offset = default;
-    }
-
-    private void UpdateOwnedCount()
-    {
-        var total = PokemonIcons.Generations[^1].Last;
-        var owned = ViewingShiny ? _settings.ShinyOwned : _settings.Owned;
-        OwnedCount.Text = $"보유 {(_settings.UnlockAll ? total : owned.Count)}/{total}";
-    }
-
-    private RadioButton MakeIconCell(int dex, bool shiny, Bitmap bmp)
-    {
-        var owned = _settings.IsOwned(dex, shiny);
-        var records = shiny ? _settings.ShinyProgress : _settings.Progress;
-        var level = records.TryGetValue(dex, out var progress) ? progress.Level : 1;
-        var rb = new RadioButton
-        {
-            Content = new Image
-            {
-                Source = owned ? bmp : PokemonIcons.SilhouetteOf(dex, bmp, shiny),
-                Width = 40, Height = 30, Stretch = Stretch.None,
-            },
-            Tag = new PokemonChoice(dex, shiny),
-            GroupName = "Icon",
-            Theme = (ControlTheme)Resources["IconButton"]!,
-            IsEnabled = owned,
-            Cursor = owned ? new Cursor(StandardCursorType.Hand) : new Cursor(StandardCursorType.Arrow),
-            IsChecked = dex == _settings.SelectedDex && shiny == _settings.SelectedShiny,
-        };
-        UiToolTips.Set(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}"
-            : $"#{dex} ???{(shiny ? " ★ 이로치" : "")} (미보유)");
-        rb.IsCheckedChanged += OnIconChecked;
-        return rb;
-    }
-
-    private void RefreshIconCell(int dex, bool shiny)
-    {
-        if (shiny != ViewingShiny) return;
-        var gen = PokemonIcons.GenOf(dex);
-        if (CheckedGen() != gen) return;
-        if (PokemonIcons.TryGetCachedGen(gen, out var icons, shiny)) RebuildIconGrid(gen, icons);
-    }
-
-    private async void OnIconChecked(object? sender, RoutedEventArgs e)
-    {
-        var rb = (RadioButton)sender!;
-        if (rb.IsChecked != true) return;
-        var choice = (PokemonChoice)rb.Tag!;
-        if (!_settings.IsOwned(choice.Dex, choice.IsShiny))
-        {
-            rb.IsChecked = false;
-            return;
-        }
-        if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
-        {
-            ++_loadRequest; // 이전 비동기 선택을 취소하고 현재 표시를 유지한다.
-            return;
-        }
-        var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
-        var request = _loadRequest;
-        if (await task)
-        {
-            // 이미지가 준비되기 전에는 선택/경험치/세이브를 바꾸지 않는다.
-            _settings.SelectedDex = choice.Dex;
-            _settings.SelectedShiny = choice.IsShiny;
-            UpdateLevelUi();
-            _dirty = true;
-            TrySaveSettings();
-            SyncSelectedIcon();
-        }
-        else if (!_closed && request == _loadRequest) SyncSelectedIcon();
-    }
-
-    private void SyncSelectedIcon()
-    {
-        foreach (RadioButton cell in IconGrid.Children)
-        {
-            cell.IsCheckedChanged -= OnIconChecked;
-            cell.IsChecked = (PokemonChoice)cell.Tag! == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny);
-            cell.IsCheckedChanged += OnIconChecked;
-        }
     }
 
     // ---- 배치 ----
@@ -550,11 +435,12 @@ public partial class MainWindow : Window
         }
 
         UpdateOwnedCount();
-        if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny))
+        if (CheckedGen() is { } gen)
         {
-            RebuildIconGrid(gen, icons);
+            RebuildIconGrid(gen, CachedDexIcons(gen, ViewingShiny));
             IconScroll.Offset = default;
         }
+        RefreshEvolutionUi();
     }
 
     // ---- 배치 편집(개발자, Debug 빌드 전용) ----

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using Avalonia.Platform;
 using SkiaSharp;
 
@@ -9,7 +10,7 @@ namespace DeskPokemon;
 /// </summary>
 internal static class EggArtwork
 {
-    internal sealed record Definition(string Atlas, string Frame, string Version = "1", string? ResourceUri = null);
+    internal sealed record Definition(string Atlas, string Frame, string Version = "1", string? ResourceUri = null, bool IsGeneratedShiny = false);
 
     // 자체 PNG 예: new("", "", "2", "avares://DeskPokemon/Assets/shiny-egg.png").
     // 해당 파일을 AvaloniaResource로 포함한다. 게임 등급과 세이브는 변경하지 않는다.
@@ -20,7 +21,7 @@ internal static class EggArtwork
             [EggKind.Rare] = new("egg/egg", "egg_1"),
             [EggKind.Epic] = new("egg/egg", "egg_2"),
             [EggKind.Legendary] = new("egg/egg", "egg_3"),
-            [EggKind.Shiny] = new("egg/egg", "egg_manaphy"),
+            [EggKind.Shiny] = new("", "", "gold-star-1", IsGeneratedShiny: true),
         };
 
     public const int Width = 28;
@@ -46,6 +47,7 @@ internal static class EggArtwork
 
     private static async Task<SpriteFrame> LoadCoreAsync(Definition definition)
     {
+        if (definition.IsGeneratedShiny) return CreateShinyEgg();
         if (definition.ResourceUri is { } uri)
         {
             using var stream = AssetLoader.Open(new Uri(uri, UriKind.Absolute));
@@ -70,6 +72,51 @@ internal static class EggArtwork
             throw;
         }
         return Normalize(frames[definition.Frame]);
+    }
+
+    /// <summary>마나피와 구분되는 자체 금색 별 알. 외부 에셋/이미지 편집 없이 작은 픽셀 도형으로 그린다.</summary>
+    private static SpriteFrame CreateShinyEgg()
+    {
+        using var bitmap = new SKBitmap(new SKImageInfo(Width, Height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        bitmap.Erase(SKColors.Transparent);
+        using var canvas = new SKCanvas(bitmap);
+        using var shell = new SKPath();
+        shell.MoveTo(14, 1);
+        shell.CubicTo(9, 1, 3, 13, 3, 20);
+        shell.CubicTo(3, 26, 7, 29, 14, 29);
+        shell.CubicTo(21, 29, 25, 26, 25, 20);
+        shell.CubicTo(25, 13, 19, 1, 14, 1);
+        shell.Close();
+        using var fill = new SKPaint { IsAntialias = false, Color = new SKColor(0xF8, 0xE9, 0xA2) };
+        using var edge = new SKPaint
+        {
+            IsAntialias = false, Color = new SKColor(0x70, 0x49, 0x21),
+            Style = SKPaintStyle.Stroke, StrokeWidth = 1,
+        };
+        canvas.DrawPath(shell, fill);
+        canvas.DrawPath(shell, edge);
+        fill.Color = new SKColor(0xFF, 0xFA, 0xDA);
+        canvas.DrawRect(8, 9, 2, 5, fill);
+
+        using var star = new SKPath();
+        for (var i = 0; i < 10; i++)
+        {
+            var angle = -Math.PI / 2 + i * Math.PI / 5;
+            var radius = i % 2 == 0 ? 7 : 3;
+            var x = (float)Math.Round(14 + radius * Math.Cos(angle));
+            var y = (float)Math.Round(17 + radius * Math.Sin(angle));
+            if (i == 0) star.MoveTo(x, y); else star.LineTo(x, y);
+        }
+        star.Close();
+        fill.Color = new SKColor(0xF2, 0xB8, 0x28);
+        canvas.DrawPath(star, fill);
+        edge.Color = new SKColor(0xA4, 0x68, 0x12);
+        canvas.DrawPath(star, edge);
+        canvas.Flush();
+        var pixels = new SpritePixels(Width, Height);
+        for (var y = 0; y < Height; y++)
+            Marshal.Copy(bitmap.GetPixels() + y * bitmap.RowBytes, pixels.Pixels, y * pixels.Stride, pixels.Stride);
+        return new SpriteFrame(pixels.ToBitmap(), 0, 0, Width, Height);
     }
 
     /// <summary>균열 연출의 28×30 영역에 비율 유지·하단 정렬한다. 결과 비트맵은 원본과 독립적이다.</summary>

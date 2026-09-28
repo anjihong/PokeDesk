@@ -7,3 +7,6 @@ artifacts/
 TestResults/
 __pycache__/
 .visual-venv/
+
+# Claude Code local session state
+.omc/
