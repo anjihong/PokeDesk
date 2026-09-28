@@ -98,10 +98,7 @@ public partial class UiTests
 
             var menu = window.FindControl<StackPanel>("MenuTabs")!;
             var dex = (ToggleButton)menu.Children[0];
-            dex.IsChecked = true;
-            await Task.Delay(350);
-            Dispatcher.UIThread.RunJobs();
-            window.UpdateLayout();
+            await OpenPanelAsync(window, "dex");
             Assert.True(window.FindControl<Border>("Drawer")!.Height >= 180);
             Assert.True(window.Bounds.Height > closedHeight + 150);
             Capture(window, "main-dex", scale);
@@ -110,12 +107,12 @@ public partial class UiTests
             Invoke(window, "RebuildIconGrid", 1, icons);
             Assert.Single(grid.Children);
             Assert.Equal((4, false), Choice((RadioButton)grid.Children[0]));
+            await OpenPanelAsync(window, "dex");
             Capture(window, "main-owned", scale);
 
             dex.IsChecked = false;
-            await Task.Delay(350);
-            Dispatcher.UIThread.RunJobs();
-            window.UpdateLayout();
+            await EventuallyAsync(window, () => window.FindControl<Border>("Drawer")!.Height == 0 &&
+                Math.Abs(window.Bounds.Height - closedHeight) < .001);
             Assert.Equal(0, window.FindControl<Border>("Drawer")!.Height);
             Assert.Equal(closedHeight, window.Bounds.Height);
         }
@@ -170,11 +167,7 @@ public partial class UiTests
             Assert.Equal(17, settings.For(4).Exp);
             Assert.Equal(40.8, window.FindControl<Avalonia.Controls.Shapes.Rectangle>("ExpBar")!.Width, 6);
 
-            var tab = (ToggleButton)window.FindControl<StackPanel>("MenuTabs")!.Children[0];
-            tab.IsChecked = true;
-            var content = window.FindControl<Border>("DrawerContent")!;
-            content.Measure(new Size(352, double.PositiveInfinity));
-            await EventuallyAsync(window, () => Math.Abs(window.FindControl<Border>("Drawer")!.Height - content.DesiredSize.Height) < .001);
+            await OpenPanelAsync(window, "dex");
             var left = BoundsIn(window, ownedOnly);
             var right = BoundsIn(window, shinyFilter);
             var count = BoundsIn(window, window.FindControl<TextBlock>("OwnedCount")!);
