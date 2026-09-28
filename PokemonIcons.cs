@@ -23,9 +23,17 @@ public static class PokemonIcons
 
     public static int GenOf(int dex)
     {
+        if (EvolutionData.Form(dex) is { } form) return form.Generation;
         foreach (var g in Generations)
             if (dex >= g.First && dex <= g.Last) return g.Gen;
         return 1;
+    }
+
+    public static IEnumerable<int> Entries(int gen)
+    {
+        var (_, first, last) = Generations[gen - 1];
+        return Enumerable.Range(first, last - first + 1)
+            .Concat(EvolutionData.Forms.Where(f => f.Generation == gen).Select(f => f.Id));
     }
 
     public static async Task<Dictionary<int, BitmapSource>> LoadGenAsync(int gen, bool isShiny = false)
@@ -54,12 +62,11 @@ public static class PokemonIcons
             frames[Path.GetFileNameWithoutExtension(name)] = elem;
 
         // 세대 범위의 각 종에 대해 기본형 키("4", "964-zero")와 이름이 같은 프레임만 채택
-        var (_, first, last) = Generations[gen - 1];
         // 하나의 시트에 일반·이로치가 함께 있다. 한 번 디코딩하여 양쪽 캐시가 시트를 공유한다.
         foreach (var shiny in new[] { false, true })
         {
             var result = new Dictionary<int, BitmapSource>();
-            for (var dex = first; dex <= last; dex++)
+            foreach (var dex in Entries(gen))
             {
                 var key = PokemonForms.SpriteKey(dex);
                 if (shiny) key = key.Insert(dex.ToString().Length, "s");

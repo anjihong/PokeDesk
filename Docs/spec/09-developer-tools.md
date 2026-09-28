@@ -10,7 +10,7 @@
 | 이슈 | 현재 코드 상태 |
 | --- | --- |
 | [#1 멀티 플레이](https://github.com/anjihong/PokeDesk/issues/1) | 미구현 |
-| [#2 진화 시스템](https://github.com/anjihong/PokeDesk/issues/2) | 미구현. 알 후보만 진화 전·비진화 종으로 제한 |
+| [#2 진화 시스템](https://github.com/anjihong/PokeDesk/issues/2) | 구현. 레벨 진화·지역 모습·분기 재육성·알림·선택. [상세 명세](11-evolution.md) |
 | [#3 스타팅 선택](https://github.com/anjihong/PokeDesk/issues/3) | 구현 |
 | [#4 알 기능](https://github.com/anjihong/PokeDesk/issues/4) | 구현. 현재 확률은 등급·풀 기반 |
 | [#5 설정](https://github.com/anjihong/PokeDesk/issues/5) | 미구현. 설정 탭, 시작 프로그램, 좌우 반전, 배율 조정 없음 |
@@ -21,4 +21,4 @@
 | [#10 레벨업 디자인](https://github.com/anjihong/PokeDesk/issues/10) | 구현. 요구 경험치 `현재 레벨 × 30` |
 | [#11 macOS 지원](https://github.com/anjihong/PokeDesk/issues/11) | 미구현. 현재 WPF·Win32 훅 기반 Windows 전용 |
 
-`Assets/PixelUI`와 `design/`에는 UI 시안·부품이 있지만 현재 런타임 XAML에는 적용되지 않는다. 메뉴 2·3, 진화, 멀티 플레이, 설정, macOS 지원도 현재 구현 범위 밖이다.
+`Assets/PixelUI`와 `design/`에는 UI 시안·부품이 있지만 현재 런타임 XAML에는 적용되지 않는다. 메뉴 2·3, 멀티 플레이, 설정, macOS 지원도 현재 구현 범위 밖이다.

@@ -8,6 +8,7 @@
     <RootNamespace>DeskPokemon</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Assets\Data\evolutions.json" LogicalName="DeskPokemon.evolutions.json" />
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\PixelUI\*.png" />
     <Compile Remove="tests\**\*.cs" />

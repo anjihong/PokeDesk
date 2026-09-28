@@ -1,4 +1,4 @@
-﻿<Window x:Class="DeskPokemon.MainWindow"
+<Window x:Class="DeskPokemon.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DeskPokemon"
@@ -136,7 +136,7 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
-            <Border x:Name="Bd" CornerRadius="4" Padding="7,2" Background="#33FFFFFF">
+            <Border x:Name="Bd" CornerRadius="4" Padding="7,2" Background="{TemplateBinding Background}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
@@ -191,7 +191,7 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
-            <Border x:Name="Bd" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent" Background="Transparent">
+            <Border x:Name="Bd" CornerRadius="4" BorderThickness="2" BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}">
               <ContentPresenter/>
             </Border>
             <ControlTemplate.Triggers>
@@ -222,18 +222,23 @@
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
 
-      <Canvas x:Name="Stage" Grid.Column="0" Width="42" Height="42" RenderTransformOrigin="0.5,1"
-              HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0">
-        <Canvas.LayoutTransform>
-          <ScaleTransform x:Name="Zoom" ScaleX="3" ScaleY="3"/>
-        </Canvas.LayoutTransform>
-        <Canvas.RenderTransform>
-          <ScaleTransform x:Name="Squash"/>
-        </Canvas.RenderTransform>
-        <Image x:Name="Sprite" Stretch="Fill"/>
-        <TextBlock x:Name="SpriteMissing" Visibility="Collapsed" Width="60" FontSize="6"
-                   Foreground="White" TextAlignment="Center" TextWrapping="Wrap"/>
-      </Canvas>
+      <StackPanel Grid.Column="0" VerticalAlignment="Bottom">
+        <Button x:Name="EvolutionBadge" Content="진화 가능" Visibility="Collapsed" Click="OnEvolutionClick"
+                Background="#E836805C" Foreground="White" BorderBrush="#81E8A8" Padding="8,3"
+                HorizontalAlignment="Center" Margin="0,0,0,12" AutomationProperties.Name="진화 가능"/>
+        <Canvas x:Name="Stage" Width="42" Height="42" RenderTransformOrigin="0.5,1"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0">
+          <Canvas.LayoutTransform>
+            <ScaleTransform x:Name="Zoom" ScaleX="3" ScaleY="3"/>
+          </Canvas.LayoutTransform>
+          <Canvas.RenderTransform>
+            <ScaleTransform x:Name="Squash"/>
+          </Canvas.RenderTransform>
+          <Image x:Name="Sprite" Stretch="Fill"/>
+          <TextBlock x:Name="SpriteMissing" Visibility="Collapsed" Width="60" FontSize="6"
+                     Foreground="White" TextAlignment="Center" TextWrapping="Wrap"/>
+        </Canvas>
+      </StackPanel>
 
       <!-- 알 열: 말풍선 → NEW! → 알(또는 태어난 포켓몬) -->
       <StackPanel Grid.Column="1" Width="96" VerticalAlignment="Bottom" Margin="0,0,6,0">

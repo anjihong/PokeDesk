@@ -143,6 +143,8 @@ public partial class MainWindow : Window
         _placed = true;
 
         SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
+        RefreshEvolutionUi();
+        await CheckEvolutionAsync();
     }
 
     /// <summary>스프라이트 교체. 실패 시 메시지 띄우고 false(이전 포켓몬 유지). 더 최신 요청이 있으면 조용히 false.</summary>
@@ -157,11 +159,17 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!_closed && req == _loadRequest)
-                MessageBox.Show($"스프라이트 로드 실패 (#{dex}{(shiny ? " 이로치" : "")}): {ex.Message}", "DeskPokemon");
+                MessageBox.Show($"스프라이트 로드 실패 ({PokemonNames.Of(dex)} #{EvolutionData.NationalDex(dex)}{(shiny ? " 이로치" : "")}): {ex.Message}", "DeskPokemon");
             return false;
         }
         if (_closed || req != _loadRequest) return false;
 
+        ApplyAtlas(atlas);
+        return true;
+    }
+
+    private void ApplyAtlas(SpriteAtlas atlas)
+    {
         _atlas = atlas;
         SpriteMissing.Visibility = Visibility.Collapsed;
         // 캔버스(37~98px, 9세대는 96 고정+여백)가 아니라 실제 몸체 영역을 스테이지로 삼고,
@@ -176,7 +184,6 @@ public partial class MainWindow : Window
         TopArea.Margin = new Thickness(0, Math.Ceiling(body.Height * zoom * 0.14) + 4, 0, 0);
         ShowFrame(0);
         UpdateLevelUi();
-        return true;
     }
 
     private void ShowSpritePlaceholder()
@@ -232,7 +239,12 @@ public partial class MainWindow : Window
         var leveled = _settings.AddExp(_settings.SelectedDex, _settings.SelectedShiny);
         _dirty = true;
         UpdateLevelUi();
-        if (leveled) ((Storyboard)Resources["LevelUp"]).Begin(this, true);
+        if (leveled)
+        {
+            ((Storyboard)Resources["LevelUp"]).Begin(this, true);
+            RefreshEvolutionUi();
+            _ = CheckEvolutionAsync();
+        }
     }
 
     private void UpdateLevelUi()
@@ -386,8 +398,9 @@ public partial class MainWindow : Window
         _dirty = false;
         _lastEggTick = DateTime.UtcNow;
         UpdateOwnedCount();
-        if (res.Dex == _settings.SelectedDex && res.IsShiny == _settings.SelectedShiny) UpdateLevelUi();
+        UpdateLevelUi();
         RefreshIconCell(res.Dex, res.IsShiny);
+        RefreshEvolutionUi();
 
         ((Storyboard)Resources["FlashOut"]).Begin(this, true); // From=1이라 Opacity 직접 설정 불필요(이전 애니메이션이 값을 잡고 있어 무시됨)
         await Task.Delay(150);
@@ -397,12 +410,13 @@ public partial class MainWindow : Window
         ResultStage.Width = 40;
         ResultStage.Height = 30;
         ResultZoom.ScaleX = ResultZoom.ScaleY = 2;
-        NewText.Text = res.IsNew ? "NEW!" : $"Lv.{res.Level} ↑";
+        NewText.Text = res.IsRestart ? "새 육성 · Lv.1" : res.IsNew ? "NEW!" : $"Lv.{res.Level} ↑";
         BubbleText.Text = $"{(res.IsShiny ? "★ 이로치\n" : "")}{PokemonNames.Of(res.Dex)}";
         SetEggState(EggState.Result);
         ((Storyboard)Resources["ResultPop"]).Begin(this, true);
         _resultTimer.Stop();
         _ = LoadHatchResultAsync(res, ++_resultRequest);
+        await CheckEvolutionAsync();
     }
 
     private async Task LoadHatchResultAsync(HatchResult result, int request)
@@ -545,14 +559,14 @@ public partial class MainWindow : Window
     {
         var ownedOnly = OwnedOnly.IsChecked == true;
         var shiny = ViewingShiny;
-        var (_, first, last) = PokemonIcons.Generations[gen - 1];
         IconGrid.Children.Clear();
-        for (var dex = first; dex <= last; dex++)
+        foreach (var dex in PokemonIcons.Entries(gen))
         {
             if (!icons.TryGetValue(dex, out var bmp)) continue;
             if (ownedOnly && !_settings.IsOwned(dex, shiny)) continue;
             IconGrid.Children.Add(MakeIconCell(dex, shiny, bmp));
         }
+        RefreshEvolutionUi();
     }
 
     private int? CheckedGen()
@@ -572,7 +586,7 @@ public partial class MainWindow : Window
 
     private void UpdateOwnedCount()
     {
-        var total = PokemonIcons.Generations[^1].Last;
+        var total = EvolutionData.Count;
         var owned = ViewingShiny ? _settings.ShinyOwned : _settings.Owned;
         OwnedCount.Text = $"보유 {(_settings.UnlockAll ? total : owned.Count)}/{total}";
     }
@@ -580,8 +594,7 @@ public partial class MainWindow : Window
     private RadioButton MakeIconCell(int dex, bool shiny, BitmapSource bmp)
     {
         var owned = _settings.IsOwned(dex, shiny);
-        var records = shiny ? _settings.ShinyProgress : _settings.Progress;
-        var level = records.TryGetValue(dex, out var progress) ? progress.Level : 1;
+        var level = _settings.HasOwned(dex, shiny) ? _settings.For(dex, shiny).Level : 1;
         var rb = new RadioButton
         {
             Content = new Image
@@ -592,8 +605,8 @@ public partial class MainWindow : Window
             Tag = new PokemonChoice(dex, shiny),
             GroupName = "Icon",
             Style = (Style)Resources["IconButton"],
-            ToolTip = owned ? $"#{dex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}"
-                            : $"#{dex} ???{(shiny ? " ★ 이로치" : "")} (미보유)",
+            ToolTip = owned ? $"#{EvolutionData.NationalDex(dex)} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}"
+                            : $"#{EvolutionData.NationalDex(dex)} ???{(shiny ? " ★ 이로치" : "")} (미보유)",
             IsEnabled = owned,
             Cursor = owned ? Cursors.Hand : Cursors.Arrow,
             IsChecked = dex == _settings.SelectedDex && shiny == _settings.SelectedShiny,
@@ -622,12 +635,16 @@ public partial class MainWindow : Window
         if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
         {
             ++_loadRequest; // 이전 비동기 선택을 취소하고 현재 표시를 유지한다.
+            _selectingPokemon = false;
+            await CheckEvolutionAsync(true);
             return;
         }
+        _selectingPokemon = true;
         var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
         var request = _loadRequest;
         if (await task)
         {
+            _selectingPokemon = false;
             // 이미지가 준비되기 전에는 선택/경험치/세이브를 바꾸지 않는다.
             _settings.SelectedDex = choice.Dex;
             _settings.SelectedShiny = choice.IsShiny;
@@ -635,8 +652,15 @@ public partial class MainWindow : Window
             _dirty = true;
             TrySaveSettings();
             SyncSelectedIcon();
+            RefreshEvolutionUi();
+            await CheckEvolutionAsync(true);
         }
-        else if (!_closed && request == _loadRequest) SyncSelectedIcon();
+        else if (!_closed && request == _loadRequest)
+        {
+            _selectingPokemon = false;
+            SyncSelectedIcon();
+            await CheckEvolutionAsync();
+        }
     }
 
     private void SyncSelectedIcon()
@@ -724,6 +748,7 @@ public partial class MainWindow : Window
         if (!on)
         {
             ++_loadRequest; // 해금 상태로 시작한 요청이 뒤늦게 적용되는 것을 막는다.
+            _selectingPokemon = false;
             if (!_settings.IsOwned(_settings.SelectedDex, _settings.SelectedShiny))
             {
                 _settings.SelectedDex = _settings.StarterDex;

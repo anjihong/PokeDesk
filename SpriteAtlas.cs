@@ -80,6 +80,9 @@ public sealed class SpriteAtlas
             }
         }
         if (still is { Frames.Length: > 1 }) return still;
+        // 추가 모습의 내부 ID는 PokeAPI ID가 아니다. 다른 모습으로 대체하지 않는다.
+        if (EvolutionData.Form(dexId) != null)
+            return still ?? throw new HttpRequestException("Regional sprite unavailable.");
 
         try
         {

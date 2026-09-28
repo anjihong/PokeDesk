@@ -28,10 +28,10 @@ foreach (var kind in Enum.GetValues<EggKind>())
     Check(EggHatcher.Create(kind, rng: new FixedRandom(.07)).IsShiny == (kind == EggKind.Shiny), "7% exact boundary");
     Check(EggHatcher.Create(kind, true, new FixedRandom(.99)).IsShiny, "forced shiny");
 }
-var ordinary = BaseSpecies.Dex.Where(d => !PokemonRarity.IsSpecial(d)).ToArray();
-var special = BaseSpecies.Dex.Where(PokemonRarity.IsSpecial).ToArray();
-Check(ordinary.Intersect(special).Count() == 0 && ordinary.Concat(special).Order().SequenceEqual(BaseSpecies.Dex), "partition");
-foreach (var (kind, pool) in new[] { (EggKind.Common, ordinary), (EggKind.Legendary, special), (EggKind.Shiny, BaseSpecies.Dex) })
+var ordinary = EvolutionData.EggPool.ToArray().Where(d => !PokemonRarity.IsSpecial(d)).ToArray();
+var special = EvolutionData.EggPool.ToArray().Where(PokemonRarity.IsSpecial).ToArray();
+Check(ordinary.Intersect(special).Count() == 0 && ordinary.Concat(special).Order().SequenceEqual(EvolutionData.EggPool.ToArray()), "partition");
+foreach (var (kind, pool) in new[] { (EggKind.Common, ordinary), (EggKind.Legendary, special), (EggKind.Shiny, EvolutionData.EggPool.ToArray()) })
 {
     for (var index = 0; index < pool.Length; index++)
         Check(EggHatcher.Create(kind, rng: new FixedRandom(.99, index)).Dex == pool[index], "every uniform index reachable");
@@ -43,17 +43,17 @@ try
 {
     var path = Path.Combine(directory, "settings.json");
     var futurePath = Path.Combine(directory, "future.json");
-    const string futureJson = """{"SchemaVersion":3,"StarterDex":4,"FutureData":{"preserve":true}}""";
+    const string futureJson = """{"SchemaVersion":4,"StarterDex":4,"FutureData":{"preserve":true}}""";
     File.WriteAllText(futurePath, futureJson);
     var futureRejected = false;
     try { Settings.LoadFrom(futurePath); }
     catch (InvalidDataException) { futureRejected = true; }
     Check(futureRejected, "future schema rejected");
-    Check(File.ReadAllText(futurePath) == futureJson && !File.Exists(futurePath + ".schema3.bak"), "future schema original unchanged");
+    Check(File.ReadAllText(futurePath) == futureJson && !File.Exists(futurePath + ".schema4.bak"), "future schema original unchanged");
     var legacy = """{"SchemaVersion":1,"StarterDex":4,"SelectedDex":7,"Owned":[4,7],"Progress":{"7":{"Level":8,"Exp":12}},"Eggs":1,"EggSeconds":93}""";
     File.WriteAllText(path, legacy);
     var s = Settings.LoadFrom(path)!;
-    Check(s.SchemaVersion == 2 && s.PendingEgg!.Kind == EggKind.Common && s.Eggs == 1, "ready legacy egg becomes common");
+    Check(s.SchemaVersion == 3 && s.PendingEgg!.Kind == EggKind.Common && s.Eggs == 1, "ready legacy egg becomes common");
     Check(s.SelectedDex == 7 && !s.SelectedShiny && s.For(7).Level == 8 && s.For(7).Exp == 12 && s.EggSeconds == 93, "legacy data preserved");
     Check(File.ReadAllText(path + ".schema1.bak") == legacy, "exact original backup");
     Check(s.ShinyOwned.Count == 0, "no gifted shinies");
@@ -105,9 +105,9 @@ try
     // Force atomic replacement failure with an existing save held exclusively.
     s = Settings.LoadFrom(path)!;
     s.Eggs = 1;
-    s.PendingEgg = new PendingEgg(EggKind.Common, 25, true);
-    var wasOwned = s.ShinyOwned.Contains(25);
-    var levelBefore = s.For(25, true).Level;
+    s.PendingEgg = new PendingEgg(EggKind.Common, 172, true);
+    var wasOwned = s.ShinyOwned.Contains(172);
+    var levelBefore = s.For(172, true).Level;
     var pendingBefore = s.PendingEgg;
     var diskBefore = File.ReadAllText(path);
     using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
@@ -116,10 +116,11 @@ try
         try { s.Hatch(); } catch (IOException) { failed = true; }
         Check(failed, "locked save fails");
     }
-    Check(s.Eggs == 1 && s.PendingEgg == pendingBefore && s.ShinyOwned.Contains(25) == wasOwned && s.For(25, true).Level == levelBefore, "failed hatch rolls back memory");
+    Check(s.Eggs == 1 && s.PendingEgg == pendingBefore && s.ShinyOwned.Contains(172) == wasOwned && s.For(172, true).Level == levelBefore, "failed hatch rolls back memory");
     Check(File.ReadAllText(path) == diskBefore && Directory.GetFiles(directory, "*.tmp").Length == 0, "failed save preserves original and removes temp");
 }
 finally { Directory.Delete(directory, recursive: true); }
+EvolutionTests.Run(Check);
 Console.WriteLine($"PASS: {checks} model assertions");
 
 sealed class FixedRandom(double value, int index = 0) : Random

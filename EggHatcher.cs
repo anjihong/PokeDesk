@@ -1,12 +1,12 @@
 namespace DeskPokemon;
 
-public readonly record struct HatchResult(int Dex, bool IsShiny, bool IsNew, int Level);
+public readonly record struct HatchResult(int Dex, bool IsShiny, bool IsNew, int Level, bool IsRestart = false);
 
 /// <summary>알 생성 시 등급, 그룹 내 균등 종 추첨, 색상 판정을 순서대로 수행한다.</summary>
 public static class EggHatcher
 {
-    private static readonly int[] Ordinary = BaseSpecies.Dex.Where(d => !PokemonRarity.IsSpecial(d)).ToArray();
-    private static readonly int[] Special = BaseSpecies.Dex.Where(PokemonRarity.IsSpecial).ToArray();
+    private static readonly int[] Ordinary = EvolutionData.EggPool.Where(d => !PokemonRarity.IsSpecial(d)).ToArray();
+    private static readonly int[] Special = EvolutionData.EggPool.Where(PokemonRarity.IsSpecial).ToArray();
 
     public static EggKind RollKind(Random? rng = null)
     {
@@ -19,16 +19,16 @@ public static class EggHatcher
     {
         rng ??= Random.Shared;
         var selected = kind ?? RollKind(rng);
-        var pool = selected switch
+        IReadOnlyList<int> pool = selected switch
         {
             EggKind.Common => Ordinary,
             EggKind.Rare => rng.NextDouble() < .15 ? Special : Ordinary,
             EggKind.Epic => rng.NextDouble() < .5 ? Special : Ordinary,
             EggKind.Legendary => Special,
-            EggKind.Shiny => BaseSpecies.Dex,
+            EggKind.Shiny => EvolutionData.EggPool,
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
-        var dex = pool[rng.Next(pool.Length)];
+        var dex = pool[rng.Next(pool.Count)];
         return new PendingEgg(selected, dex, selected == EggKind.Shiny || forceShiny || rng.NextDouble() < .07);
     }
 }

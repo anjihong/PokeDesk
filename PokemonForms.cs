@@ -18,5 +18,5 @@ internal static class PokemonForms
 
     /// <summary>"964-zero" 또는 "4".</summary>
     public static string SpriteKey(int dex) =>
-        DefaultForm.TryGetValue(dex, out var form) ? $"{dex}-{form}" : dex.ToString();
+        EvolutionData.Form(dex)?.SpriteKey ?? (DefaultForm.TryGetValue(dex, out var form) ? $"{dex}-{form}" : dex.ToString());
 }
