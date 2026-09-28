@@ -13,7 +13,7 @@ public partial class MainWindow
     private void OnGlobalInput() => Dispatcher.UIThread.Post(() =>
     {
         if (_closed) return;
-        _animations["Bounce"].Play();
+        if (!_evolving) _animations["Bounce"].Play();
         AddExp();
     });
 

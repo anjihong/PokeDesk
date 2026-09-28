@@ -55,6 +55,43 @@ internal sealed class SpritePixels(int width, int height)
 
     public Bitmap ToBitmap() => Crop(new PixelRect(0, 0, Width, Height));
 
+    /// <summary>Alpha-only local bounds and the center of the lowest 10% (at most six rows).</summary>
+    internal (PixelRect OpaqueBounds, Point FootAnchor) AnalyzeFoot(PixelRect rect)
+    {
+        if (rect.X < 0 || rect.Y < 0 || rect.Width <= 0 || rect.Height <= 0 ||
+            rect.Right > Width || rect.Bottom > Height)
+            throw new InvalidDataException("아틀라스 프레임이 이미지 범위를 벗어남");
+        var left = rect.Width;
+        var top = rect.Height;
+        var right = -1;
+        var bottom = -1;
+        for (var y = 0; y < rect.Height; y++)
+        for (var x = 0; x < rect.Width; x++)
+        {
+            if (Pixels[(rect.Y + y) * Stride + (rect.X + x) * 4 + 3] == 0) continue;
+            left = Math.Min(left, x);
+            top = Math.Min(top, y);
+            right = Math.Max(right, x);
+            bottom = Math.Max(bottom, y);
+        }
+        if (right < 0)
+            return (new PixelRect(0, 0, 0, 0), new Point(rect.Width / 2.0, rect.Height));
+
+        var opaque = new PixelRect(left, top, right - left + 1, bottom - top + 1);
+        var bandHeight = Math.Clamp((int)Math.Ceiling(opaque.Height * .1), 1, 6);
+        var footLeft = rect.Width;
+        var footRight = -1;
+        for (var y = bottom - bandHeight + 1; y <= bottom; y++)
+        for (var x = left; x <= right; x++)
+        {
+            if (Pixels[(rect.Y + y) * Stride + (rect.X + x) * 4 + 3] == 0) continue;
+            footLeft = Math.Min(footLeft, x);
+            footRight = Math.Max(footRight, x);
+        }
+        // Pixel-edge coordinates: Y is beneath the last visible row, not its center.
+        return (opaque, new Point((footLeft + footRight + 1) / 2.0, bottom + 1));
+    }
+
     public Bitmap Crop(PixelRect rect)
     {
         if (rect.X < 0 || rect.Y < 0 || rect.Width <= 0 || rect.Height <= 0 ||

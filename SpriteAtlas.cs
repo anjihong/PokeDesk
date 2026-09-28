@@ -9,7 +9,13 @@ using SkiaSharp;
 namespace DeskPokemon;
 
 /// <summary>한 프레임. Bitmap은 시트에서 잘라낸 조각, Offset은 원본 캔버스(SourceSize) 내 위치.</summary>
-public sealed record SpriteFrame(Bitmap Bitmap, int OffsetX, int OffsetY, int Width, int Height);
+public sealed record SpriteFrame(Bitmap Bitmap, int OffsetX, int OffsetY, int Width, int Height)
+{
+    /// <summary>Nontransparent bounds within the cropped bitmap; empty for a transparent frame.</summary>
+    public PixelRect OpaqueBounds { get; init; } = new(0, 0, Width, Height);
+    /// <summary>Alpha-derived foot point within this bitmap, measured on pixel edges.</summary>
+    public Point FootAnchor { get; init; } = new(Width / 2.0, Height);
+}
 
 /// <summary>
 /// PokeRogue 에셋 저장소의 TexturePacker 아틀라스(pokemon/{id}.json + .png)를
@@ -43,21 +49,57 @@ public sealed class SpriteAtlas : IDisposable
     /// </summary>
     public PixelRect Body { get; }
 
+    private readonly double _footAnchorX;
+    /// <summary>Visible width needed when the stable foot is centered, including an asymmetric tail or wing.</summary>
+    public double FootAlignedWidth { get; }
+
+    /// <summary>Stable horizontal foot position across the atlas and this frame's visible bottom, in source-canvas pixels.</summary>
+    public Point FootAnchorFor(int frameIndex)
+    {
+        var frame = Frames[frameIndex];
+        return new Point(_footAnchorX, frame.OffsetY + frame.FootAnchor.Y);
+    }
+
+    /// <summary>Destination rectangle for this frame's bitmap, placing its foot at the requested display point.</summary>
+    public Rect FrameBoundsAt(int frameIndex, Point foot, double scale = 1)
+    {
+        var frame = Frames[frameIndex];
+        var anchor = FootAnchorFor(frameIndex);
+        return new Rect(foot.X + (frame.OffsetX - anchor.X) * scale,
+            foot.Y + (frame.OffsetY - anchor.Y) * scale, frame.Width * scale, frame.Height * scale);
+    }
+
     private SpriteAtlas(int width, int height, SpriteFrame[] frames)
     {
         Width = width;
         Height = height;
         Frames = frames;
 
-        int l = int.MaxValue, t = int.MaxValue, r = 0, b = 0;
+        int l = int.MaxValue, t = int.MaxValue, r = int.MinValue, b = int.MinValue;
+        var footPositions = new List<double>();
         foreach (var f in frames)
         {
-            l = Math.Min(l, f.OffsetX);
-            t = Math.Min(t, f.OffsetY);
-            r = Math.Max(r, f.OffsetX + f.Width);
-            b = Math.Max(b, f.OffsetY + f.Height);
+            if (f.OpaqueBounds.Width == 0 || f.OpaqueBounds.Height == 0) continue;
+            l = Math.Min(l, f.OffsetX + f.OpaqueBounds.X);
+            t = Math.Min(t, f.OffsetY + f.OpaqueBounds.Y);
+            r = Math.Max(r, f.OffsetX + f.OpaqueBounds.Right);
+            b = Math.Max(b, f.OffsetY + f.OpaqueBounds.Bottom);
+            footPositions.Add(f.OffsetX + f.FootAnchor.X);
         }
-        Body = new PixelRect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
+        if (footPositions.Count == 0)
+        {
+            Body = new PixelRect(width / 2, Math.Max(0, height - 1), 1, 1);
+            _footAnchorX = width / 2.0;
+        }
+        else
+        {
+            Body = new PixelRect(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
+            footPositions.Sort();
+            var middle = footPositions.Count / 2;
+            _footAnchorX = footPositions.Count % 2 == 0
+                ? (footPositions[middle - 1] + footPositions[middle]) / 2.0 : footPositions[middle];
+        }
+        FootAlignedWidth = Math.Max(1, 2 * Math.Max(_footAnchorX - Body.X, Body.Right - _footAnchorX));
     }
 
     /// <summary>
@@ -291,15 +333,25 @@ public sealed class SpriteAtlas : IDisposable
         }
         // ponytail: 완전 투명 프레임은 하단 중앙 1px로 둠(Body 합집합 왜곡 최소화). 현재 19종엔 없음.
         var box = r < 0 ? new PixelRect(w / 2, h - 1, 1, 1) : new PixelRect(l, t, r - l + 1, b - t + 1);
-        return new SpriteFrame(canvas.Crop(box), box.X, box.Y, box.Width, box.Height);
+        var geometry = canvas.AnalyzeFoot(box);
+        return new SpriteFrame(canvas.Crop(box), box.X, box.Y, box.Width, box.Height)
+        {
+            OpaqueBounds = geometry.OpaqueBounds,
+            FootAnchor = geometry.FootAnchor,
+        };
     }
 
     private static SpriteFrame MakeFrame(SpritePixels sheet, JsonElement elem)
     {
         var rect = ReadRect(elem.GetProperty("frame"));
         var s = elem.GetProperty("spriteSourceSize");
+        var geometry = sheet.AnalyzeFoot(rect);
         var bmp = sheet.Crop(rect);
-        return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height);
+        return new SpriteFrame(bmp, s.GetProperty("x").GetInt32(), s.GetProperty("y").GetInt32(), rect.Width, rect.Height)
+        {
+            OpaqueBounds = geometry.OpaqueBounds,
+            FootAnchor = geometry.FootAnchor,
+        };
     }
 
     public void Dispose()

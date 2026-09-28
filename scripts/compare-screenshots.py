@@ -52,6 +52,12 @@ REQUIRED_SCREENSHOTS = {
     "settings-2x.png",
     "evolution-ready-1x.png",
     "evolution-ready-2x.png",
+    "evolution-glow-1x.png",
+    "evolution-glow-2x.png",
+    "evolution-morph-1x.png",
+    "evolution-morph-2x.png",
+    "evolution-reveal-1x.png",
+    "evolution-reveal-2x.png",
 }
 
 

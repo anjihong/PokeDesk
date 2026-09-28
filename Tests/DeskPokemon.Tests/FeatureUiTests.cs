@@ -317,10 +317,37 @@ public partial class UiTests
 
     private static async Task OpenPanelAsync(MainWindow window, string tag)
     {
-        window.FindControl<StackPanel>("MenuTabs")!.Children.OfType<ToggleButton>().Single(tab => Equals(tab.Tag, tag)).IsChecked = true;
+        var tab = window.FindControl<StackPanel>("MenuTabs")!.Children.OfType<ToggleButton>().Single(tab => Equals(tab.Tag, tag));
+        tab.IsChecked = true;
         var drawer = window.FindControl<Border>("Drawer")!;
         var content = window.FindControl<Border>("DrawerContent")!;
-        await EventuallyAsync(window, () => drawer.Height > 0 && Math.Abs(drawer.Height - content.DesiredSize.Height) < .001);
+        var root = window.FindControl<StackPanel>("Root")!;
+        var zoom = window.FindControl<LayoutTransformControl>("UiZoom")!;
+        (double Target, Rect Window, Rect Root, Rect Zoom, Rect Drawer, Rect Content)? previous = null;
+        var stableSamples = 0;
+        await EventuallyAsync(window, () =>
+        {
+            // DesiredSize is constrained to the current drawer during animation; equality
+            // with it can capture a partly opened panel. Wait for its independent target
+            // and the actual SizeToContent window, then require consecutive settled layouts.
+            var target = Field<double>(window, "_drawerTargetHeight");
+            var ready = tab.IsChecked == true && target > 0 && !Field<bool>(window, "_drawerRemeasurePending") &&
+                Math.Abs(drawer.Height - target) < .001 && Math.Abs(drawer.Bounds.Height - target) < .001 &&
+                Math.Abs(content.Bounds.Height - target) < .001 &&
+                window.Bounds.Width > 0 && window.Bounds.Height > 0 &&
+                Math.Abs(window.Bounds.Width - zoom.Bounds.Width) < .001 &&
+                Math.Abs(window.Bounds.Height - zoom.Bounds.Height) < .001;
+            if (!ready)
+            {
+                previous = null;
+                stableSamples = 0;
+                return false;
+            }
+            var current = (target, window.Bounds, root.Bounds, zoom.Bounds, drawer.Bounds, content.Bounds);
+            stableSamples = previous == current ? stableSamples + 1 : 1;
+            previous = current;
+            return stableSamples >= 3;
+        });
     }
 
     private static void AssertPresentationFits(MainWindow window, int requested)

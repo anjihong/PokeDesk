@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using System.Diagnostics;
 
 namespace DeskPokemon;
 
@@ -95,19 +96,30 @@ public partial class MainWindow
         EvolutionNotice.IsEnabled = false;
         EvolutionNoticeText.Text = "진화 준비 중…";
         SpriteAtlas? atlas = null;
+        SpriteAtlas? temporarySource = null;
+        var previousOpacity = StageZoom.Opacity;
         try
         {
-            atlas = await SpriteAtlas.LoadAsync(targetDex, shiny);
+            atlas = await LoadEvolutionAtlasAsync(targetDex, shiny, _lifetime.Token);
+            var source = _atlas ?? (temporarySource = await LoadEvolutionAtlasAsync(dex, shiny, _lifetime.Token));
             _lifetime.Token.ThrowIfCancellationRequested();
+            _animations["Bounce"].Stop();
+            var sourceScale = _atlas == null ? PetScaleFor(source) : Zoom.ScaleX;
+            var targetScale = PetScaleFor(atlas);
+            EvolutionVisual.SetFrames(source, _atlas == null ? 0 : _frame, sourceScale, atlas, targetScale);
+            EvolutionVisual.FlipHorizontal = _settings.FlipHorizontal;
+            StageZoom.Opacity = 0;
             EvolutionNoticeText.Text = "진화 중…";
-            for (var i = 0; i < 4; i++)
-            {
-                Stage.Opacity = i % 2 == 0 ? .25 : 1;
-                await Task.Delay(120, _lifetime.Token);
-            }
+            ApplyPresentation();
+            await PlayEvolutionPhaseAsync(0, EvolutionEffect.RevealProgress, _lifetime.Token);
+            _lifetime.Token.ThrowIfCancellationRequested();
+            // The target stays a white silhouette until the atomic save succeeds.
             var result = _settings.Evolve(dex, targetDex, shiny);
             if (result == null) return;
             _dirty = false;
+            EvolutionNoticeText.Text = "진화 완료!";
+            await PlayEvolutionPhaseAsync(EvolutionEffect.RevealProgress, 1, _lifetime.Token);
+            // Apply the target only after reveal so atlas sizing cannot move the effect's foot anchor.
             ApplyPokemonAtlas(atlas);
             atlas = null;
             _animations["LevelUp"].Play();
@@ -123,7 +135,10 @@ public partial class MainWindow
         }
         finally
         {
+            EvolutionVisual.Clear();
+            temporarySource?.Dispose();
             atlas?.Dispose();
+            StageZoom.Opacity = previousOpacity;
             Stage.Opacity = 1;
             _evolving = false;
             if (!_closed)
@@ -132,5 +147,38 @@ public partial class MainWindow
                 ApplyPresentation();
             }
         }
+    }
+
+    private async Task PlayEvolutionPhaseAsync(double from, double to, CancellationToken cancellationToken)
+    {
+        var clock = Stopwatch.StartNew();
+        var duration = (to - from) * EvolutionEffect.DurationSeconds;
+        while (clock.Elapsed.TotalSeconds < duration)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            EvolutionVisual.FlipHorizontal = _settings.FlipHorizontal;
+            EvolutionVisual.Progress = from + (to - from) * Math.Min(1, clock.Elapsed.TotalSeconds / duration);
+            await Task.Delay(16, cancellationToken);
+        }
+        EvolutionVisual.Progress = to;
+    }
+
+    private static async Task<SpriteAtlas> LoadEvolutionAtlasAsync(int dex, bool shiny, CancellationToken cancellationToken)
+    {
+        var load = SpriteAtlas.LoadAsync(dex, shiny);
+        try { return await load.WaitAsync(cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shared cache downloads may continue for another caller after this window closes.
+            // The abandoned caller still owns its eventual atlas and must release it.
+            _ = DisposeAbandonedEvolutionAtlasAsync(load);
+            throw;
+        }
+    }
+
+    private static async Task DisposeAbandonedEvolutionAtlasAsync(Task<SpriteAtlas> load)
+    {
+        try { (await load.ConfigureAwait(false)).Dispose(); }
+        catch { /* The original window was cancelled; consume the abandoned load's error. */ }
     }
 }

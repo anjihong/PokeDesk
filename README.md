@@ -98,7 +98,7 @@ open artifacts/package/osx-arm64/DeskPokemon.app
 
 [GitHub Actions](.github/workflows/desktop.yml)는 Windows x64, Mac ARM64, Mac x64에서
 빌드·테스트 후 실행 파일을 아티팩트로 보관합니다. 일반/이로치 도감, 다섯 알 등급, 부화 결과와
-경험치 툴팁·전체 도감·설정·분기 진화를 포함해 같은 테스트 자산으로 만든 24개 화면 PNG도
+경험치 툴팁·전체 도감·설정·분기 진화·진화 연출 3시점을 포함해 같은 테스트 자산으로 만든 30개 화면 PNG도
 OS 간 비교하며, 레이아웃·텍스트·폰트·기록된 색상은 정확하게 일치해야 합니다.
 이미지는 OS별 글자 래스터화 차이를 제한적으로 허용하고, 원본 오차와 판별된 경계 차이를 함께 보고합니다.
 `desktop-visual-comparison` 아티팩트에서 비교 결과와 차이 이미지를 확인할 수 있습니다.
@@ -108,7 +108,7 @@ OS 간 비교하며, 레이아웃·텍스트·폰트·기록된 색상은 정확
 
 ## 스프라이트 출처 및 라이선스
 
-공통 UI 한글 폰트는 [Galmuri](https://github.com/quiple/galmuri)를 사용하며,
+공통 UI 한글 폰트는 [Galmuri v2.40.4](https://github.com/quiple/galmuri)를 사용하며,
 재배포 라이선스는 [Galmuri OFL](Assets/Fonts/LICENSE-Galmuri.txt)에 포함되어 있습니다. 기존 나눔고딕과 [라이선스](Assets/Fonts/OFL.txt)도 보관합니다.
 진화 조건·한글 타입·설명은 고정한 PokeAPI 데이터에서 생성해 앱에 포함합니다. 출처·해시와 갱신 방법은
 [자산 명세](Docs/spec/08-assets.md), 전체 기능 명세는 [개요](Docs/spec/01-overview.md)를 참고하세요.

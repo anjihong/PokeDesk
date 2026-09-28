@@ -80,6 +80,7 @@ public sealed class PlayApp : App
                 var hook = Field<InputHook?>(window, "_hook");
                 Console.WriteLine($"NATIVE inputActive={hook?.IsActive} inputStatus={hook?.Status}");
                 Capture(window, "01-collapsed");
+                CheckPetSizeAndGrounding(window, "Charmander");
                 var track = Control<Border>(window, "ExpTrack");
                 for (var attempt = 0; attempt < 5 && !ToolTip.GetIsOpen(track); attempt++)
                 {
@@ -150,6 +151,7 @@ public sealed class PlayApp : App
                 Check(settings.Owned.Contains(4) && settings.Owned.Contains(5), "evolution preserves the earlier form");
                 Check(!settings.ShinyOwned.Contains(5), "normal evolution does not award the shiny form");
                 Capture(window, "05-evolved");
+                CheckPetSizeAndGrounding(window, "Charmeleon");
 
                 await Click(dex);
                 await Task.Delay(400);
@@ -164,6 +166,9 @@ public sealed class PlayApp : App
                 Capture(window, "06-evolution-ready");
                 await Click(Cell(5));
                 await Wait(() => settings.SelectedDex == 6 && !Field<bool>(window, "_evolving"), "selecting intermediate form evolves to Charizard", 60000);
+                await Task.Delay(300);
+                CheckPetSizeAndGrounding(window, "Charizard");
+                Capture(window, "13-charizard-size");
 
                 await Click(Control<CheckBox>(window, "ShinyDex"));
                 await Wait(() => !Field<bool>(window, "_dexLoading"), "shiny evolution dex", 60000);
@@ -175,6 +180,13 @@ public sealed class PlayApp : App
                 settings.For(4, true).Exp = 449;
                 Invoke(window, "UpdateLevelUi");
                 await NativeKey();
+                var evolution = Control<EvolutionEffect>(window, "EvolutionVisual");
+                foreach (var phase in new[] { (.14, "10-evolution-glow"), (.52, "11-evolution-silhouette"), (.90, "12-evolution-reveal") })
+                {
+                    await Wait(() => evolution.HasFrames && evolution.Progress >= phase.Item1, "evolution animation phase " + phase.Item2, 60000);
+                    Check(Field<bool>(window, "_evolving"), "evolution keeps interaction locked during " + phase.Item2);
+                    Capture(window, phase.Item2);
+                }
                 await Wait(() => settings.SelectedDex == 5 && settings.SelectedShiny && !Field<bool>(window, "_evolving"), "shiny Charmander evolves to shiny Charmeleon", 60000);
                 settings.For(5, true).Level = 35;
                 settings.For(5, true).Exp = 1049;
@@ -187,6 +199,7 @@ public sealed class PlayApp : App
                 Check(Control<TextBlock>(window, "LevelText").Text!.StartsWith("★"), "fully evolved shiny retains its shiny indicator");
                 await Task.Delay(400);
                 Capture(window, "08-shiny-evolved");
+                CheckPetSizeAndGrounding(window, "shiny Charizard");
                 await Click(dex);
                 await Task.Delay(400);
                 await Click(Control<Canvas>(window, "EggStage"));
@@ -218,6 +231,22 @@ public sealed class PlayApp : App
             }
             finally { desktop.Shutdown(Environment.ExitCode); }
         };
+    }
+
+    private static void CheckPetSizeAndGrounding(MainWindow window, string species)
+    {
+        window.UpdateLayout();
+        var atlas = Field<SpriteAtlas>(window, "_atlas");
+        var scale = ((ScaleTransform)Control<LayoutTransformControl>(window, "StageZoom").LayoutTransform!).ScaleX;
+        Check(Math.Abs(atlas.Body.Height * scale - 110) < .001, species + " uses the shared 110 DIP visible height");
+        Check(atlas.FootAlignedWidth * scale <= 212.001, species + " fits within the pet column");
+        var index = Field<int>(window, "_frame");
+        var anchor = atlas.FootAnchorFor(index);
+        var frame = atlas.Frames[index];
+        var foot = Control<Image>(window, "Sprite").TranslatePoint(new Point(anchor.X - frame.OffsetX, anchor.Y - frame.OffsetY), window)!.Value;
+        var shadow = Control<Image>(window, "PetShadow").TranslatePoint(new Point(49, 8.5), window)!.Value;
+        Check(new Vector(foot.X - shadow.X, foot.Y - shadow.Y).Length < 1, species + " feet meet the painted shadow center");
+        Console.WriteLine($"PET {species}: visibleHeight={atlas.Body.Height * scale:F3} width={atlas.FootAlignedWidth * scale:F3} foot={foot} shadow={shadow}");
     }
 
     private static async Task Move(Control control)

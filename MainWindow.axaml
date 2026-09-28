@@ -100,9 +100,9 @@
 
       <!-- The pet and egg remain on the transparent desktop above the pixel panel. -->
       <Grid x:Name="TopArea" ColumnDefinitions="236,116" RowDefinitions="Auto,Auto" Margin="0,24,0,0">
-        <Grid Grid.Column="0" VerticalAlignment="Bottom">
-          <Image Source="/Assets/PixelUI/pet_shadow.png" Width="96" Height="17" Stretch="Fill"
-                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-4" IsHitTestVisible="False"/>
+        <Grid Grid.Column="0" VerticalAlignment="Bottom" UseLayoutRounding="False">
+          <Image x:Name="PetShadow" Source="/Assets/PixelUI/pet_shadow.png" Width="96" Height="17" Stretch="Fill"
+                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="-2,0,0,-8.5" IsHitTestVisible="False"/>
           <LayoutTransformControl x:Name="StageZoom" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0">
             <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="3" ScaleY="3"/></LayoutTransformControl.LayoutTransform>
             <!-- LayoutTransformControl owns its immediate child's RenderTransform. -->
@@ -118,6 +118,8 @@
             </Border>
             </Border>
           </LayoutTransformControl>
+          <local:EvolutionEffect x:Name="EvolutionVisual" Width="236" IsVisible="False" IsHitTestVisible="False"
+                                 HorizontalAlignment="Center" VerticalAlignment="Bottom" ClipToBounds="False"/>
         </Grid>
         <StackPanel Grid.Column="1" Grid.RowSpan="2" Width="104" VerticalAlignment="Bottom" Margin="0,0,12,7">
           <Grid x:Name="EggGroup">

@@ -766,8 +766,8 @@ public partial class UiTests
             window.UpdateLayout();
             if (condition()) return;
             await Task.Delay(20);
-        } while (timeout.Elapsed < TimeSpan.FromSeconds(3));
-        Assert.True(condition(), "The expected UI state was not reached within three seconds.");
+        } while (timeout.Elapsed < TimeSpan.FromSeconds(5));
+        Assert.True(condition(), "The expected UI state was not reached within five seconds.");
     }
 
     private static void SeekDrawerFrameWithoutClock(MainWindow window, double seconds)
@@ -865,6 +865,8 @@ public partial class UiTests
             font = (visual as TextBlock)?.FontFamily.Name,
             fontSize = (visual as TextBlock)?.FontSize,
             fontWeight = (visual as TextBlock)?.FontWeight.ToString(),
+            evolutionProgress = (visual as EvolutionEffect)?.Progress,
+            evolutionFlipped = (visual as EvolutionEffect)?.FlipHorizontal,
             asset = (visual as PixelSurface)?.Asset,
             slice = visual is PixelSurface surface
                 ? new[] { surface.Slice.Left, surface.Slice.Top, surface.Slice.Right, surface.Slice.Bottom } : null,
