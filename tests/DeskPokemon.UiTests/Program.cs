@@ -115,6 +115,8 @@ internal static class Program
             var debugMenu = window.ContextMenu!.Items.OfType<MenuItem>().FirstOrDefault(m => m.Header.ToString()!.StartsWith("테스트 알"));
 #if DEBUG
             Check(debugMenu != null, "Debug has test menu");
+            var profileMenu = window.ContextMenu.Items.OfType<MenuItem>().FirstOrDefault(m => Equals(m.Header, "진화 테스트 모드"));
+            Check(profileMenu != null, "Debug exposes evolution test mode");
             var force = (MenuItem)debugMenu!.Items[0];
             var grants = debugMenu.Items.OfType<MenuItem>().Skip(1).ToArray();
             foreach (var kind in Enum.GetValues<EggKind>())
@@ -124,6 +126,49 @@ internal static class Program
                 Check(s.Eggs == 1 && s.PendingEgg!.Kind == kind && s.PendingEgg.IsShiny, "chosen test egg forced shiny");
                 Check(!force.IsChecked, "force option resets after grant");
             }
+            var testSave = new Settings { SchemaVersion = 3, StarterDex = 4, SelectedDex = 4,
+                Owned = [4], PendingEgg = new(EggKind.Common, 4, false) };
+            typeof(Settings).GetField("savePath", Private)!.SetValue(testSave, Path.Combine(Temporary, "test-profile.json"));
+            var testWindow = new MainWindow(testSave, testMode: true);
+            Check(testWindow.ContextMenu!.Items.OfType<MenuItem>().Any(m => Equals(m.Header, "일반 모드로 돌아가기")) &&
+                testWindow.ContextMenu.Items.OfType<MenuItem>().Any(m => Equals(m.Header, "진화 테스트 세이브 초기화")),
+                "test mode has return and isolated reset controls");
+            Check(Element<Panel>(testWindow, "Root").Children.OfType<TextBlock>().Any(t => t.Text.Contains("별도 세이브")),
+                "test mode is visibly labeled");
+            Call(testWindow, "ShowEvolutionTestPanel");
+            var panel = (Window)typeof(MainWindow).GetField("_testPanel", Private)!.GetValue(testWindow)!;
+            var controls = (StackPanel)((ScrollViewer)panel.Content).Content;
+            var filters = controls.Children.OfType<ComboBox>().ToArray();
+            Check(filters.Length == 2 && filters[1].Items.Count > 0, "branch egg candidates displayed");
+            filters[0].SelectedIndex = 1;
+            Check(filters[1].Items.Count == EvolutionData.Forms.Count(f => EvolutionData.EggPool.Contains(f.Id)),
+                "regional egg candidates displayed");
+            var regionalEgg = (int)filters[1].SelectedItem.GetType().GetProperty("Dex")!.GetValue(filters[1].SelectedItem)!;
+            controls.Children.OfType<Button>().Single(b => Equals(b.Content, "지정 알 준비"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(testSave.PendingEgg!.Dex == regionalEgg && testSave.Eggs == 1,
+                "panel prepares exact regional egg through saved state");
+            controls.Children.OfType<Button>().Single(b => Equals(b.Content, "선택 중인 계열의 기본형 다시 준비"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(testSave.PendingEgg!.Dex == 4, "panel prepares selected run's base again");
+            filters[0].SelectedIndex = 2;
+            Check(filters[1].Items.Count == EvolutionData.EggPool.Count, "all egg candidates displayed");
+            controls.Children.OfType<Button>().Single(b => Equals(b.Content, "다음 진화 레벨로 이동"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Until(() => testSave.SelectedDex == 5);
+            Check(testSave.For(4).Level == 16 && testSave.HasOwned(5), "panel jump uses normal evolution and selects target");
+            var previousButton = controls.Children.OfType<Button>().Single(b => Equals(b.Content, "이전 모습 선택"));
+            Until(() => previousButton.IsEnabled);
+            previousButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Until(() => testSave.SelectedDex == 4);
+            var jumpButton = controls.Children.OfType<Button>().Single(b => Equals(b.Content, "다음 진화 레벨로 이동"));
+            Until(() => jumpButton.IsEnabled);
+            jumpButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Until(() => testSave.For(4).Level == 36);
+            Check(testSave.SelectedDex == 4 && Element<Button>(testWindow, "EvolutionBadge").Visibility == Visibility.Visible,
+                "panel jump on prior appearance shows evolution badge without evolving it");
+            panel.Close();
+            testWindow.Close();
 #else
             Check(debugMenu == null && typeof(Settings).GetMethod("GrantTestEgg") == null, "Release has no test grant");
 #endif

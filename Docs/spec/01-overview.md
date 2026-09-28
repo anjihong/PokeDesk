@@ -56,5 +56,6 @@
 | `EggKind.cs`, `EggHatcher.cs`, `EggArtwork.cs` | 알 등급, 확정 결과 추첨, 등급별 외형 |
 | `EvolutionData.cs`, `Assets/Data/evolutions.json`, `PokemonRarity.cs` | 진화 규칙·추가 모습·부화 후보와 일반·특수 풀 분류 |
 | `MainWindow.Evolution.cs` | 진화 알림·선택창·비동기 진화 연출 |
+| `MainWindow.EvolutionTest.cs` | Debug 전용 진화 수동 테스트 패널과 테스트 모드 전환 |
 | `PokemonNames.cs` | 도감 번호별 한글 이름 |
 | `LayoutDefaults.cs` | 말풍선·알 기본 위치 |

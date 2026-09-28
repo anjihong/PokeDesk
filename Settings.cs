@@ -223,6 +223,42 @@ public sealed class Settings
         Eggs = 1;
         EggSeconds = 0;
     }
+
+    internal void GrantTestEgg(int dex, bool shiny)
+    {
+        if (!EvolutionData.EggPool.Contains(dex)) throw new ArgumentOutOfRangeException(nameof(dex));
+        var previous = (PendingEgg, Eggs, EggSeconds);
+        PendingEgg = new PendingEgg(EggKind.Common, dex, shiny);
+        Eggs = 1;
+        EggSeconds = 0;
+        try { Save(); }
+        catch
+        {
+            (PendingEgg, Eggs, EggSeconds) = previous;
+            throw;
+        }
+    }
+
+    internal int? NextTestEvolutionLevel(int dex, bool shiny)
+    {
+        if (!HasOwned(dex, shiny)) return null;
+        var p = For(dex, shiny);
+        var rules = EvolutionData.From(p.CurrentDex);
+        if (rules.Length > 1) rules = rules.Where(r => !HasOwned(r.ToId, shiny)).ToArray();
+        return rules.Where(r => !p.History.Contains(r.ToId)).Select(r => (int?)r.Level).Min();
+    }
+
+    internal int? JumpToNextTestEvolutionLevel(int dex, bool shiny)
+    {
+        var target = NextTestEvolutionLevel(dex, shiny);
+        if (target is null) return null;
+        var p = For(dex, shiny);
+        var previous = p.Level;
+        p.Level = Math.Max(p.Level, target.Value);
+        try { Save(); }
+        catch { p.Level = previous; throw; }
+        return p.Level;
+    }
 #endif
 
     private bool Migrate()

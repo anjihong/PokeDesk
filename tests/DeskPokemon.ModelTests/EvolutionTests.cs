@@ -169,6 +169,48 @@ internal static class EvolutionTests
                 check(invalid, "restart save failure reached");
             }
             check(JsonSerializer.Serialize(failing) == before, "failed restart restores links and old run");
+#if DEBUG
+            var livePath = Path.Combine(folder, "live.json");
+            var testPath = Path.Combine(folder, "evolution-test.json");
+            var live = Settings.NewAt(4, livePath);
+            var test = Settings.NewAt(4, testPath);
+            var liveJson = File.ReadAllText(livePath);
+            test.GrantTestEgg(280, true);
+            check(test.PendingEgg == new PendingEgg(EggKind.Common, 280, true) && test.Eggs == 1 &&
+                Settings.LoadFrom(testPath)!.PendingEgg == test.PendingEgg, "specified shiny egg persists in test save");
+            test.Hatch();
+            check(test.HasOwned(280, true) && !live.HasOwned(280, true) && File.ReadAllText(livePath) == liveJson,
+                "test profile does not change live save");
+            check(test.NextTestEvolutionLevel(280, true) == EvolutionData.From(280).Single().Level,
+                "next test level uses evolution catalog");
+            var exp = test.For(280, true).Exp = 9;
+            check(test.JumpToNextTestEvolutionLevel(280, true) == 20 && test.For(280, true).Exp == exp,
+                "jump preserves experience and color");
+            Evolve(test, 280, 281, true);
+            test.SelectedDex = 280;
+            check(test.JumpToNextTestEvolutionLevel(280, true) == 30 && test.SelectedDex == 280 &&
+                test.EvolutionOptions(280, true).All(r => r.FromId == 281),
+                "jump from earlier appearance exposes intermediate evolution");
+            test.GrantTestEgg(280, true);
+            check(!test.Hatch()!.Value.IsRestart, "duplicate egg before branch completion boosts same growth");
+            test.GrantTestEgg(4263, false);
+            test.Hatch();
+            check(test.HasOwned(4263) && test.NextTestEvolutionLevel(4263, false) == EvolutionData.From(4263).Single().Level,
+                "regional base can hatch and jump toward regional evolution");
+            test.GrantTestEgg(133, false);
+            test.Hatch();
+            check(test.NextTestEvolutionLevel(133, false) is null, "egg-only Eevee has no test evolution target");
+            before = JsonSerializer.Serialize(test);
+            using (var locked = new FileStream(testPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                invalid = false;
+                try { test.GrantTestEgg(79, false); } catch (IOException) { invalid = true; }
+                check(invalid && JsonSerializer.Serialize(test) == before, "failed specified egg restores test state");
+                invalid = false;
+                try { test.JumpToNextTestEvolutionLevel(4263, false); } catch (IOException) { invalid = true; }
+                check(invalid && JsonSerializer.Serialize(test) == before, "failed level jump restores test state");
+            }
+#endif
             failing.UnlockAll = true;
             check(failing.EvolutionOptions(361).Length == 0, "debug unlock cannot grant permanent evolution");
             failing.For(361).Level = 80;

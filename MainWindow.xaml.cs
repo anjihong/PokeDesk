@@ -17,8 +17,11 @@ namespace DeskPokemon;
 
 public partial class MainWindow : Window
 {
-    private readonly InputHook _hook = new();
+    private InputHook? _hook;
     private readonly Settings _settings;
+#if DEBUG
+    private readonly bool _testMode;
+#endif
     private SpriteAtlas? _atlas;
     private int _frame;
     private int _loadRequest; // 최신 스프라이트 로드 요청 번호. 빠른 연속 선택 시 옛 결과 무시.
@@ -44,16 +47,27 @@ public partial class MainWindow : Window
     private Dictionary<string, SpriteFrame>? _crackFrames;
     private readonly DispatcherTimer _resultTimer = new() { Interval = TimeSpan.FromSeconds(5) };
 
-    public MainWindow(Settings settings)
+    public MainWindow(Settings settings
+#if DEBUG
+        , bool testMode = false
+#endif
+    )
     {
         _settings = settings;
+#if DEBUG
+        _testMode = testMode;
+#endif
         InitializeComponent();
+#if DEBUG
+        if (_testMode) Title = "DeskPokemon · 진화 테스트 모드";
+#endif
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
 #if DEBUG
         SetupLayoutEditor();
         SetupUnlockAll();
         SetupReset();
         SetupTestEggs();
+        SetupEvolutionTestTools();
 #endif
         Loaded += OnLoaded;
         SizeChanged += OnSizeChanged;
@@ -63,7 +77,7 @@ public partial class MainWindow : Window
             _closed = true;
             foreach (var timer in _timers) timer.Stop();
             _resultTimer.Stop();
-            _hook.Dispose();
+            _hook?.Dispose();
         };
     }
 
@@ -129,12 +143,18 @@ public partial class MainWindow : Window
 
         var bounce = (Storyboard)Resources["Bounce"];
         // 훅 콜백은 빨리 반환해야 하므로 애니메이션 시작은 큐에 넘김
-        _hook.Triggered += () => Dispatcher.BeginInvoke(() =>
+#if DEBUG
+        if (!_testMode)
+#endif
         {
-            if (_closed) return;
-            bounce.Begin(this, true);
-            AddExp();
-        });
+            _hook = new InputHook();
+            _hook.Triggered += () => Dispatcher.BeginInvoke(() =>
+            {
+                if (_closed) return;
+                bounce.Begin(this, true);
+                AddExp();
+            });
+        }
 
         UpdateLayout();
         var wa = SystemParameters.WorkArea;
@@ -145,6 +165,9 @@ public partial class MainWindow : Window
         SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
         RefreshEvolutionUi();
         await CheckEvolutionAsync();
+#if DEBUG
+        if (_testMode && !_closed) ShowEvolutionTestPanel();
+#endif
     }
 
     /// <summary>스프라이트 교체. 실패 시 메시지 띄우고 false(이전 포켓몬 유지). 더 최신 요청이 있으면 조용히 false.</summary>
@@ -627,9 +650,14 @@ public partial class MainWindow : Window
     {
         var rb = (RadioButton)sender;
         var choice = (PokemonChoice)rb.Tag;
+        await SelectPokemonAsync(choice);
+    }
+
+    private async Task SelectPokemonAsync(PokemonChoice choice)
+    {
         if (!_settings.IsOwned(choice.Dex, choice.IsShiny))
         {
-            rb.IsChecked = false;
+            SyncSelectedIcon();
             return;
         }
         if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
@@ -718,9 +746,16 @@ public partial class MainWindow : Window
     /// <summary>우클릭 메뉴에 초기화 항목 추가. 세이브 삭제 후 앱을 다시 띄워 스타팅 선택부터.</summary>
     private void SetupReset()
     {
-        var item = new MenuItem { Header = "초기화(테스트)" };
+        var item = new MenuItem { Header = _testMode ? "진화 테스트 세이브 초기화" : "초기화(테스트)" };
         item.Click += (_, _) =>
         {
+            if (_testMode)
+            {
+                if (MessageBox.Show("진화 테스트 세이브를 삭제하고 새로 시작할까요?", "테스트 세이브 초기화",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    RestartForTestMode(testMode: true, reset: true);
+                return;
+            }
             if (MessageBox.Show("세이브를 삭제하고 스타팅 선택부터 다시 시작할까요?", "초기화",
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             Settings.Delete();
