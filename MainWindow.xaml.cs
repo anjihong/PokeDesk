@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private int _loadRequest; // 최신 스프라이트 로드 요청 번호. 빠른 연속 선택 시 옛 결과 무시.
     private int _iconRequest;
     private int _eggArtRequest;
+    private Task _eggArtLoad = Task.CompletedTask;
     private int _resultRequest;
     private bool _closed;
     private bool _saveErrorReported;
@@ -156,15 +157,17 @@ public partial class MainWindow : Window
             });
         }
 
+        SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
+        RefreshEvolutionUi();
+        await CheckEvolutionAsync();
+        await _eggArtLoad;
+        if (_closed) return;
         UpdateLayout();
         var wa = SystemParameters.WorkArea;
         Left = wa.Right - ActualWidth - 20;
         Top = wa.Bottom - ActualHeight - 20;
         _placed = true;
-
-        SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
-        RefreshEvolutionUi();
-        await CheckEvolutionAsync();
+        Opacity = 1;
 #if DEBUG
         if (_testMode && !_closed) ShowEvolutionTestPanel();
 #endif
@@ -293,7 +296,7 @@ public partial class MainWindow : Window
         if (state is EggState.Waiting or EggState.Ready)
         {
             ++_resultRequest;
-            _ = LoadEggAssetsAsync();
+            _eggArtLoad = LoadEggAssetsAsync();
         }
         var idle = (Storyboard)Resources["EggIdle"];
         var wait = (Storyboard)Resources["EggWait"];

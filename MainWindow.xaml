@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="DeskPokemon"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" Opacity="0"
         SizeToContent="WidthAndHeight"
         RenderOptions.BitmapScalingMode="NearestNeighbor">
   <Window.Resources>

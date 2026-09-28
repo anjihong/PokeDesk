@@ -203,6 +203,9 @@ internal static class Program
             if (args.Contains("--real-assets"))
                 VerifyRealAssets(window, s, root, output);
             VerifyEvolution(transport, output);
+#if DEBUG
+            VerifyStartup(transport);
+#endif
             VerifyEeveeEvolution();
             if (args.Contains("--evolution-assets")) VerifyEvolutionRealAssets(output);
             app.Shutdown();
@@ -212,6 +215,38 @@ internal static class Program
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
         finally { Directory.Delete(Temporary, recursive: true); }
     }
+
+#if DEBUG
+    private static void VerifyStartup(Images transport)
+    {
+        var cacheProperty = typeof(SpriteAtlas).GetProperty("CacheDirectory", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var originalCache = cacheProperty.GetValue(null);
+        cacheProperty.SetValue(null, Path.Combine(Temporary, "startup-cache"));
+        transport.DelayedDex = 4;
+        transport.SpriteRequested = new();
+        transport.ReleaseSprite = new();
+        var s = new Settings { SchemaVersion = 3, StarterDex = 4, SelectedDex = 4,
+            Owned = [4], PendingEgg = new(EggKind.Common, 4, false) };
+        typeof(Settings).GetField("savePath", Private)!.SetValue(s, Path.Combine(Temporary, "startup.json"));
+        var w = new MainWindow(s, testMode: true);
+        w.Show();
+        Until(() => transport.SpriteRequested.Task.IsCompleted);
+        Check(w.Opacity == 0, "startup remains invisible while sprite loads");
+        transport.ReleaseSprite.TrySetResult(true);
+        Until(() => w.Opacity == 1);
+        Check(Element<Image>(w, "Sprite").Source != null &&
+            Element<FrameworkElement>(w, "EggFallback").Visibility == Visibility.Collapsed,
+            "startup reveals prepared pokemon and egg");
+        var area = SystemParameters.WorkArea;
+        Check(Math.Abs(w.Left - (area.Right - w.ActualWidth - 20)) < 1 &&
+            Math.Abs(w.Top - (area.Bottom - w.ActualHeight - 20)) < 1,
+            "startup reveals at final position");
+        ((Window)typeof(MainWindow).GetField("_testPanel", Private)!.GetValue(w)!).Close();
+        w.Close();
+        transport.DelayedDex = 0;
+        cacheProperty.SetValue(null, originalCache);
+    }
+#endif
 
     private static void VerifyEvolution(Images transport, string output)
     {
