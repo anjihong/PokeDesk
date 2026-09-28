@@ -20,6 +20,9 @@ public sealed class Settings
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeskPokemon", "settings.json");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private string savePath = FilePath;
+    private static readonly HashSet<int> LegacyEeveeEggs = [134, 135, 136, 196, 197, 470, 471, 700];
+    private static bool IsValidPendingEgg(int dex) =>
+        EvolutionData.EggPool.Contains(dex) || LegacyEeveeEggs.Contains(dex);
     private static readonly int[] GrassStarters = [1, 152, 252, 387, 495, 650, 722, 810, 906];
     private static readonly int[] FireStarters = [4, 155, 255, 390, 498, 653, 725, 813, 909];
     private static readonly int[] WaterStarters = [7, 158, 258, 393, 501, 656, 728, 816, 912];
@@ -185,7 +188,7 @@ public sealed class Settings
         var owned = egg.IsShiny ? ShinyOwned : Owned;
         var progress = egg.IsShiny ? ShinyProgress : Progress;
         var links = egg.IsShiny ? ShinyGrowthLinks : GrowthLinks;
-        if (!EvolutionData.EggPool.Contains(egg.Dex)) throw new InvalidOperationException("Invalid egg species.");
+        if (!IsValidPendingEgg(egg.Dex)) throw new InvalidOperationException("Invalid egg species.");
         var alreadyOwned = owned.Contains(egg.Dex);
         var oldLink = links.TryGetValue(egg.Dex, out var linked) ? linked : (int?)null;
         var oldProgress = oldLink is { } oldKey ? progress[oldKey] : null;
@@ -278,7 +281,7 @@ public sealed class Settings
             SelectedShiny = false;
             PendingEgg = EggHatcher.Create(Eggs > 0 ? EggKind.Common : null);
         }
-        if (PendingEgg is null || !Enum.IsDefined(PendingEgg.Kind) || !EvolutionData.EggPool.Contains(PendingEgg.Dex))
+        if (PendingEgg is null || !Enum.IsDefined(PendingEgg.Kind) || !IsValidPendingEgg(PendingEgg.Dex))
         {
             PendingEgg = EggHatcher.Create(Eggs > 0 ? EggKind.Common : null);
             changed = true;

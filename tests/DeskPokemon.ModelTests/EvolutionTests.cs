@@ -24,7 +24,7 @@ internal static class EvolutionTests
         try
         {
             check(EvolutionData.Forms.Count == 11 && EvolutionData.Count == 1036, "regional catalog size");
-            check(EvolutionData.EggPool.Count == 558, "egg pool complete");
+            check(EvolutionData.EggPool.Count == 550, "egg pool complete");
             var reachable = EvolutionData.EggPool.ToHashSet();
             int count;
             do { count = reachable.Count; foreach (var rule in EvolutionData.Rules) if (reachable.Contains(rule.FromId)) reachable.Add(rule.ToId); } while (count != reachable.Count);
@@ -40,7 +40,11 @@ internal static class EvolutionTests
                 s.For(r.FromId).Level = r.Level;
                 check(s.EvolutionOptions(r.FromId).Any(o => o.ToId == r.ToId), "at evolution threshold");
             }
-            check(EvolutionData.From(133).Length == 0 && new[] {134,135,136,196,197,470,471,700}.All(EvolutionData.EggPool.Contains), "Eevee forms egg only");
+            var eeveeTargets = new[] { 134, 135, 136, 196, 197, 470, 471, 700 };
+            check(EvolutionData.EggPool.Contains(133) && eeveeTargets.All(d => !EvolutionData.EggPool.Contains(d)) &&
+                EvolutionData.From(133).Select(r => r.ToId).Order().SequenceEqual(eeveeTargets.Order()) &&
+                EvolutionData.From(133).All(r => r.Level == 25 && r.LevelSource == "override"),
+                "Eevee has eight equal-level branches, evolved forms do not hatch directly");
             check(EvolutionData.From(172).Single().Level == 25 && EvolutionData.From(25).Single().Level == 40, "friendship and item fallback depth");
             foreach (var (from, level) in new[] { (79,37), (281,30), (290,20), (361,42), (439,25) })
                 check(EvolutionData.From(from).All(r => r.Level == level), "branch level agreement");
@@ -95,6 +99,45 @@ internal static class EvolutionTests
             ralts.AddOwned(280,true);
             check(ralts.For(280,true).Level == 1 && ralts.ShinyOwned.SetEquals([280]), "shiny growth and collection independent");
 
+            var eevee = New(133);
+            eevee.For(133).Level = 24;
+            check(eevee.EvolutionOptions(133).Length == 0, "Eevee below level 25 cannot evolve");
+            eevee.For(133).Level = 25;
+            eevee.For(133).Exp = 17;
+            check(eevee.EvolutionOptions(133).Length == 8, "Eevee at level 25 has eight choices");
+            var firstEevee = eevee.PrepareEvolution(133, random: new FixedRandom(0, 0));
+            check(firstEevee == 134, "first Eevee branch is randomly selected");
+            eevee.CompleteEvolution(133, false, firstEevee);
+            var firstGrowth = eevee.For(firstEevee);
+            check(eevee.SelectedDex == firstEevee && ReferenceEquals(eevee.For(133), firstGrowth),
+                "Eevee evolution selects target and shares run growth");
+            check(Hatch(eevee, 133).IsRestart && eevee.For(133).Level == 1 && eevee.For(133).Exp == 0 &&
+                firstGrowth.Level == 25 && firstGrowth.Exp == 17,
+                "Eevee duplicate restarts while preserving evolved growth");
+            eevee.For(133).Level = 24;
+            check(!Hatch(eevee, 133).IsRestart && eevee.For(133).Level == 25,
+                "duplicate during Eevee rearing adds one level");
+            check(eevee.NeedsEvolutionChoice(133) && eevee.EvolutionOptions(133).Length == 7,
+                "Eevee rearing offers only uncollected branches");
+            foreach (var target in eeveeTargets.Skip(1))
+            {
+                if (eevee.For(133).CurrentDex != 133)
+                {
+                    check(Hatch(eevee, 133).IsRestart, "Eevee restarts for each remaining branch");
+                    eevee.For(133).Level = 25;
+                }
+                Evolve(eevee, 133, target);
+            }
+            check(eeveeTargets.All(d => eevee.HasOwned(d)) && eevee.EvolutionOptions(133).Length == 0,
+                "all eight Eevee branches can be collected");
+            var lastGrowth = eevee.For(700);
+            check(!Hatch(eevee, 133).IsRestart && lastGrowth.Level == 26 && firstGrowth.Level == 25,
+                "Eevee duplicate after all branches gives level bonus to latest run");
+            eevee.AddOwned(133, true);
+            eevee.For(133, true).Level = 25;
+            check(eevee.EvolutionOptions(133, true).Length == 8 && eevee.ShinyOwned.SetEquals([133]),
+                "shiny Eevee branch collection is independent");
+
             var tyrogue = New(236);
             tyrogue.For(236).Level = 20;
             var randomTarget = tyrogue.PrepareEvolution(236, random: new FixedRandom(0,1));
@@ -137,6 +180,16 @@ internal static class EvolutionTests
             var migrated = Settings.LoadFrom(legacyPath)!;
             check(migrated.SchemaVersion == 3 && migrated.SelectedDex == 134 && migrated.For(4).Level == 18 && migrated.For(134).Exp == 3, "schema2 records preserved independently");
             check(migrated.PendingEgg!.Dex == 134 && File.ReadAllText(legacyPath + ".schema2.bak") == legacy, "Eevee egg and original backup preserved");
+            check(migrated.Hatch()!.Value.Dex == 134 && migrated.For(134).Level == 9,
+                "already confirmed legacy Eevee evolution egg hatches once");
+            migrated.AddOwned(133);
+            migrated.For(133).Level = 25;
+            check(migrated.EvolutionOptions(133).Length == 7 &&
+                migrated.EvolutionOptions(133).All(r => r.ToId != 134),
+                "legacy owned Eevee evolution is removed from future branch choices");
+            Evolve(migrated, 133, 135);
+            check(migrated.For(134).Level == 9 && !ReferenceEquals(migrated.For(134), migrated.For(135)),
+                "legacy Eevee evolution growth stays independent after new branch");
             foreach (var form in EvolutionData.Forms.Where(f => EvolutionData.EggPool.Contains(f.Id)))
             {
                 migrated.PendingEgg = new(EggKind.Common,form.Id,true); migrated.Save();
@@ -199,7 +252,7 @@ internal static class EvolutionTests
                 "regional base can hatch and jump toward regional evolution");
             test.GrantTestEgg(133, false);
             test.Hatch();
-            check(test.NextTestEvolutionLevel(133, false) is null, "egg-only Eevee has no test evolution target");
+            check(test.NextTestEvolutionLevel(133, false) == 25, "test tool reaches Eevee branch level");
             before = JsonSerializer.Serialize(test);
             using (var locked = new FileStream(testPath, FileMode.Open, FileAccess.Read, FileShare.None))
             {

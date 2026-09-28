@@ -140,6 +140,8 @@ internal static class Program
             var controls = (StackPanel)((ScrollViewer)panel.Content).Content;
             var filters = controls.Children.OfType<ComboBox>().ToArray();
             Check(filters.Length == 2 && filters[1].Items.Count > 0, "branch egg candidates displayed");
+            Check(filters[1].Items.Cast<object>().Any(o => (int)o.GetType().GetProperty("Dex")!.GetValue(o)! == 133),
+                "Eevee appears in branch test candidates");
             filters[0].SelectedIndex = 1;
             Check(filters[1].Items.Count == EvolutionData.Forms.Count(f => EvolutionData.EggPool.Contains(f.Id)),
                 "regional egg candidates displayed");
@@ -201,6 +203,7 @@ internal static class Program
             if (args.Contains("--real-assets"))
                 VerifyRealAssets(window, s, root, output);
             VerifyEvolution(transport, output);
+            VerifyEeveeEvolution();
             if (args.Contains("--evolution-assets")) VerifyEvolutionRealAssets(output);
             app.Shutdown();
             Console.WriteLine($"PASS: {checks} WPF integration assertions; render: {output}");
@@ -310,6 +313,32 @@ internal static class Program
         Layout(root); Render(root,Path.Combine(output,"regional-pokedex.png"));
         foreach (var window in Application.Current.Windows.OfType<Window>().ToArray())
             if (window != w && window.Title == "진화 선택") window.Close();
+    }
+
+    private static void VerifyEeveeEvolution()
+    {
+        var s = new Settings { SchemaVersion = 3, StarterDex = 133, SelectedDex = 133,
+            Owned = [133], PendingEgg = new(EggKind.Common, 133, false) };
+        typeof(Settings).GetField("savePath", Private)!.SetValue(s, Path.Combine(Temporary, "eevee.json"));
+        var w = new MainWindow(s);
+        Call(w, "BuildGenTabs");
+        Call(w, "SelectGenTab", 1);
+        Until(() => Element<Panel>(w, "IconGrid").Children.Count == 151);
+        Await((Task<bool>)Call(w, "LoadPokemonAsync", 133, false)!);
+        s.For(133).Level = 25;
+        Await((Task)Call(w, "CheckEvolutionAsync", false)!);
+        var first = s.SelectedDex;
+        Check(EvolutionData.From(133).Any(r => r.ToId == first) && s.HasOwned(first) &&
+            Element<TextBlock>(w, "LevelText").Text.Contains("25"),
+            "Eevee UI evolves to one of eight targets and selects it");
+        s.Eggs = 1;
+        s.PendingEgg = new(EggKind.Common, 133, false);
+        s.Save();
+        Await((Task)Call(w, "HatchAsync")!);
+        Check(s.For(133).Level == 1 && s.For(first).Level == 25 &&
+            Element<TextBlock>(w, "NewText").Text == "새 육성 · Lv.1",
+            "Eevee duplicate restarts while first evolution stays grown");
+        ((DispatcherTimer)typeof(MainWindow).GetField("_resultTimer", Private)!.GetValue(w)!).Stop();
     }
 
     private static void VerifyEvolutionRealAssets(string output)

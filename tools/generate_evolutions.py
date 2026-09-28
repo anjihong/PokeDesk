@@ -20,8 +20,7 @@ REGIONAL = {
     6550: ("basculin-white-striped", 550, 8, "흰줄무늬 배쓰나이"),
     8194: ("wooper-paldea", 194, 9, "팔데아 우파"),
 }
-EEVEE = {134, 135, 136, 196, 197, 470, 471, 700}
-OVERRIDES = {79: 37, 281: 30, 290: 20, 361: 42}
+OVERRIDES = {79: 37, 133: 25, 281: 30, 290: 20, 361: 42}
 
 
 def read(name):
@@ -47,7 +46,7 @@ def generate():
     grouped = {}
     for row in read("pokemon_evolution"):
         dex = int(row["evolved_species_id"])
-        if dex not in species or dex in EEVEE:
+        if dex not in species:
             continue
         parent = int(species[dex]["evolves_from_species_id"])
         source = by_form.get(int(row["required_pokemon_form_id"])) if row["required_pokemon_form_id"] else parent
@@ -79,7 +78,7 @@ def generate():
         rules.append(dict(fromId=source, toId=target, level=level, levelSource=kind,
                           originalLevel=original, sourceRows=sorted(int(r["id"]) for r in default)))
     roots = {dex for dex, row in species.items() if not row["evolves_from_species_id"]}
-    roots |= EEVEE | (REGIONAL.keys() - parents.keys())
+    roots |= REGIONAL.keys() - parents.keys()
     reachable = set(roots)
     while True:
         expanded = reachable | {r["toId"] for r in rules if r["fromId"] in reachable}
