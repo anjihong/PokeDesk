@@ -11,14 +11,17 @@
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
-          <local:PixelSurface Name="PART_Frame" Asset="slot_normal" Slice="5" Padding="8,7">
-            <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
-              <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+          <Border Name="PART_HitBox" Background="Transparent">
+            <Border Name="PART_Lift" IsHitTestVisible="False">
+              <local:PixelSurface Name="PART_Frame" Asset="slot_normal" Slice="5" Padding="8,7">
+                <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
+                  <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                </Border>
+              </local:PixelSurface>
             </Border>
-          </local:PixelSurface>
+          </Border>
         </ControlTemplate>
       </Setter>
-      <Style Selector="^:pointerover /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_selected"/></Style>
       <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#FFFBEF"/></Style>
       <Style Selector="^:pressed /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_hover"/></Style>
     </ControlTheme>

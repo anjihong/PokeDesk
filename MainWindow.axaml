@@ -15,14 +15,17 @@
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
-          <local:PixelSurface Name="PART_Frame" Asset="egg_timer_plate" Slice="4" Padding="2">
-            <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
-              <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Border Name="PART_HitBox" Background="Transparent">
+            <Border Name="PART_Lift" IsHitTestVisible="False">
+              <local:PixelSurface Name="PART_Frame" Asset="egg_timer_plate" Slice="4" Padding="2">
+                <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
+                  <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </local:PixelSurface>
             </Border>
-          </local:PixelSurface>
+          </Border>
         </ControlTemplate>
       </Setter>
-      <Style Selector="^:pointerover /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="exp_label_plate"/></Style>
       <Style Selector="^:checked /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="exp_label_plate"/></Style>
       <Style Selector="^.evolvable /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#2B9A62"/><Setter Property="BorderThickness" Value="2"/></Style>
       <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#0C1D36"/></Style>
@@ -38,42 +41,48 @@
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
-          <local:PixelSurface Name="PART_Frame" Asset="tab_settings" Slice="9,9,9,3" Padding="8,8,8,3">
-            <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
-              <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Border Name="PART_HitBox" Background="Transparent">
+            <Border Name="PART_Lift" IsHitTestVisible="False">
+              <local:PixelSurface Name="PART_Frame" Asset="tab_settings" Slice="9,9,9,3" Padding="8,8,8,3">
+                <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
+                  <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+              </local:PixelSurface>
             </Border>
-          </local:PixelSurface>
+          </Border>
         </ControlTemplate>
       </Setter>
       <Style Selector="^:checked"><Setter Property="Foreground" Value="#0C1D36"/></Style>
       <Style Selector="^:checked /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="tab_selected"/></Style>
-      <Style Selector="^:pointerover /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#FFF2A6"/></Style>
       <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#FFF2A6"/></Style>
     </ControlTheme>
     <ControlTheme x:Key="IconButton" TargetType="RadioButton">
       <Setter Property="ToolTip.ShowOnDisabled" Value="True"/>
       <Setter Property="Width" Value="52"/>
       <Setter Property="Height" Value="52"/>
-      <Setter Property="Margin" Value="0,1"/>
+      <Setter Property="Margin" Value="0,2,0,0"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
-          <local:PixelSurface Name="PART_Frame" Asset="slot_normal" Slice="4" Padding="4">
-            <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
-              <Grid>
-                <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Name="PART_Shiny" Text="★" IsVisible="False" IsHitTestVisible="False"
-                           FontFamily="{StaticResource SmallPixelFont}" FontSize="9" Foreground="#FFDB40" Background="#0C1D36"
-                           Width="12" Height="12" TextAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Top"/>
-              </Grid>
+          <Border Name="PART_HitBox" Background="Transparent">
+            <Border Name="PART_Lift" IsHitTestVisible="False">
+              <local:PixelSurface Name="PART_Frame" Asset="slot_normal" Slice="4" Padding="4">
+                <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
+                  <Grid>
+                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Name="PART_Shiny" Text="★" IsVisible="False" IsHitTestVisible="False"
+                               FontFamily="{StaticResource SmallPixelFont}" FontSize="9" Foreground="#FFDB40" Background="#0C1D36"
+                               Width="12" Height="12" TextAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                  </Grid>
+                </Border>
+              </local:PixelSurface>
             </Border>
-          </local:PixelSurface>
+          </Border>
         </ControlTemplate>
       </Setter>
       <Style Selector="^:disabled /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_unknown"/></Style>
-      <Style Selector="^:pointerover /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_hover"/></Style>
       <Style Selector="^:checked /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_selected"/></Style>
       <Style Selector="^.shiny /template/ TextBlock#PART_Shiny"><Setter Property="IsVisible" Value="True"/></Style>
       <Style Selector="^.evolvable /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#2B9A62"/><Setter Property="BorderThickness" Value="2"/></Style>
@@ -94,7 +103,7 @@
     <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="1" ScaleY="1"/></LayoutTransformControl.LayoutTransform>
     <StackPanel x:Name="Root" Width="352" Background="Transparent" PointerPressed="OnDrag">
       <Button x:Name="EvolutionNotice" Click="OnEvolutionClick" IsVisible="False" HorizontalAlignment="Center"
-              MaxWidth="336" Margin="8,0,8,4" AutomationProperties.Name="포켓몬 진화">
+              MaxWidth="336" Margin="8,2,8,4" AutomationProperties.Name="포켓몬 진화">
         <TextBlock x:Name="EvolutionNoticeText" Text="진화할 수 있어요!" TextWrapping="Wrap" TextAlignment="Center"/>
       </Button>
       <WrapPanel x:Name="EvolutionChoices" IsVisible="False" HorizontalAlignment="Center" MaxWidth="336" Margin="8,0,8,4"/>
