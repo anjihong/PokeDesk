@@ -36,6 +36,15 @@ OS/CPU, 배율, 입력 권한 상태, 사용한 커밋, 재현 절차와 스크�
 
 ## 개발 확인
 
+### main 업데이트 반영
+
+- `origin/main`을 가져와 현재 Avalonia 브랜치에 병합한다. 기능을 수동 이식했더라도 병합 이력을 남겨 다음 업데이트의 비교 기준이 되도록 한다.
+- 동작이 충돌하면 main의 게임 규칙·진화 데이터·기능 수정 사항을 우선한다. WPF 의존 구현은 Windows와 macOS가 함께 사용하는 Avalonia 코드로 옮긴다.
+- 사용자가 요청한 Avalonia UI 개선은 새 main 변경과 충돌하지 않는 한 유지한다. Windows 전용 프로젝트나 화면을 다시 추가하지 않는다.
+- 현재 반영 기준은 `78dc8cb`(시작 준비 후 메인 창 표시)다. 진화·이브이 8분기·미수집 분기 재육성·수동 테스트 모드가 포함된다. [진화 초안](issue-2-draft.md)은 main에서 가져온 설계 기록이며, 현재 동작은 [기능 명세](spec/01-overview.md)를 따른다.
+
+### 빌드와 테스트
+
 ```bash
 dotnet build DeskPokemon.csproj -c Debug
 dotnet build DeskPokemon.csproj -c Release

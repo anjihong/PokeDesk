@@ -1,6 +1,11 @@
 #if DEBUG
+using System.Reflection;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -148,6 +153,38 @@ public partial class UiTests
             Assert.Equal(0, window.Opacity);
             Assert.Contains(window.ContextMenu!.Items.OfType<MenuItem>(), item => Equals(item.Header, "일반 모드로 돌아가기"));
             Assert.Contains(window.ContextMenu.Items.OfType<MenuItem>(), item => Equals(item.Header, "진화 테스트 세이브 초기화"));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LocalClicksAndKeysGrantExperienceOnlyInNormalMode(bool testMode)
+    {
+        var settings = Settings.NewPreview(4);
+        var window = testMode ? NewEvolutionToolWindow(settings)
+            : new MainWindow(settings, false, new FakeStartupRegistration());
+        // Enable local input without opening native hooks, loading remote art, or writing a real save.
+        typeof(MainWindow).GetField("_startServices", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(window, true);
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var menu = window.FindControl<StackPanel>("MenuTabs")!.Children.OfType<ToggleButton>().First();
+            var point = menu.TranslatePoint(new Point(menu.Bounds.Width / 2, menu.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            menu.Focus();
+            window.KeyPressQwerty(PhysicalKey.A, RawInputModifiers.None);
+            window.KeyPressQwerty(PhysicalKey.A, RawInputModifiers.None); // Holding a key must not count twice in normal fallback mode.
+            window.KeyReleaseQwerty(PhysicalKey.A, RawInputModifiers.None);
+            window.KeyPressQwerty(PhysicalKey.A, RawInputModifiers.None);
+            window.KeyReleaseQwerty(PhysicalKey.A, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, settings.For(4).Level);
+            Assert.Equal(testMode ? 0 : 3, settings.For(4).Exp);
         }
         finally { window.Close(); }
     }

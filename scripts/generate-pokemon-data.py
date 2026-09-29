@@ -3,6 +3,7 @@
 
 python3 scripts/generate-pokemon-data.py --download
 python3 scripts/generate-pokemon-data.py --source-dir /path/to/pinned/csv
+Evolution rules come from tools/generate_evolutions.py.
 No third-party Python packages are needed. Existing CSVs are hash-checked when a
 source manifest exists, so regeneration cannot silently use a different version.
 """
@@ -11,100 +12,35 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import tempfile
 import urllib.request
 
-COMMIT = "168b1e89467054cda2e7df43ccebbb69b459497a"
-SOURCE = f"https://raw.githubusercontent.com/PokeAPI/pokeapi/{COMMIT}/data/v2/csv/"
-FILES = ("pokemon_forms.csv", "pokemon_species.csv", "pokemon_evolution.csv", "pokemon.csv", "pokemon_types.csv",
-         "type_names.csv", "pokemon_species_flavor_text.csv", "versions.csv", "pokemon_species_names.csv")
 ROOT = Path(__file__).resolve().parents[1]
 
-
-REGIONAL = {
-    4052: ("meowth-galar", 52, 8, "가라르 나옹"),
-    4083: ("farfetchd-galar", 83, 8, "가라르 파오리"),
-    4122: ("mr-mime-galar", 122, 8, "가라르 마임맨"),
-    4222: ("corsola-galar", 222, 8, "가라르 코산호"),
-    4263: ("zigzagoon-galar", 263, 8, "가라르 지그제구리"),
-    4264: ("linoone-galar", 264, 8, "가라르 직구리"),
-    4562: ("yamask-galar", 562, 8, "가라르 데스마스"),
-    6211: ("qwilfish-hisui", 211, 8, "히스이 침바루"),
-    6215: ("sneasel-hisui", 215, 8, "히스이 포푸니"),
-    6550: ("basculin-white-striped", 550, 8, "흰줄무늬 배쓰나이"),
-    8194: ("wooper-paldea", 194, 9, "팔데아 우파"),
-}
-OVERRIDES = {79: 37, 133: 25, 281: 30, 290: 20, 361: 42}
+# Keep main's generator as the only source of evolution rules, supported forms,
+# and source revision. Importing it does not execute its download/write CLI.
+_spec = importlib.util.spec_from_file_location("pokedesk_evolutions", ROOT / "tools" / "generate_evolutions.py")
+assert _spec is not None and _spec.loader is not None
+EVOLUTIONS = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(EVOLUTIONS)
+COMMIT = EVOLUTIONS.COMMIT
+SOURCE = EVOLUTIONS.ROOT
+REGIONAL = EVOLUTIONS.REGIONAL
+FILES = ("pokemon_forms.csv", "pokemon_species.csv", "pokemon_evolution.csv", "pokemon.csv", "pokemon_types.csv",
+         "type_names.csv", "pokemon_species_flavor_text.csv", "versions.csv", "pokemon_species_names.csv")
 
 
 def generate_evolutions(read):
-    species = {int(r["id"]): r for r in read("pokemon_species") if int(r["id"]) <= 1025}
-    pokemon = {int(r["id"]): r for r in read("pokemon")}
-    forms = read("pokemon_forms")
-    supported = {}
-    for form in forms:
-        p = pokemon[int(form["pokemon_id"])]
-        dex = int(p["species_id"])
-        if dex in species and p["is_default"] == "1" and form["is_default"] == "1":
-            assert dex not in supported, ("multiple default forms", dex)
-            supported[dex] = int(form["id"])
-    for key, (name, _, _, _) in REGIONAL.items():
-        supported[key] = int(next(f for f in forms if f["identifier"] == name)["id"])
-    assert len(supported) == 1036
-    by_form = {form: key for key, form in supported.items()}
-    grouped = {}
-    for row in read("pokemon_evolution"):
-        dex = int(row["evolved_species_id"])
-        if dex not in species:
-            continue
-        parent = int(species[dex]["evolves_from_species_id"])
-        source = by_form.get(int(row["required_pokemon_form_id"])) if row["required_pokemon_form_id"] else parent
-        target = by_form.get(int(row["evolved_pokemon_form_id"])) if row["evolved_pokemon_form_id"] else dex
-        # 원본에는 meadow 연결이 없다. 비비용의 지역별 무늬는 모두 같은 종·레벨이며 앱은 meadow만 표시한다.
-        if dex == 666:
-            source, target = 665, 666
-        if source is None or target is None:
-            continue
-        grouped.setdefault((source, target), []).append(row)
-    parents = {target: source for source, target in grouped}
-    assert len(parents) == len(grouped), "multiple parents for one supported form"
-
-    def depth(key, seen=frozenset()):
-        assert key not in seen, "evolution cycle"
-        return 0 if key not in parents else 1 + depth(parents[key], seen | {key})
-
-    rules = []
-    for (source, target), rows in sorted(grouped.items()):
-        default = [r for r in rows if r["is_default"] == "1"]
-        assert default, ("no default evolution", source, target)
-        levels = {int(r["minimum_level"]) if r["minimum_level"] else None for r in default}
-        assert len(levels) == 1, ("conflicting levels", source, target, levels)
-        original = levels.pop()
-        level = original or (25 if depth(target) == 1 else 40)
-        kind = "pokeapi" if original else "fallback"
-        if source in OVERRIDES:
-            level, kind = OVERRIDES[source], "override"
-        rules.append(dict(fromId=source, toId=target, level=level, levelSource=kind,
-                          originalLevel=original, sourceRows=sorted(int(r["id"]) for r in default)))
-    roots = {dex for dex, row in species.items() if not row["evolves_from_species_id"]}
-    roots |= REGIONAL.keys() - parents.keys()
-    reachable = set(roots)
-    while True:
-        expanded = reachable | {r["toId"] for r in rules if r["fromId"] in reachable}
-        if expanded == reachable:
-            break
-        reachable = expanded
-    assert reachable == supported.keys(), ("unreachable species", supported.keys() - reachable)
-    for key in supported:
-        assert depth(key) <= 2, ("unsupported evolution depth", key)
-    assert next(r["level"] for r in rules if r["toId"] == 6) == 36
-    assert (194, 980) not in grouped and (8194, 980) in grouped
-    return dict(sourceCommit=COMMIT,
-                forms=[dict(id=key, dex=dex, generation=gen, name=name, spriteKey=str(key))
-                       for key, (_, dex, gen, name) in sorted(REGIONAL.items())],
-                eggPool=sorted(roots), rules=rules)
+    # Supply hash-checked local CSVs while preserving main's unchanged generator.
+    original_read = EVOLUTIONS.read
+    try:
+        EVOLUTIONS.read = read
+        return EVOLUTIONS.generate()
+    finally:
+        EVOLUTIONS.read = original_read
 
 
 def main() -> None:
