@@ -19,11 +19,27 @@ internal static class EggArtwork
             [EggKind.Rare] = new("egg/egg", "egg_1"),
             [EggKind.Epic] = new("egg/egg", "egg_2"),
             [EggKind.Legendary] = new("egg/egg", "egg_3"),
-            [EggKind.Shiny] = new("egg/egg", "egg_manaphy"),
+            [EggKind.Shiny] = new("", "", "2", "pack://application:,,,/DeskPokemon;component/Assets/shiny-egg.png"),
         };
 
     public const int Width = 28;
     public const int Height = 30;
+    private static CroppedBitmap[]? sparkleFrames;
+
+    public static CroppedBitmap[] LoadSparkles()
+    {
+        if (sparkleFrames != null) return sparkleFrames;
+        var sheet = SpriteAtlas.LoadSheet("pack://application:,,,/DeskPokemon;component/Assets/shiny-egg-sparkles.png");
+        if (sheet.PixelWidth != 480 || sheet.PixelHeight != 38)
+            throw new InvalidOperationException("Expected twelve 40x38 sparkle frames.");
+        var frames = new CroppedBitmap[12];
+        for (var i = 0; i < frames.Length; i++)
+        {
+            frames[i] = new CroppedBitmap(sheet, new Int32Rect(i * 40, 0, 40, 38));
+            frames[i].Freeze();
+        }
+        return sparkleFrames = frames;
+    }
     private static readonly Dictionary<Definition, SpriteFrame> Cache = new();
     private static readonly Dictionary<(string Atlas, string Version), Dictionary<string, SpriteFrame>> Atlases = new();
 

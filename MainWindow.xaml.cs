@@ -28,6 +28,8 @@ public partial class MainWindow : Window
     private int _iconRequest;
     private int _eggArtRequest;
     private Task _eggArtLoad = Task.CompletedTask;
+    private CroppedBitmap[]? _eggSparkleFrames;
+    private int _eggSparkleFrame;
     private int _resultRequest;
     private bool _closed;
     private bool _saveErrorReported;
@@ -94,6 +96,7 @@ public partial class MainWindow : Window
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         timer.Tick += (_, _) =>
         {
+            AdvanceEggSparkles();
             if (_atlas != null) ShowFrame((_frame + 1) % _atlas.Frames.Length);
             if (_eggState == EggState.Result && _resultAtlas != null)
                 ShowResultFrame((_resultFrame + 1) % _resultAtlas.Frames.Length);
@@ -288,6 +291,7 @@ public partial class MainWindow : Window
     private void SetEggState(EggState state)
     {
         _eggState = state;
+        ClearEggSparkles();
         if (state != EggState.Result)
         {
             _resultAtlas = null;
@@ -348,6 +352,7 @@ public partial class MainWindow : Window
     /// <summary>표시 정의만 사용해 알 외형을 로딩한다. 부화 결과는 로딩하지 않는다.</summary>
     private async Task LoadEggAssetsAsync()
     {
+        ClearEggSparkles();
         var request = ++_eggArtRequest;
         var kind = _settings.PendingEgg!.Kind;
         EggImage.Source = null;
@@ -359,8 +364,35 @@ public partial class MainWindow : Window
             if (_closed || request != _eggArtRequest) return;
             EggImage.Source = f.Bitmap;
             EggFallback.Visibility = Visibility.Collapsed;
+            if (kind == EggKind.Shiny && _eggState is EggState.Waiting or EggState.Ready)
+            {
+                try
+                {
+                    _eggSparkleFrames = EggArtwork.LoadSparkles();
+                    EggSparkles.Source = _eggSparkleFrames[0];
+                    EggSparkles.Visibility = Visibility.Visible;
+                }
+                catch { /* 반짝임 실패가 알 본체 표시를 막지 않는다. */ }
+            }
         }
         catch { /* 등급 이름과 대체 알을 유지한다. */ }
+    }
+
+    private void ClearEggSparkles()
+    {
+        _eggSparkleFrames = null;
+        _eggSparkleFrame = 0;
+        EggSparkles.Source = null;
+        EggSparkles.Visibility = Visibility.Collapsed;
+    }
+
+    private void AdvanceEggSparkles()
+    {
+        if (_eggSparkleFrames == null || _closed ||
+            _settings.PendingEgg?.Kind != EggKind.Shiny ||
+            _eggState is not (EggState.Waiting or EggState.Ready)) return;
+        _eggSparkleFrame = (_eggSparkleFrame + 1) % _eggSparkleFrames.Length;
+        EggSparkles.Source = _eggSparkleFrames[_eggSparkleFrame];
     }
 
     private async Task LoadCrackAssetsAsync()

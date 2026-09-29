@@ -286,6 +286,9 @@
               <!-- 에셋 로드 전/실패 시 대체 -->
               <Ellipse x:Name="EggFallback" Width="24" Height="30" Canvas.Left="2" Fill="#F1E3C4" Stroke="#B8A47A" StrokeThickness="1"/>
               <Image x:Name="EggImage" Width="28" Height="30" Stretch="Fill"/>
+                    <Image x:Name="EggSparkles" Width="40" Height="38" Canvas.Left="-6" Canvas.Top="-6"
+                           Stretch="Fill" Visibility="Collapsed" IsHitTestVisible="False"
+                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
               <Image x:Name="CrackImage" Stretch="Fill" Visibility="Collapsed"/>
               <Ellipse x:Name="Flash" Width="24" Height="30" Canvas.Left="2" Fill="White" Opacity="0" IsHitTestVisible="False"/>
             </Canvas>

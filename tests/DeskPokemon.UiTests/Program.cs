@@ -65,6 +65,14 @@ internal static class Program
             Check(icons.Count == 151 && shinyIcons.Count == 151, "both icon collections");
             Check(Pixel(icons[4]) != Pixel(shinyIcons[4]), "shiny icon matches color");
             var artType = typeof(MainWindow).Assembly.GetType("DeskPokemon.EggArtwork")!;
+            var beforeLocal = transport.Requests;
+            var localEgg = Await((Task<SpriteFrame>)artType.GetMethod("LoadAsync")!.Invoke(null, [EggKind.Shiny])!);
+            var sparkles = (CroppedBitmap[])artType.GetMethod("LoadSparkles")!.Invoke(null, null)!;
+            Check(transport.Requests == beforeLocal, "shiny body and sparkles load without HTTP");
+            Check(sparkles.Length == 12 && sparkles.All(f => f.PixelWidth == 40 && f.PixelHeight == 38 && f.IsFrozen), "twelve frozen sparkle frames");
+            Check(ReferenceEquals(sparkles, artType.GetMethod("LoadSparkles")!.Invoke(null, null)), "sparkle frames reused");
+            var originalEgg = new BitmapImage(new Uri(Path.GetFullPath("Assets/shiny-egg.png")));
+            Check(Pixels(localEgg.Bitmap).SequenceEqual(Pixels(originalEgg)), "embedded egg pixels and alpha exactly match asset");
             foreach (var kind in Enum.GetValues<EggKind>())
             {
                 var f = Await((Task<SpriteFrame>)artType.GetMethod("LoadAsync")!.Invoke(null, [kind])!);
@@ -187,6 +195,34 @@ internal static class Program
             Layout(root);
             var output = Path.GetFullPath(Path.Combine("bin", "ui-verification"));
             Directory.CreateDirectory(output);
+            var eggStateType = typeof(MainWindow).GetNestedType("EggState", BindingFlags.NonPublic)!;
+            s.PendingEgg = new(EggKind.Shiny, 4, true);
+            var overlay = Element<Image>(window, "EggSparkles");
+            foreach (var stateName in new[] { "Waiting", "Ready" })
+            {
+                Call(window, "SetEggState", Enum.Parse(eggStateType, stateName));
+                Check(overlay.Visibility == Visibility.Visible, "shiny sparkles visible in " + stateName);
+                var first = overlay.Source;
+                Call(window, "AdvanceEggSparkles");
+                Check(!ReferenceEquals(first, overlay.Source), "sparkle frame advances");
+                for (var i = 1; i < 12; i++) Call(window, "AdvanceEggSparkles");
+                Check(ReferenceEquals(first, overlay.Source), "sparkle loops after twelve ticks");
+            }
+            Check(Canvas.GetLeft(overlay) == -6 && Canvas.GetTop(overlay) == -6 && !overlay.IsHitTestVisible,
+                "overlay placement preserves egg click target");
+            Layout(root);
+            Render(root, Path.Combine(output, "shiny-egg-sparkles.png"));
+            foreach (var stateName in new[] { "Hatching", "Result" })
+            {
+                Call(window, "SetEggState", Enum.Parse(eggStateType, stateName));
+                Check(overlay.Visibility == Visibility.Collapsed && overlay.Source == null, "sparkles cleared in " + stateName);
+            }
+            foreach (var kind in new[] { EggKind.Common, EggKind.Rare, EggKind.Epic, EggKind.Legendary })
+            {
+                s.PendingEgg = new(kind, 4, true);
+                Call(window, "SetEggState", Enum.Parse(eggStateType, "Ready"));
+                Check(overlay.Visibility == Visibility.Collapsed, "forced shiny reward does not sparkle: " + kind);
+            }
             Render(root, Path.Combine(output, "shiny-hatch.png"));
             ((DispatcherTimer)typeof(MainWindow).GetField("_resultTimer", Private)!.GetValue(window)!).Stop();
             transport.SlowDex = 1;
@@ -490,6 +526,13 @@ internal static class Program
         using var file = File.Create(path); png.Save(file);
     }
     private static uint Pixel(BitmapSource b) { var bytes = new byte[4]; new FormatConvertedBitmap(b, PixelFormats.Bgra32, null, 0).CopyPixels(new Int32Rect(0, 0, 1, 1), bytes, 4, 0); return BitConverter.ToUInt32(bytes); }
+    private static byte[] Pixels(BitmapSource bitmap)
+    {
+        var converted = new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0);
+        var bytes = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+        converted.CopyPixels(bytes, bitmap.PixelWidth * 4, 0);
+        return bytes;
+    }
     private static T Await<T>(Task<T> t) { Until(() => t.IsCompleted); return t.GetAwaiter().GetResult(); }
     private static void Await(Task t) { Until(() => t.IsCompleted); t.GetAwaiter().GetResult(); }
     private static void Until(Func<bool> predicate)

@@ -5,10 +5,11 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DeskPokemonAssembly Condition="'$(DeskPokemonAssembly)' == ''">../../bin/$(Configuration)/shiny-preview/DeskPokemon.dll</DeskPokemonAssembly>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="DeskPokemon">
-      <HintPath>../../bin/$(Configuration)/shiny-preview/DeskPokemon.dll</HintPath>
+      <HintPath>$(DeskPokemonAssembly)</HintPath>
     </Reference>
   </ItemGroup>
 </Project>
