@@ -3,6 +3,7 @@
   "Commit": "168b1e89467054cda2e7df43ccebbb69b459497a",
   "CsvBaseUrl": "https://raw.githubusercontent.com/PokeAPI/pokeapi/168b1e89467054cda2e7df43ccebbb69b459497a/data/v2/csv/",
   "Sha256": {
+    "pokemon_forms.csv": "99bf8f7ad4dc1f2e291357a090cef6a575623ec3cbf9030d0e33656e6e608ae2",
     "pokemon_species.csv": "e66e2eeb25fd3836b0ebab6bf87bbf01960aa3c0555e2bac495fa8393c5e0c45",
     "pokemon_evolution.csv": "e78be51c8805551fffccd5551a556e752e4a76ff1b52482b53b409dd3882e1dd",
     "pokemon.csv": "16c81c33188b0eac403aa2f759fcbe9e42c611f722d263f5b5a6a5bff9f8ce6b",
@@ -139,7 +140,18 @@
     1022,
     1023,
     1024,
-    1025
+    1025,
+    4052,
+    4083,
+    4122,
+    4222,
+    4263,
+    4264,
+    4562,
+    6211,
+    6215,
+    6550,
+    8194
   ],
-  "EvolutionRules": "Direct species parents; ordinary resulting form preferred; lowest recorded positive minimum level; non-level first step25/second step40; Eevee branches excluded."
+  "EvolutionRules": "Supported default and 11 regional forms; pinned PokeAPI default evolution rows; non-level first step25/second step40; branch level overrides79=37,133=25,281=30,290=20,361=42; base appearances only in new egg pool; 8 legacy Eevee evolution eggs remain valid in saves."
 }

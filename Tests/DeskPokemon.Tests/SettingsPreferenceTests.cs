@@ -35,14 +35,17 @@ public class SettingsPreferenceTests
         var settings = Settings.LoadFrom(file.Path)!;
         Assert.False(settings.FlipHorizontal);
         Assert.Equal(2, settings.UiScale);
-        Assert.Equal(2, settings.SchemaVersion);
+        Assert.Equal(3, settings.SchemaVersion);
         Assert.Equal(7, settings.SelectedDex);
         Assert.True(settings.SelectedShiny);
         Assert.Equal((12, 87), (settings.For(7, true).Level, settings.For(7, true).Exp));
         Assert.Equal(new PendingEgg(EggKind.Common, 172, true), settings.PendingEgg);
         Assert.Equal(1, settings.Eggs);
         Assert.Equal(56, settings.EggSeconds);
-        Assert.Equal(original, File.ReadAllText(file.Path));
+        Assert.Equal(original, File.ReadAllText(file.Path + ".schema2.bak"));
+        var migrated = File.ReadAllText(file.Path);
+        Settings.LoadFrom(file.Path);
+        Assert.Equal(migrated, File.ReadAllText(file.Path));
     }
 
     [Theory]

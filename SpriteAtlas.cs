@@ -123,6 +123,9 @@ public sealed class SpriteAtlas : IDisposable
             }
         }
         if (still is { Frames.Length: > 1 }) return still;
+        // 지역 모습 ID는 PokeAPI의 전국도감 번호가 아니다. 기본형/다른 모습으로 대체하지 않는다.
+        if (EvolutionData.Form(dexId) != null)
+            return still ?? throw new HttpRequestException("Regional sprite unavailable.");
 
         try
         {

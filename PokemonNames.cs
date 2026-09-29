@@ -3,7 +3,7 @@ namespace DeskPokemon;
 /// <summary>포켓몬 한글 이름(PokeAPI pokemon_species_names.csv, local_language_id=3). 인덱스 = 도감 번호, [0] 미사용.</summary>
 internal static class PokemonNames
 {
-    public static string Of(int dex) => dex > 0 && dex < Korean.Length ? Korean[dex] : "";
+    public static string Of(int dex) => EvolutionData.Form(dex)?.Name ?? (dex > 0 && dex < Korean.Length ? Korean[dex] : "");
 
     public static readonly string[] Korean =
     [

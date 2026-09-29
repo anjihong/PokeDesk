@@ -36,7 +36,7 @@ public partial class UiTests
             Assert.NotSame(Assert.IsType<Image>(normal.Content).Source, Assert.IsType<Image>(shiny.Content).Source);
             Assert.False(cells.Single(cell => Choice(cell) == (25, false)).IsEnabled);
             Assert.True(cells.Single(cell => Choice(cell) == (25, true)).IsEnabled);
-            Assert.Equal("보유 4/2050", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 4/2072", window.FindControl<TextBlock>("OwnedCount")!.Text);
 
             shiny.IsChecked = true; // No filter toggle is needed to select an owned shiny.
             await EventuallyAsync(window, () => settings.SelectedDex == 4 && settings.SelectedShiny);
@@ -52,7 +52,7 @@ public partial class UiTests
             shinyFilter.IsChecked = true;
             await WaitForDexAsync(window, 2);
             Assert.Equal(new[] { (4, true), (25, true) }, grid.Children.OfType<RadioButton>().Select(Choice));
-            Assert.Equal("보유 2/1025", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 2/1036", window.FindControl<TextBlock>("OwnedCount")!.Text);
             window.FindControl<CheckBox>("OwnedOnly")!.IsChecked = false;
             Assert.Equal(151, grid.Children.Count);
             Assert.All(grid.Children.OfType<RadioButton>(), cell => Assert.True(Choice(cell).Shiny));
@@ -94,7 +94,7 @@ public partial class UiTests
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
             Assert.Equal(new[] { (4, false), (7, true) }, grid.Children.OfType<RadioButton>().Select(Choice));
             Assert.NotNull(Assert.IsType<Image>(((RadioButton)grid.Children[1]).Content).Source);
-            Assert.Equal("보유 2/2050", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 2/2072", window.FindControl<TextBlock>("OwnedCount")!.Text);
             Assert.False(window.FindControl<CheckBox>("ShinyDex")!.IsChecked == true);
             Assert.Equal(4, settings.SelectedDex);
         }
@@ -124,7 +124,7 @@ public partial class UiTests
             Assert.Equal(5, settings.SelectedDex);
             Assert.True(settings.SelectedShiny);
             Assert.Equal("리자드 ★", window.FindControl<TextBlock>("DexDetailName")!.Text);
-            Assert.Equal("보유 3/2050", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 3/2072", window.FindControl<TextBlock>("OwnedCount")!.Text);
         }
         finally { window.Close(); }
     }

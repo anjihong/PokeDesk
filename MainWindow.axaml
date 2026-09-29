@@ -24,6 +24,7 @@
       </Setter>
       <Style Selector="^:pointerover /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="exp_label_plate"/></Style>
       <Style Selector="^:checked /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="exp_label_plate"/></Style>
+      <Style Selector="^.evolvable /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#2B9A62"/><Setter Property="BorderThickness" Value="2"/></Style>
       <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#0C1D36"/></Style>
       <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.45"/></Style>
     </ControlTheme>

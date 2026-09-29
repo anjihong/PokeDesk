@@ -9749,5 +9749,111 @@
     ],
     "FlavorVersion": null,
     "MetadataOnly": true
+  },
+  {
+    "Dex": 4052,
+    "Description": "분류: 요괴고양이포켓몬\n타입: 강철",
+    "Types": [
+      "강철"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4083,
+    "Description": "분류: 청둥오리포켓몬\n타입: 격투",
+    "Types": [
+      "격투"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4122,
+    "Description": "분류: 배리어포켓몬\n타입: 얼음 / 에스퍼",
+    "Types": [
+      "얼음",
+      "에스퍼"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4222,
+    "Description": "분류: 산호포켓몬\n타입: 고스트",
+    "Types": [
+      "고스트"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4263,
+    "Description": "분류: 앙증너구리포켓몬\n타입: 악 / 노말",
+    "Types": [
+      "악",
+      "노말"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4264,
+    "Description": "분류: 돌진포켓몬\n타입: 악 / 노말",
+    "Types": [
+      "악",
+      "노말"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 4562,
+    "Description": "분류: 영혼포켓몬\n타입: 땅 / 고스트",
+    "Types": [
+      "땅",
+      "고스트"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 6211,
+    "Description": "분류: 풍선포켓몬\n타입: 악 / 독",
+    "Types": [
+      "악",
+      "독"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 6215,
+    "Description": "분류: 갈고리손톱포켓몬\n타입: 격투 / 독",
+    "Types": [
+      "격투",
+      "독"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 6550,
+    "Description": "분류: 흉포포켓몬\n타입: 물",
+    "Types": [
+      "물"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
+  },
+  {
+    "Dex": 8194,
+    "Description": "분류: 수어포켓몬\n타입: 독 / 땅",
+    "Types": [
+      "독",
+      "땅"
+    ],
+    "FlavorVersion": null,
+    "MetadataOnly": true
   }
 ]

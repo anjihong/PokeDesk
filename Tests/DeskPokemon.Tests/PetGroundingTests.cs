@@ -9,17 +9,17 @@ namespace DeskPokemon.Tests;
 public partial class UiTests
 {
     [AvaloniaFact]
-    public async Task DifferentSourceSizesAndPaddingShareOneVisibleHeightWithoutClippingWideTails()
+    public async Task SpeciesHaveGentleSizeDifferencesIndependentOfCanvasPaddingWithoutClippingWideTails()
     {
         var window = new MainWindow(Settings.NewPreview(4), false);
         try
         {
             ShowAndLayout(window);
             // Charmander/Charmeleon/Charizard source geometry, then a very wide body and a padded canvas.
-            foreach (var (width, height, foot, padding, expectedHeight) in new[]
+            foreach (var (dex, width, height, foot, padding, expectedHeight) in new[]
             {
-                (42, 42, 18d, 0, 110d), (69, 56, 17.5, 0, 110d), (89, 91, 39d, 0, 110d),
-                (200, 30, 100d, 0, 31.8), (42, 42, 18d, 27, 110d)
+                (4, 42, 42, 18d, 0, 96d), (5, 69, 56, 17.5, 0, 106d), (6, 89, 91, 39d, 0, 114d),
+                (6, 200, 30, 100d, 0, 31.8), (4, 42, 42, 18d, 27, 96d)
             })
             {
                 var pixels = new SpritePixels(width + padding * 2, height + padding * 2);
@@ -32,7 +32,7 @@ public partial class UiTests
                     pixels.Pixels[offset + 2] = pixels.Pixels[offset + 3] = 255;
                 }
                 var atlas = ParseEvolutionFixture(pixels);
-                Invoke(window, "ApplyPokemonAtlas", atlas);
+                Invoke(window, "ApplyPokemonAtlasFor", atlas, dex);
                 await WaitForPresentationAsync(window);
                 var zoom = (ScaleTransform)window.FindControl<LayoutTransformControl>("StageZoom")!.LayoutTransform!;
                 Assert.Equal(expectedHeight, atlas.Body.Height * zoom.ScaleY, 6);

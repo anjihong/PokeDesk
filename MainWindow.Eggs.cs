@@ -18,7 +18,7 @@ public partial class MainWindow
         if (state is EggState.Waiting or EggState.Ready)
         {
             ++_resultRequest;
-            if (_startServices) _ = LoadEggAssetsAsync();
+            if (_startServices) _eggArtLoad = LoadEggAssetsAsync();
         }
         var idle = _animations["EggIdle"];
         var wait = _animations["EggWait"];
@@ -144,7 +144,8 @@ public partial class MainWindow
         _dirty = false;
         _lastEggTick = DateTime.UtcNow;
         UpdateOwnedCount();
-        if (hatched.Dex == _settings.SelectedDex && hatched.IsShiny == _settings.SelectedShiny) UpdateLevelUi();
+        // A duplicate earlier appearance can level the run of the currently displayed evolution.
+        UpdateLevelUi();
         RefreshIconCell(hatched.Dex, hatched.IsShiny);
         _animations["FlashOut"].Play();
         await Task.Delay(150, _lifetime.Token);
@@ -152,7 +153,7 @@ public partial class MainWindow
         ResultStage.Width = 40;
         ResultStage.Height = 30;
         ResultZoomScale.ScaleX = ResultZoomScale.ScaleY = 2;
-        NewText.Text = hatched.IsNew ? "NEW!" : $"Lv.{hatched.Level} ↑";
+        NewText.Text = hatched.IsNew ? "NEW!" : hatched.IsRestart ? "새 육성 · Lv.1" : $"Lv.{hatched.Level} ↑";
         BubbleText.Text = $"{(hatched.IsShiny ? "★ 이로치\n" : "")}{PokemonNames.Of(hatched.Dex)}";
         SetEggState(EggState.Result);
         _animations["ResultPop"].Play();

@@ -42,7 +42,12 @@ public partial class MainWindow
 
     private async void OnGenChecked(object? sender, RoutedEventArgs e)
     {
-        if (sender is RadioButton { IsChecked: true }) await RefreshDexAsync();
+        if (sender is not RadioButton { IsChecked: true } selected) return;
+        // IsCheckedChanged can run before the radio group clears the previous tab.
+        // Resolve the selection first so a higher generation never reloads the old one.
+        foreach (var tab in GenTabs.Children.OfType<RadioButton>())
+            if (!ReferenceEquals(tab, selected)) tab.IsChecked = false;
+        await RefreshDexAsync();
     }
 
     private async void OnShinyDexChanged(object? sender, RoutedEventArgs e)
@@ -105,10 +110,11 @@ public partial class MainWindow
         // Each generation sheet populates both color caches in one load. Keep the
         // two maps separate: a shiny icon can never overwrite its normal species key.
         var shinyIcons = shinyOnly ? icons : CachedDexIcons(gen, true);
-        var first = gen == 0 ? 1 : PokemonIcons.Generations[gen - 1].First;
-        var last = gen == 0 ? 1025 : PokemonIcons.Generations[gen - 1].Last;
+        var entries = gen == 0
+            ? Enumerable.Range(1, PokemonIcons.Generations.Length).SelectMany(PokemonIcons.Entries)
+            : PokemonIcons.Entries(gen);
         IconGrid.Children.Clear();
-        for (var dex = first; dex <= last; dex++)
+        foreach (var dex in entries)
         {
             if (shinyOnly)
             {
@@ -131,6 +137,7 @@ public partial class MainWindow
             }
         }
         UpdateDexStatus();
+        RefreshEvolutionUi();
     }
 
     private void UpdateDexStatus()
@@ -163,7 +170,7 @@ public partial class MainWindow
 
     private void UpdateOwnedCount()
     {
-        var total = ViewingShiny ? 1025 : 2050;
+        var total = EvolutionData.Count * (ViewingShiny ? 1 : 2);
         var count = ViewingShiny ? _settings.ShinyOwned.Count : _settings.Owned.Count + _settings.ShinyOwned.Count;
         OwnedCount.Text = $"보유 {count}/{total}";
     }
@@ -171,8 +178,10 @@ public partial class MainWindow
     private RadioButton MakeIconCell(int dex, bool shiny, Bitmap? bmp)
     {
         var owned = _settings.IsOwned(dex, shiny);
-        var records = shiny ? _settings.ShinyProgress : _settings.Progress;
-        var level = records.TryGetValue(dex, out var progress) ? progress.Level : 1;
+        // Growth dictionaries are keyed by growth run, not species ID. Merely listing
+        // unowned/cheat entries must not create additional growth runs.
+        var level = _settings.HasOwned(dex, shiny) ? _settings.For(dex, shiny).Level : 1;
+        var nationalDex = EvolutionData.NationalDex(dex);
         var rb = new RadioButton
         {
             Content = bmp == null
@@ -188,8 +197,8 @@ public partial class MainWindow
         };
         rb.Classes.Set("shiny", shiny);
         SetEvolutionCellState(rb, dex, shiny, owned);
-        UiToolTips.Set(rb, owned ? $"#{dex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}{EvolutionCellTip(dex, shiny)}"
-            : $"#{dex} ???{(shiny ? " ★ 이로치" : "")} (미보유)");
+        UiToolTips.Set(rb, owned ? $"#{nationalDex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}{EvolutionCellTip(dex, shiny)}"
+            : $"#{nationalDex} ???{(shiny ? " ★ 이로치" : "")} (미보유)");
         rb.IsCheckedChanged += OnIconChecked;
         return rb;
     }
@@ -221,22 +230,28 @@ public partial class MainWindow
         {
             ++_loadRequest;
             UpdateDexDetails();
+            await CheckEvolutionAsync();
             return;
         }
-        var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
-        var request = _loadRequest;
-        if (await task)
+        _pendingSelections++;
+        try
         {
-            _settings.SelectedDex = choice.Dex;
-            _settings.SelectedShiny = choice.IsShiny;
-            UpdateLevelUi();
-            _dirty = true;
-            TrySaveSettings();
-            SyncSelectedIcon();
-            UpdateDexDetails();
-            await CheckEvolutionAsync();
+            var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
+            var request = _loadRequest;
+            if (await task)
+            {
+                _settings.SelectedDex = choice.Dex;
+                _settings.SelectedShiny = choice.IsShiny;
+                UpdateLevelUi();
+                _dirty = true;
+                TrySaveSettings();
+                SyncSelectedIcon();
+                UpdateDexDetails();
+            }
+            else if (!_closed && request == _loadRequest) SyncSelectedIcon();
         }
-        else if (!_closed && request == _loadRequest) SyncSelectedIcon();
+        finally { _pendingSelections--; }
+        if (_pendingSelections == 0 && !_closed) await CheckEvolutionAsync();
     }
 
     private void SyncSelectedIcon()
@@ -264,7 +279,7 @@ public partial class MainWindow
         }
         var details = PokemonDetails.For(dex);
         DexDetailName.Text = PokemonNames.Of(dex) + (shiny ? " ★" : "");
-        DexDetailNumber.Text = $"No.{dex:0000}";
+        DexDetailNumber.Text = $"No.{EvolutionData.NationalDex(dex):0000}";
         DexDetailTypes.Text = string.Join(" · ", details.Types);
         var progress = _settings.For(dex, shiny);
         DexDetailDescription.Text = $"Lv.{progress.Level} · 경험치 {progress.Exp}/{Settings.ExpToNext(progress.Level)}\n{details.Description}";

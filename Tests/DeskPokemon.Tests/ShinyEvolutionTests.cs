@@ -8,7 +8,7 @@ namespace DeskPokemon.Tests;
 public partial class UiTests
 {
     [AvaloniaFact]
-    public async Task ShinyTwoStageEvolutionPreservesTheOwnedNormalFamilyAndPersistsOnlyShinyGrowth()
+    public async Task HighLevelShinyEvolutionAutomaticallyAdvancesBothStagesAndPersistsEachSharedGrowthStep()
     {
         using var assets = new UiAssets();
         var directory = Path.Combine(Path.GetTempPath(), "PokeDesk-shiny-evolution-" + Guid.NewGuid().ToString("N"));
@@ -40,17 +40,28 @@ public partial class UiTests
             await WaitForDexAsync(window, 151);
             Invoke(window, "RefreshEvolutionUi");
 
+            // Observe the first committed file during its color reveal, rather than requiring
+            // an idle gap between automatically chained steps. Each step retains its own
+            // five-second deadline; the two real animations together take about 5.6 seconds.
+            Settings? firstCommitted = null;
+            var effect = window.FindControl<EvolutionEffect>("EvolutionVisual")!;
+            effect.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == EvolutionEffect.ProgressProperty && settings.SelectedDex == 5 && firstCommitted is null)
+                    firstCommitted = Settings.LoadFrom(path);
+            };
             Click(window.FindControl<Button>("EvolutionNotice")!);
-            await EventuallyAsync(window, () => settings.SelectedDex == 5 && !Field<bool>(window, "_evolving"));
-            Assert.True(settings.SelectedShiny);
-            Assert.True(settings.IsOwned(5, true));
-            Assert.False(settings.IsOwned(6, true)); // Lv36 still advances one stage per user flow.
-            Assert.Equal(normalProgress, JsonSerializer.Serialize(settings.Progress));
+            await EventuallyAsync(window, () => firstCommitted is not null);
+            Assert.Equal(5, firstCommitted!.SelectedDex);
+            Assert.True(firstCommitted.SelectedShiny);
+            Assert.True(firstCommitted.IsOwned(5, true));
+            Assert.False(firstCommitted.IsOwned(6, true));
+            Assert.Equal(new[] { 4, 5 }, firstCommitted.For(4, true).History);
+            Assert.Same(firstCommitted.For(4, true), firstCommitted.For(5, true));
+            Assert.Null(firstCommitted.For(5, true).PendingEvolution);
+            Assert.Equal(normalProgress, JsonSerializer.Serialize(firstCommitted.Progress));
 
-            var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (4, true)).IsChecked = true;
-            await EventuallyAsync(window, () => settings.SelectedDex == 4 && !Field<bool>(window, "_evolving"));
-            grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (5, true)).IsChecked = true;
+            // No second click or form selection: the controller continues the same level-36 run.
             await EventuallyAsync(window, () => settings.SelectedDex == 6 && !Field<bool>(window, "_evolving"));
 
             Assert.True(settings.SelectedShiny);
@@ -60,6 +71,8 @@ public partial class UiTests
             Assert.Equal(new[] { 4, 5, 6 }, settings.ShinyOwned.Order().ToArray());
             foreach (var dex in new[] { 4, 5, 6 })
                 Assert.Equal((36, 71), (settings.For(dex, true).Level, settings.For(dex, true).Exp));
+            Assert.Same(settings.For(4, true), settings.For(6, true));
+            Assert.Equal(new[] { 4, 5, 6 }, settings.For(4, true).History);
 
             foreach (var dex in new[] { 5, 6 })
             {
@@ -78,6 +91,8 @@ public partial class UiTests
             Assert.Equal(new[] { 4, 5, 6 }, restored.ShinyOwned.Order().ToArray());
             foreach (var dex in new[] { 4, 5, 6 })
                 Assert.Equal((36, 71), (restored.For(dex, true).Level, restored.For(dex, true).Exp));
+            Assert.Same(restored.For(4, true), restored.For(6, true));
+            Assert.Null(restored.For(6, true).PendingEvolution);
             Assert.Equal(pendingEgg, restored.PendingEgg);
         }
         finally

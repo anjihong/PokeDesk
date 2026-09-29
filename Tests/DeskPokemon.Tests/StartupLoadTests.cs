@@ -20,28 +20,13 @@ public class StartupLoadTests
         settings.AddOwned(7);
         var window = new MainWindow(settings, startServices: false);
         using var icon = new Bitmap(Path.Combine(AppContext.BaseDirectory, "Fixtures", "atlas.png"));
-        var startupFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startupFinished = window.StartupPresentation;
         try
         {
             window.Show();
             Dispatcher.UIThread.RunJobs();
             Invoke(window, "OnLoaded", window, EventArgs.Empty);
             await assets.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
-            // OnLoaded selects a generation last, after placing the window. Stop its clocks
-            // synchronously in that call, before the dispatcher can tick them. The constructor
-            // above creates no input hook, and NewPreview never writes the player's save.
-            foreach (var tab in window.FindControl<StackPanel>("GenTabs")!.Children.OfType<RadioButton>())
-            {
-                tab.IsCheckedChanged += (_, _) =>
-                {
-                    if (!Field<bool>(window, "_placed")) return;
-                    foreach (var timer in Field<List<DispatcherTimer>>(window, "_timers")) timer.Stop();
-                    foreach (var animation in Field<Dictionary<string, Timeline>>(window, "_animations").Values)
-                        animation.Stop();
-                    startupFinished.TrySetResult();
-                };
-            }
 
             // Exercise the actual selection handler while the original #4 request is held.
             var choice = (RadioButton)Invoke(window, "MakeIconCell", 7, false, icon)!;
@@ -53,7 +38,9 @@ public class StartupLoadTests
             Assert.False(assets.Release.Task.IsCompleted);
 
             assets.Release.TrySetResult();
-            await startupFinished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await startupFinished.WaitAsync(TimeSpan.FromSeconds(5));
+            foreach (var timer in Field<List<DispatcherTimer>>(window, "_timers")) timer.Stop();
+            foreach (var animation in Field<Dictionary<string, Timeline>>(window, "_animations").Values) animation.Stop();
 
             Assert.Equal(7, settings.SelectedDex);
             Assert.Same(selectedAtlas, Field<SpriteAtlas?>(window, "_atlas"));
@@ -69,8 +56,8 @@ public class StartupLoadTests
             // Complete outstanding sprite I/O before restoring the static client/cache scope.
             try
             {
-                if (!startupFinished.Task.IsCompleted && assets.Started.Task.IsCompleted)
-                    await startupFinished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                if (!startupFinished.IsCompleted && assets.Started.Task.IsCompleted)
+                    await startupFinished.WaitAsync(TimeSpan.FromSeconds(5));
             }
             finally { window.Close(); }
         }

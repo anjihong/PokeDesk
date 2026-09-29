@@ -7,7 +7,7 @@ namespace DeskPokemon;
 
 /// <summary>
 /// 세대별 아이콘 아틀라스(pokemon_icons_{gen}.json + .png)를 받아 도감 번호 → 아이콘 비트맵으로 푼다.
-/// 기본형만 사용. 이로치는 번호 뒤 s가 붙은 프레임(4s, 964s-zero)을 사용한다.
+/// 기본형과 지역 모습 카탈로그를 사용. 이로치는 번호 뒤 s가 붙은 프레임(4s, 964s-zero, 4052s)을 사용한다.
 /// 반환한 비트맵은 앱 수명 캐시가 소유하므로 호출자가 Dispose하면 안 된다.
 /// </summary>
 public static class PokemonIcons
@@ -23,9 +23,19 @@ public static class PokemonIcons
 
     public static int GenOf(int dex)
     {
+        if (EvolutionData.Form(dex) is { } form) return form.Generation;
         foreach (var g in Generations)
             if (dex >= g.First && dex <= g.Last) return g.Gen;
         return 1;
+    }
+
+    /// <summary>해당 세대의 전국도감 기본형 뒤에 카탈로그의 지역 모습 ID를 열거한다.</summary>
+    public static IEnumerable<int> Entries(int gen)
+    {
+        if (gen < 1 || gen > Generations.Length) throw new ArgumentOutOfRangeException(nameof(gen));
+        var (_, first, last) = Generations[gen - 1];
+        return Enumerable.Range(first, last - first + 1)
+            .Concat(EvolutionData.Forms.Where(form => form.Generation == gen).Select(form => form.Id));
     }
 
     public static async Task<Dictionary<int, Bitmap>> LoadGenAsync(int gen, bool isShiny = false)
@@ -61,12 +71,11 @@ public static class PokemonIcons
             frames[Path.GetFileNameWithoutExtension(name)] = elem;
 
         // 한 시트에서 일반·이로치를 한 번에 디코딩하고 두 색상의 캐시를 함께 완성한다.
-        var (_, first, last) = Generations[gen - 1];
         var normal = new Dictionary<int, Bitmap>();
         var shiny = new Dictionary<int, Bitmap>();
         try
         {
-            for (var dex = first; dex <= last; dex++)
+            foreach (var dex in Entries(gen))
             {
                 var key = PokemonForms.SpriteKey(dex);
                 if (frames.TryGetValue(key, out var regularFrame))

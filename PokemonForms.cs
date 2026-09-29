@@ -16,7 +16,7 @@ internal static class PokemonForms
         [1007] = "apex-build", [1008] = "ultimate-mode", [1012] = "counterfeit", [1013] = "unremarkable", [1017] = "teal-mask",
     };
 
-    /// <summary>"964-zero" 또는 "4".</summary>
+    /// <summary>기본 폼 키("964-zero", "4") 또는 지역 모습 카탈로그의 키("4052").</summary>
     public static string SpriteKey(int dex) =>
-        DefaultForm.TryGetValue(dex, out var form) ? $"{dex}-{form}" : dex.ToString();
+        EvolutionData.Form(dex)?.SpriteKey ?? (DefaultForm.TryGetValue(dex, out var form) ? $"{dex}-{form}" : dex.ToString());
 }

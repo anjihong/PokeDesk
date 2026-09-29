@@ -124,7 +124,7 @@ public partial class UiTests
             PopulatePet(window, pet);
             Invoke(window, "BuildGenTabs");
             Invoke(window, "SelectGenTab", 0);
-            await WaitForDexAsync(window, 1025);
+            await WaitForDexAsync(window, 1036);
             await OpenPanelAsync(window, "dex");
             Invoke(window, "ApplyPresentation");
             await WaitForPresentationAsync(window);
@@ -145,7 +145,7 @@ public partial class UiTests
             Assert.Equal(52, ((RadioButton)grid.Children[1]).Bounds.Left, 3);
             Assert.Equal(((RadioButton)grid.Children[0]).Bounds.Top, ((RadioButton)grid.Children[1]).Bounds.Top);
             var count = window.FindControl<TextBlock>("OwnedCount")!;
-            count.Text = "보유 2050/2050"; // Maximum mixed collection count must fit beside both filters.
+            count.Text = "보유 2072/2072"; // Maximum mixed collection count must fit beside both filters.
             window.UpdateLayout();
             var ownedBounds = BoundsIn(window, window.FindControl<CheckBox>("OwnedOnly")!);
             var shinyBounds = BoundsIn(window, window.FindControl<CheckBox>("ShinyDex")!);

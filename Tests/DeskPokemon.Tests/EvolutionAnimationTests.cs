@@ -56,7 +56,7 @@ public partial class UiTests
                 var foot = effect.TranslatePoint(new Point(effect.Bounds.Width / 2, effect.Bounds.Height), window)!.Value;
                 Assert.InRange(PointDistance(foot, ShadowContact(window)), 0, 1);
             }
-            Invoke(window, "ApplyPokemonAtlas", target);
+            Invoke(window, "ApplyPokemonAtlasFor", target, 5);
             effect.Clear();
             stageZoom.Opacity = 1;
             Dispatcher.UIThread.RunJobs();
@@ -78,9 +78,9 @@ public partial class UiTests
     private static double PointDistance(Point left, Point right) =>
         Math.Sqrt(Math.Pow(left.X - right.X, 2) + Math.Pow(left.Y - right.Y, 2));
 
-    private static double EvolutionPetScaleFor(SpriteAtlas atlas) =>
+    private static double EvolutionPetScaleFor(SpriteAtlas atlas, int dex = 5) =>
         (double)typeof(MainWindow).GetMethod("PetScaleFor",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.Invoke(null, [atlas])!;
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.Invoke(null, [atlas, dex])!;
 
     private static Point ShadowContact(MainWindow window)
     {
@@ -187,6 +187,8 @@ public partial class UiTests
             await EventuallyAsync(window, () => effect.HasFrames && effect.Progress >= .3);
             Assert.Equal(4, settings.SelectedDex);
             Assert.False(settings.IsOwned(5, shiny));
+            Assert.Equal(5, settings.For(4, shiny).PendingEvolution);
+            Assert.Equal(new[] { 4 }, settings.For(4, shiny).History);
             Assert.True(effect.FlipHorizontal);
             Assert.Equal(0, window.FindControl<LayoutTransformControl>("StageZoom")!.Opacity);
             Assert.Same(original, window.FindControl<Image>("Sprite")!.Source);
@@ -201,11 +203,16 @@ public partial class UiTests
             await EventuallyAsync(window, () => settings.SelectedDex == 5 && effect.HasFrames);
             Assert.True(effect.Progress >= EvolutionEffect.RevealProgress);
             Assert.True(Field<bool>(window, "_evolving"));
+            Assert.Same(settings.For(4, shiny), settings.For(5, shiny));
+            Assert.Equal(new[] { 4, 5 }, settings.For(4, shiny).History);
+            Assert.Equal(5, settings.For(4, shiny).CurrentDex);
+            Assert.Null(settings.For(4, shiny).PendingEvolution);
             Assert.Same(original, window.FindControl<Image>("Sprite")!.Source);
             var targetExp = settings.For(5, shiny).Exp;
             Invoke(window, "OnGlobalInput");
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(targetExp + 1, settings.For(5, shiny).Exp);
+            Assert.Equal(sourceExp + 2, settings.For(4, shiny).Exp);
             await evolution.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(Field<bool>(window, "_dirty")); // Inputs during reveal must still be saved later.
             Assert.Equal(shiny, settings.SelectedShiny);
@@ -236,13 +243,13 @@ public partial class UiTests
             Assert.Null(Field<SpriteAtlas?>(window, "_atlas"));
             Assert.True(window.FindControl<TextBlock>("SpriteMissing")!.IsVisible);
             var placeholderScale = ((ScaleTransform)window.FindControl<LayoutTransformControl>("StageZoom")!.LayoutTransform!).ScaleX;
-            Assert.NotEqual(placeholderScale, EvolutionPetScaleFor(expectedSource));
+            Assert.NotEqual(placeholderScale, EvolutionPetScaleFor(expectedSource, 4));
 
             var evolution = InvokeAsync(window, "EvolveAsync", 5);
             var effect = window.FindControl<EvolutionEffect>("EvolutionVisual")!;
             await EventuallyAsync(window, () => effect.HasFrames);
             var expectedHeight = Math.Ceiling(Math.Max(
-                expectedSource.Body.Height * EvolutionPetScaleFor(expectedSource),
+                expectedSource.Body.Height * EvolutionPetScaleFor(expectedSource, 4),
                 expectedTarget.Body.Height * EvolutionPetScaleFor(expectedTarget))) + 16;
             Assert.Equal(expectedHeight, effect.Height, 6);
             Assert.Equal(4, settings.SelectedDex);
@@ -250,6 +257,8 @@ public partial class UiTests
             await evolution.WaitAsync(TimeSpan.FromSeconds(1));
             Assert.False(effect.HasFrames);
             Assert.False(settings.IsOwned(5));
+            Assert.Equal(5, settings.For(4).PendingEvolution);
+            Assert.Equal(new[] { 4 }, settings.For(4).History);
         }
         finally { window.Close(); }
     }
@@ -260,8 +269,11 @@ public partial class UiTests
     public async Task ClosingDuringEvolutionReleasesFramesAndKeepsOnlyAnAlreadyCommittedResult(bool afterCommit)
     {
         using var assets = new UiAssets();
-        var settings = Settings.NewPreview(4);
+        var directory = Path.Combine(Path.GetTempPath(), "PokeDesk-evolution-cancel-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "settings.json");
+        var settings = Settings.NewAt(4, path);
         settings.For(4).Level = 16;
+        settings.Save();
         var window = new MainWindow(settings, false);
         try
         {
@@ -280,12 +292,24 @@ public partial class UiTests
             Assert.Equal(afterCommit ? 5 : 4, settings.SelectedDex);
             Assert.Equal(afterCommit, settings.IsOwned(5));
             Assert.True(settings.IsOwned(4));
+            Assert.Equal(afterCommit ? null : (int?)5, settings.For(4).PendingEvolution);
+            Assert.Equal(afterCommit ? new[] { 4, 5 } : new[] { 4 }, settings.For(4).History);
+            var restored = Settings.LoadFrom(path)!;
+            Assert.Equal(settings.SelectedDex, restored.SelectedDex);
+            Assert.Equal(afterCommit, restored.HasOwned(5));
+            Assert.Equal(settings.For(4).CurrentDex, restored.For(4).CurrentDex);
+            Assert.Equal(settings.For(4).History, restored.For(4).History);
+            Assert.Equal(settings.For(4).PendingEvolution, restored.For(4).PendingEvolution);
+            if (afterCommit) Assert.Same(restored.For(4), restored.For(5));
+            else Assert.Equal(5, restored.PrepareEvolution(4)); // Resume the saved target, without rerolling.
         }
-        finally { window.Close(); }
+        finally { window.Close(); Directory.Delete(directory, recursive: true); }
     }
 
-    [AvaloniaFact]
-    public async Task FailedEvolutionSaveRestoresTheBodyAndNeverRevealsTheTargetColor()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedEvolutionSaveRestoresTheBodyAndNeverRevealsTheTargetColor(bool afterReservation)
     {
         using var assets = new UiAssets();
         var directory = Path.Combine(Path.GetTempPath(), "PokeDesk-evolution-effect-" + Guid.NewGuid().ToString("N"));
@@ -294,6 +318,7 @@ public partial class UiTests
         var settings = Settings.NewAt(4, path);
         settings.For(4).Level = 16;
         settings.Save();
+        if (afterReservation) Assert.Equal(5, settings.PrepareEvolution(4, target: 5));
         File.Move(path, path + ".original");
         Directory.CreateDirectory(path); // Fail the atomic file promotion without touching real user data.
         var before = JsonSerializer.Serialize(settings);
@@ -311,7 +336,17 @@ public partial class UiTests
             };
             await InvokeAsync(window, "EvolveAsync", 5).WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(before, JsonSerializer.Serialize(settings));
-            Assert.InRange(greatestProgress, .7, EvolutionEffect.RevealProgress);
+            if (afterReservation) Assert.InRange(greatestProgress, .7, EvolutionEffect.RevealProgress);
+            else
+            {
+                Assert.Equal(0, greatestProgress);
+                Assert.DoesNotContain(assets.Requests, request => request.Contains("/5."));
+            }
+            Assert.Equal(afterReservation ? (int?)5 : null, settings.For(4).PendingEvolution);
+            var restored = Settings.LoadFrom(path + ".original")!;
+            Assert.Equal(settings.For(4).PendingEvolution, restored.For(4).PendingEvolution);
+            Assert.Equal(new[] { 4 }, restored.For(4).History);
+            Assert.False(restored.HasOwned(5));
             Assert.Same(original, window.FindControl<Image>("Sprite")!.Source);
             Assert.Equal(1, window.FindControl<LayoutTransformControl>("StageZoom")!.Opacity);
             Assert.Equal(1, window.FindControl<Canvas>("Stage")!.Opacity);

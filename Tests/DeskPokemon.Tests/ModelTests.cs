@@ -96,7 +96,7 @@ public class ModelTests
     public void PreviewSupportsGrowthAndHatchingWithoutAStoragePath()
     {
         var settings = Settings.NewPreview(4);
-        Assert.Equal(2, settings.SchemaVersion);
+        Assert.Equal(3, settings.SchemaVersion);
         Assert.NotNull(settings.PendingEgg);
         Assert.Equal(new[] { 4 }, settings.Owned);
         Assert.Empty(settings.ShinyOwned);
@@ -281,7 +281,7 @@ public class ModelTests
         File.WriteAllText(path, original);
 
         var migrated = Settings.LoadFrom(path)!;
-        Assert.Equal(2, migrated.SchemaVersion);
+        Assert.Equal(3, migrated.SchemaVersion);
         Assert.Equal(eggs, migrated.Eggs);
         Assert.Equal(93, migrated.EggSeconds);
         Assert.NotNull(migrated.PendingEgg);
@@ -394,7 +394,7 @@ public class ModelTests
     {
         using var files = new SaveFiles();
         var path = files.PathFor("settings.json");
-        const string original = """{"SchemaVersion":3,"StarterDex":4,"FutureData":{"preserve":true}}""";
+        const string original = """{"SchemaVersion":4,"StarterDex":4,"FutureData":{"preserve":true}}""";
         File.WriteAllText(path, original);
 
         Assert.Throws<InvalidDataException>(() => Settings.LoadFrom(path));

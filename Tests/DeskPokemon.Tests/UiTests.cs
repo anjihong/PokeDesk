@@ -146,13 +146,13 @@ public partial class UiTests
             ownedOnly.IsChecked = true;
             Assert.Equal(3, grid.Children.Count);
             Assert.Equal(new[] { (4, false), (4, true), (7, false) }, grid.Children.OfType<RadioButton>().Select(Choice));
-            Assert.Equal("보유 3/2050", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 3/2072", window.FindControl<TextBlock>("OwnedCount")!.Text);
 
             shinyFilter.IsChecked = true;
             await EventuallyAsync(window, () => grid.Children.Count == 1 && Choice((RadioButton)grid.Children[0]).Shiny && !Field<bool>(window, "_dexLoading"));
             Assert.Equal(4, settings.SelectedDex);
             Assert.False(settings.SelectedShiny); // Viewing a collection must not change the pet.
-            Assert.Equal("보유 1/1025", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 1/1036", window.FindControl<TextBlock>("OwnedCount")!.Text);
             var shinyCell = (RadioButton)grid.Children[0];
             Assert.Equal((4, true), Choice(shinyCell));
             Assert.Contains("★ 이로치", TipText(shinyCell));
@@ -647,8 +647,7 @@ public partial class UiTests
                 if (path.Contains("pokemon_icons_"))
                 {
                     var generation = int.Parse(Path.GetFileNameWithoutExtension(path).Split('_')[^1]);
-                    var (_, first, last) = PokemonIcons.Generations[generation - 1];
-                    for (var dex = first; dex <= last; dex++)
+                    foreach (var dex in PokemonIcons.Entries(generation))
                     {
                         var key = PokemonForms.SpriteKey(dex);
                         frames.Add(Frame(key + ".png", 8, 8, 24, 30));
@@ -789,7 +788,7 @@ public partial class UiTests
     }
 
     private static void Invoke(MainWindow window, string method, params object[] args) =>
-        typeof(MainWindow).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, args);
+        typeof(MainWindow).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)!.Invoke(window, args);
 
     // Original, deterministic test pixels: no network, cache, random choice, or external artwork.
     private static Bitmap TestSprite()

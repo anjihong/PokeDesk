@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -122,9 +123,9 @@ public sealed class PlayApp : App
                 await Wait(() => Control<StackPanel>(window, "DexPanel").IsVisible, "dex tab");
                 var tabs = Control<StackPanel>(window, "GenTabs");
                 await Click((RadioButton)tabs.Children[0]);
-                await Wait(() => Control<WrapPanel>(window, "IconGrid").Children.Count == 1026, "all 1025 species plus owned shiny");
+                await Wait(() => Control<WrapPanel>(window, "IconGrid").Children.Count == 1037, "all 1036 species and forms plus owned shiny");
                 await Wait(() => !Field<bool>(window, "_dexLoading"), "all generation assets", 60000);
-                Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 1026, "all generations include every dex number and owned shiny forms");
+                Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 1037, "all generations include every dex number and owned shiny forms");
                 Capture(window, "03-all-generations");
                 await Click(Control<CheckBox>(window, "OwnedOnly"));
                 Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 2, "owned filter shows normal and shiny forms together");
@@ -162,7 +163,17 @@ public sealed class PlayApp : App
                 await Click(Cell(4));
                 await Wait(() => settings.SelectedDex == 4, "earlier form can be selected");
                 Check(!settings.Owned.Contains(6), "earlier form does not skip the intermediate evolution");
-                Check(Cell(5).Classes.Contains("evolvable"), "intermediate form is highlighted when ancestors have enough levels");
+                Check(ReferenceEquals(settings.For(4), settings.For(5)), "earlier and current appearances share the same growth run");
+                Check(Cell(5).Classes.Contains("evolvable"), "current intermediate is highlighted when the shared run is ready");
+                Check(Control<TextBlock>(window, "EvolutionNoticeText").Text!.Contains("리자드"), "earlier appearance names its actual evolution source");
+                await Click(dex);
+                await Task.Delay(400);
+                await Click(Control<Button>(window, "EvolutionNotice"));
+                await Wait(() => dex.IsChecked == true && !Field<bool>(window, "_dexLoading") &&
+                    (int)Invoke(window, "CheckedGen")! == 1, "earlier appearance notice opens the source generation");
+                await Task.Delay(400);
+                Check(settings.SelectedDex == 4 && !settings.HasOwned(6), "notice opens the dex without skipping or changing the selected appearance");
+                Check(Cell(5).Classes.Contains("evolvable"), "notice highlights the current appearance in the opened dex");
                 Capture(window, "06-evolution-ready");
                 await Click(Cell(5));
                 await Wait(() => settings.SelectedDex == 6 && !Field<bool>(window, "_evolving"), "selecting intermediate form evolves to Charizard", 60000);
@@ -176,6 +187,7 @@ public sealed class PlayApp : App
                 await Wait(() => settings.SelectedDex == 4 && settings.SelectedShiny, "select shiny Charmander", 60000);
                 var normalGrowth = settings.Progress.ToDictionary(pair => pair.Key, pair => (pair.Value.Level, pair.Value.Exp));
                 var normalOwned = settings.Owned.ToHashSet();
+                var normalLinks = settings.GrowthLinks.ToDictionary(pair => pair.Key, pair => pair.Value);
                 settings.For(4, true).Level = 15;
                 settings.For(4, true).Exp = 449;
                 Invoke(window, "UpdateLevelUi");
@@ -194,8 +206,12 @@ public sealed class PlayApp : App
                 await NativeKey();
                 await Wait(() => settings.SelectedDex == 6 && settings.SelectedShiny && !Field<bool>(window, "_evolving"), "shiny Charmeleon evolves to shiny Charizard", 60000);
                 Check(new[] { 4, 5, 6 }.All(settings.ShinyOwned.Contains), "shiny evolution keeps all three shiny forms");
-                Check(normalOwned.SetEquals(settings.Owned) && normalGrowth.All(pair =>
-                    pair.Value == (settings.For(pair.Key).Level, settings.For(pair.Key).Exp)), "shiny evolution leaves normal ownership, levels and experience unchanged");
+                Check(normalOwned.SetEquals(settings.Owned) && normalGrowth.Count == settings.Progress.Count &&
+                    normalGrowth.All(pair => settings.Progress.TryGetValue(pair.Key, out var record) &&
+                        pair.Value == (record.Level, record.Exp)), "shiny evolution leaves normal ownership, levels and experience unchanged");
+                Check(normalLinks.Count == settings.GrowthLinks.Count && normalLinks.All(pair =>
+                    settings.GrowthLinks.TryGetValue(pair.Key, out var key) && key == pair.Value),
+                    "shiny evolution leaves all normal growth-run links unchanged");
                 Check(Control<TextBlock>(window, "LevelText").Text!.StartsWith("★"), "fully evolved shiny retains its shiny indicator");
                 await Task.Delay(400);
                 Capture(window, "08-shiny-evolved");
@@ -209,6 +225,7 @@ public sealed class PlayApp : App
                 Capture(window, "07-hatched");
                 await Wait(() => !Control<Canvas>(window, "ResultStage").IsVisible, "result returns to waiting", 60000);
                 await Task.Delay(300);
+                await CheckBranchAndRegionalPlay(window, settings);
                 window.Position = new PixelPoint(700, 500);
                 await Task.Delay(100);
                 var origin = window.Position;
@@ -229,16 +246,126 @@ public sealed class PlayApp : App
                 Console.Error.WriteLine(ex);
                 Environment.ExitCode = 1;
             }
-            finally { desktop.Shutdown(Environment.ExitCode); }
+            finally
+            {
+                // Check this even when an earlier assertion fails, rather than only on the success path.
+                try { Check(SaveHash() == originalSave, "real player save remained unchanged at native play shutdown"); }
+                catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; }
+                desktop.Shutdown(Environment.ExitCode);
+            }
         };
     }
+
+    private static async Task CheckBranchAndRegionalPlay(MainWindow window, Settings settings)
+    {
+        var menu = Control<StackPanel>(window, "MenuTabs");
+        var dexTab = (ToggleButton)menu.Children[0];
+        var tabs = Control<StackPanel>(window, "GenTabs");
+        async Task OpenDex()
+        {
+            if (dexTab.IsChecked != true) await Click(dexTab);
+            await Wait(() => dexTab.IsChecked == true && Control<Border>(window, "Drawer").Height > 100, "open branch test dex");
+            await Task.Delay(400);
+        }
+        async Task CloseDex()
+        {
+            if (dexTab.IsChecked == true) await Click(dexTab);
+            await Task.Delay(400);
+        }
+        async Task Generation(int generation)
+        {
+            await Click(tabs.Children.OfType<RadioButton>().Single(tab => Equals(tab.Tag, generation)));
+            await Wait(() => !Field<bool>(window, "_dexLoading") &&
+                (int)Invoke(window, "CheckedGen")! == generation, $"generation {generation} artwork", 60000);
+        }
+
+        // This mutates only NewPreview state; real clicks perform selection, level-up and evolution.
+        settings.AddOwned(133);
+        settings.For(133).Level = 24;
+        settings.For(133).Exp = Settings.ExpToNext(24) - 1;
+        await OpenDex();
+        if (Control<CheckBox>(window, "ShinyDex").IsChecked == true)
+            await Click(Control<CheckBox>(window, "ShinyDex"));
+        await Generation(1);
+        Invoke(window, "RefreshIconCell", 133, false);
+        await Click(FindCell(window, 133, false));
+        await Wait(() => settings.SelectedDex == 133 && !settings.SelectedShiny &&
+            Field<int>(window, "_pendingSelections") == 0, "select Eevee", 60000);
+        var shinyBefore = JsonSerializer.Serialize(new { settings.ShinyOwned, settings.ShinyProgress, settings.ShinyGrowthLinks });
+        await NativeKey();
+        await Wait(() => settings.For(133).PendingEvolution.HasValue && Field<bool>(window, "_evolving"), "Eevee randomly prepares one branch", 60000);
+        var firstTarget = settings.For(133).PendingEvolution!.Value;
+        Check(EvolutionData.From(133).Any(rule => rule.ToId == firstTarget), "first Eevee target belongs to its eight level-25 branches");
+        Check(!Control<WrapPanel>(window, "EvolutionChoices").IsVisible, "random branch evolution requires no choice dialog");
+        Check(!settings.HasOwned(firstTarget), "random target is prepared before evolution awards ownership");
+        Capture(window, "14-eevee-prepared");
+        await Wait(() => settings.SelectedDex == firstTarget && !Field<bool>(window, "_evolving"), "first random Eevee evolution", 60000);
+        Check(ReferenceEquals(settings.For(133), settings.For(firstTarget)), "Eevee and its result share one growth run");
+        Capture(window, "15-eevee-first-branch");
+
+        var firstRun = settings.For(firstTarget);
+        settings.PendingEgg = new(EggKind.Common, 133, false);
+        settings.Eggs = 1;
+        var eggState = typeof(MainWindow).GetNestedType("EggState", BindingFlags.NonPublic)!;
+        Invoke(window, "SetEggState", Enum.Parse(eggState, "Ready"));
+        await CloseDex();
+        await Click(Control<Canvas>(window, "EggStage"));
+        await Wait(() => !ReferenceEquals(settings.For(133), firstRun) &&
+            Control<Canvas>(window, "ResultStage").IsVisible, "duplicate Eevee egg starts a new run", 60000);
+        Check(settings.For(133).Level == 1 && settings.For(133).Exp == 0, "Eevee rearing restarts at level one and zero experience");
+        Check(ReferenceEquals(settings.For(firstTarget), firstRun), "rehatching keeps the previous Eevee evolution's run");
+        Check(Control<TextBlock>(window, "NewText").Text == "새 육성 · Lv.1", "hatch result identifies the new growth run");
+        Capture(window, "16-eevee-rearing");
+        await Wait(() => !Control<Canvas>(window, "ResultStage").IsVisible, "Eevee result returns to waiting", 60000);
+
+        await OpenDex();
+        await Generation(1);
+        await Click(FindCell(window, 133, false));
+        await Wait(() => settings.SelectedDex == 133 && !settings.SelectedShiny &&
+            Field<int>(window, "_pendingSelections") == 0, "select newly reared Eevee", 60000);
+        var previousGrowth = (firstRun.Level, firstRun.Exp);
+        settings.For(133).Level = 24;
+        settings.For(133).Exp = Settings.ExpToNext(24) - 1;
+        Invoke(window, "UpdateLevelUi");
+        await NativeKey();
+        await Wait(() => settings.For(133).PendingEvolution.HasValue && Field<bool>(window, "_evolving"), "reared Eevee prepares a remaining branch", 60000);
+        var secondTarget = settings.For(133).PendingEvolution!.Value;
+        Check(secondTarget != firstTarget && settings.EvolutionOptions(133).Length == 7,
+            "second Eevee target is randomly selected only from seven uncollected branches");
+        await Wait(() => settings.SelectedDex == secondTarget && !Field<bool>(window, "_evolving"), "second random Eevee evolution", 60000);
+        Check(previousGrowth == (firstRun.Level, firstRun.Exp), "new Eevee run leaves the earlier branch's growth unchanged");
+        Check(!ReferenceEquals(firstRun, settings.For(secondTarget)), "two Eevee branches retain independent growth runs");
+        Check(shinyBefore == JsonSerializer.Serialize(new { settings.ShinyOwned, settings.ShinyProgress, settings.ShinyGrowthLinks }),
+            "normal Eevee evolution and rearing preserve all shiny ownership and growth");
+        Capture(window, "17-eevee-second-branch");
+
+        settings.AddOwned(8194); // Paldean Wooper, distinct from ordinary #194.
+        await Generation(9);
+        await Click(FindCell(window, 8194, false));
+        await Wait(() => settings.SelectedDex == 8194 && !settings.SelectedShiny &&
+            Control<Image>(window, "Sprite").Source != null && Field<int>(window, "_pendingSelections") == 0,
+            "select Paldean Wooper from generation nine", 60000);
+        Check(!settings.HasOwned(194), "regional selection does not grant the ordinary species");
+        Check(Control<TextBlock>(window, "DexDetailName").Text == "팔데아 우파", "regional detail uses its own appearance name");
+        Check(Control<TextBlock>(window, "DexDetailTypes").Text == "독 · 땅", "regional detail shows Paldean rather than ordinary types");
+        Check(Control<TextBlock>(window, "DexDetailNumber").Text!.Contains("0194"), "regional detail displays its national dex number");
+        CheckPetSizeAndGrounding(window, "Paldean Wooper");
+        Capture(window, "18-regional-selection");
+        await CloseDex();
+    }
+
+    private static RadioButton FindCell(MainWindow window, int dex, bool shiny) =>
+        Control<WrapPanel>(window, "IconGrid").Children.OfType<RadioButton>().Single(cell =>
+            (int)cell.Tag!.GetType().GetProperty("Dex")!.GetValue(cell.Tag)! == dex &&
+            (bool)cell.Tag.GetType().GetProperty("IsShiny")!.GetValue(cell.Tag)! == shiny);
 
     private static void CheckPetSizeAndGrounding(MainWindow window, string species)
     {
         window.UpdateLayout();
         var atlas = Field<SpriteAtlas>(window, "_atlas");
         var scale = ((ScaleTransform)Control<LayoutTransformControl>(window, "StageZoom").LayoutTransform!).ScaleX;
-        Check(Math.Abs(atlas.Body.Height * scale - 110) < .001, species + " uses the shared 110 DIP visible height");
+        var expected = PokemonDisplaySize.TargetHeight(Field<Settings>(window, "_settings").SelectedDex);
+        Check(Math.Abs(atlas.Body.Height * scale - expected) < .001, species + " uses its species display height");
         Check(atlas.FootAlignedWidth * scale <= 212.001, species + " fits within the pet column");
         var index = Field<int>(window, "_frame");
         var anchor = atlas.FootAnchorFor(index);

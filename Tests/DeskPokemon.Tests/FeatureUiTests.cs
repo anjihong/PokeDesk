@@ -29,9 +29,10 @@ public partial class UiTests
             Assert.Equal(10, generations.Children.Count);
             Assert.Equal("전체", ((RadioButton)generations.Children[0]).Content);
             ((RadioButton)generations.Children[0]).IsChecked = true;
-            await WaitForDexAsync(window, 1025);
+            await WaitForDexAsync(window, 1036);
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            Assert.Equal(Enumerable.Range(1, 1025), grid.Children.OfType<RadioButton>().Select(cell => Choice(cell).Dex));
+            Assert.Equal(Enumerable.Range(1, 9).SelectMany(PokemonIcons.Entries),
+                grid.Children.OfType<RadioButton>().Select(cell => Choice(cell).Dex));
             Assert.All(grid.Children.OfType<RadioButton>(), cell =>
             {
                 var image = Assert.IsType<Image>(cell.Content);
@@ -67,7 +68,7 @@ public partial class UiTests
             await WaitForDexAsync(window, 0);
             Assert.Contains("이로치", window.FindControl<TextBlock>("DexStatusText")!.Text);
             Assert.True(window.FindControl<TextBlock>("DexStatusText")!.IsVisible);
-            Assert.Equal("보유 0/1025", window.FindControl<TextBlock>("OwnedCount")!.Text);
+            Assert.Equal("보유 0/1036", window.FindControl<TextBlock>("OwnedCount")!.Text);
             Assert.Null(window.FindControl<Image>("DexDetailImage")!.Source);
             Assert.Equal(4, settings.SelectedDex);
             Assert.False(settings.SelectedShiny);
@@ -191,7 +192,7 @@ public partial class UiTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task LevelUpEvolvesOnlyTheSelectedColorAndSelectingTheMiddleStageUsesAncestorGrowth(bool shiny)
+    public async Task LevelUpEvolvesOnlyTheSelectedColorAndEachAppearanceSharesItsGrowthRun(bool shiny)
     {
         using var assets = new UiAssets();
         var settings = Settings.NewPreview(4);
@@ -219,11 +220,13 @@ public partial class UiTests
             Assert.Equal(16, settings.For(4, shiny).Level);
             Assert.Equal(0, settings.For(4, shiny).Exp);
             Assert.Equal(16, settings.For(5, shiny).Level);
+            Assert.Same(settings.For(4, shiny), settings.For(5, shiny));
             Assert.Equal(3, settings.For(4, !shiny).Level);
             Assert.Equal(9, settings.For(4, !shiny).Exp);
             Assert.Equal(1, window.FindControl<Canvas>("Stage")!.Opacity);
 
             settings.For(4, shiny).Level = 36;
+            settings.For(4, shiny).Exp = 17;
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
             grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (4, shiny)).IsChecked = true;
             await EventuallyAsync(window, () => settings.SelectedDex == 4 && !Field<bool>(window, "_evolving"));
@@ -233,9 +236,10 @@ public partial class UiTests
             Assert.True(settings.IsOwned(5, shiny));
             Assert.True(settings.IsOwned(6, shiny));
             Assert.False(settings.IsOwned(6, !shiny));
-            Assert.Equal(36, settings.For(6, shiny).Level);
-            Assert.Equal(16, settings.For(5, shiny).Level);
-            Assert.Equal(36, settings.For(4, shiny).Level);
+            Assert.Same(settings.For(4, shiny), settings.For(5, shiny));
+            Assert.Same(settings.For(5, shiny), settings.For(6, shiny));
+            Assert.All(new[] { 4, 5, 6 }, dex =>
+                Assert.Equal((36, 17), (settings.For(dex, shiny).Level, settings.For(dex, shiny).Exp)));
         }
         finally { window.Close(); }
     }
@@ -243,7 +247,7 @@ public partial class UiTests
     [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(2)]
-    public async Task BranchEvolutionShowsChoicesAndChangesOnlyAfterTheChosenButton(int scale)
+    public async Task BranchEvolutionPreparesOneRandomUnownedResultAndPreservesTheOtherBranch(int scale)
     {
         using var assets = new UiAssets();
         var settings = Settings.NewPreview(265);
@@ -262,19 +266,28 @@ public partial class UiTests
             Assert.Contains("evolvable", cell.Classes);
             var notice = window.FindControl<Button>("EvolutionNotice")!;
             Assert.True(notice.IsVisible);
-            Click(notice);
             var choices = window.FindControl<WrapPanel>("EvolutionChoices")!;
-            Assert.True(choices.IsVisible);
-            Assert.Equal(2, choices.Children.Count);
+            Assert.False(choices.IsVisible);
+            Assert.Empty(choices.Children);
             Assert.Equal(265, settings.SelectedDex);
             Assert.False(settings.IsOwned(266));
             Assert.False(settings.IsOwned(268));
+            Assert.Null(settings.For(265).PendingEvolution);
+            // Capture deterministic readiness before PrepareEvolution draws its random result.
+            await OpenPanelAsync(window, "dex");
             Capture(window, "evolution-ready", scale);
-            Click(choices.Children.OfType<Button>().Single(button => Equals(button.Content, "카스쿤")));
-            await EventuallyAsync(window, () => settings.SelectedDex == 268 && !Field<bool>(window, "_evolving"));
+            Click(notice);
+            Assert.False(choices.IsVisible);
+            Assert.Empty(choices.Children);
+            await EventuallyAsync(window, () => settings.SelectedDex is 266 or 268 && !Field<bool>(window, "_evolving"));
+            var evolved = settings.SelectedDex;
+            var otherBranch = evolved == 266 ? 268 : 266;
             Assert.True(settings.IsOwned(265));
-            Assert.True(settings.IsOwned(268));
-            Assert.False(settings.IsOwned(266));
+            Assert.True(settings.IsOwned(evolved));
+            Assert.False(settings.IsOwned(otherBranch));
+            Assert.Same(settings.For(265), settings.For(evolved));
+            Assert.Equal(new[] { 265, evolved }, settings.For(265).History);
+            Assert.Null(settings.For(265).PendingEvolution);
             Assert.False(choices.IsVisible);
         }
         finally { window.Close(); }

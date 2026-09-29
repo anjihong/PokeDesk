@@ -60,8 +60,9 @@ public partial class MainWindow : Window
         _settings = settings;
         _startServices = startServices;
         _startupRegistration = startupRegistration ?? (startServices ? StartupRegistration.CreateDefault() : null);
-        _hook = startServices ? new InputHook() : null;
+        _hook = startServices && !IsEvolutionTestMode ? new InputHook() : null;
         InitializeComponent();
+        InitializeStartupPresentation();
         BuildAnimations();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
         InitializePreferences();
@@ -70,6 +71,7 @@ public partial class MainWindow : Window
         SetupUnlockAll();
         SetupReset();
         SetupTestEggs();
+        SetupEvolutionTestTools();
 #endif
         if (startServices) Opened += OnLoaded;
         UpdateLevelUi();
@@ -171,15 +173,7 @@ public partial class MainWindow : Window
         UpdateOwnedCount();
         _ = LoadCrackAssetsAsync();
 
-        UpdateLayout();
-        var wa = WorkingArea;
-        Position = new PixelPoint(wa.Right - (int)Math.Ceiling(Bounds.Width * DesktopScaling) - 20,
-            wa.Bottom - (int)Math.Ceiling(Bounds.Height * DesktopScaling) - 20);
-        _placed = true;
-
-        SelectGenTab(PokemonIcons.GenOf(_settings.SelectedDex));
-        ApplyPresentation();
-        RefreshEvolutionUi();
+        await CompleteStartupPresentationAsync();
     }
 
     /// <summary>스프라이트 교체. 실패 시 메시지 띄우고 false(이전 포켓몬 유지). 더 최신 요청이 있으면 조용히 false.</summary>
@@ -202,22 +196,24 @@ public partial class MainWindow : Window
             atlas.Dispose();
             return false;
         }
-        ApplyPokemonAtlas(atlas);
+        ApplyPokemonAtlasFor(atlas, dex);
         return true;
     }
 
-    private void ApplyPokemonAtlas(SpriteAtlas atlas)
+    private void ApplyPokemonAtlas(SpriteAtlas atlas) => ApplyPokemonAtlasFor(atlas, _settings.SelectedDex);
+
+    private void ApplyPokemonAtlasFor(SpriteAtlas atlas, int dex)
     {
         var previous = _atlas;
         _atlas = atlas;
         SpriteMissing.IsVisible = false;
         SpriteStatus.IsVisible = false;
         // 캔버스(37~98px, 9세대는 96 고정+여백)가 아니라 실제 몸체 영역을 스테이지로 삼고,
-        // 몸체 높이가 항상 BodyTargetHeight가 되도록 소수 배율. 넓은 포켓몬은 폭 상한으로 제한.
+        // 종별로 완만한 크기 차이를 적용하고, 넓은 포켓몬은 발 중심 폭 상한으로 제한.
         var body = atlas.Body;
         Stage.Width = atlas.FootAlignedWidth;
         Stage.Height = body.Height;
-        var zoom = PetScaleFor(atlas);
+        var zoom = PetScaleFor(atlas, dex);
         Zoom.ScaleX = Zoom.ScaleY = zoom;
         // 바운스 스트레치(ScaleY 1.12)가 창 위로 잘리지 않게 여백을 표시 높이에 비례
         TopArea.Margin = new Thickness(0, Math.Ceiling(body.Height * zoom * 0.14) + 4, 0, 0);
@@ -260,15 +256,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private const double BodyTargetHeight = 110;
     // 236 DIP pet column minus the 12 DIP margin on either side of StageZoom.
     private const double BodyMaxWidth = 212;
 
-    private static double PetScaleFor(SpriteAtlas atlas)
+    private static double PetScaleFor(SpriteAtlas atlas, int dex)
     {
         // Rounding the scale shrinks large source sprites more than small ones (e.g. Charizard).
-        // Keep the same visible height, only reducing unusually wide silhouettes to fit the column.
-        return Math.Min(BodyTargetHeight / atlas.Body.Height, BodyMaxWidth / atlas.FootAlignedWidth);
+        // Preserve gentle species differences while fitting unusually wide silhouettes into the column.
+        return Math.Min(PokemonDisplaySize.TargetHeight(dex) / atlas.Body.Height, BodyMaxWidth / atlas.FootAlignedWidth);
     }
 
     private void ShowFrame(int i)
@@ -411,9 +406,10 @@ public partial class MainWindow : Window
     /// <summary>우클릭 메뉴에 초기화 항목 추가. 세이브 삭제 후 앱을 다시 띄워 스타팅 선택부터.</summary>
     private void SetupReset()
     {
-        var item = new MenuItem { Header = "초기화(테스트)" };
+        var item = new MenuItem { Header = _testMode ? "진화 테스트 세이브 초기화" : "초기화(테스트)" };
         item.Click += async (_, _) =>
         {
+            if (_testMode) { await ResetEvolutionTestSaveAsync(); return; }
             if (await AppDialog.ConfirmAsync(this, "초기화", "세이브를 삭제하고 스타팅 선택부터 다시 시작할까요?"))
                 App.ResetSave();
         };
