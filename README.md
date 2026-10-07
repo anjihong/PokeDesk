@@ -20,11 +20,12 @@ dotnet run
 
 전체 동작과 이슈별 구현 상태는 [기능 명세](Docs/spec/01-overview.md)를 참고한다. 이로치 규칙은 [이로치 기능 명세](Docs/spec/10-shiny.md)에 따로 정리했다.
 
-## 스프라이트 출처 및 라이선스
+## 이미지·진화 효과 출처 및 라이선스
 
-스프라이트는 앱에 포함되지 않으며, 첫 실행 시
+스프라이트는 앱에 포함되지 않으며, 필요할 때
 [pagefaultgames/pokerogue-assets](https://github.com/pagefaultgames/pokerogue-assets) 의
 `images/pokemon/`, `images/pokemon/exp/`, 각 경로의 `shiny/`, `images/pokemon_icons_*`, `images/egg/`에서 받아 `%LOCALAPPDATA%\DeskPokemon\sprites`에 캐시합니다.
+진화 때 쓰는 `images/effects/evo_sparkle.png`도 같은 저장소에서 필요할 때 받아 캐시합니다. 진화 배경 영상과 원본 음악·효과음은 사용하지 않습니다.
 PokéRogue 쪽 스프라이트가 정지(1프레임)인 일부 종은
 [PokeAPI/sprites](https://github.com/PokeAPI/sprites) 의 `versions/generation-v/black-white/animated/` GIF를 대신 사용합니다.
 포획률 수치는 [PokeAPI](https://github.com/PokeAPI/pokeapi) `pokemon_species.csv`에서 가져와 코드에 포함했지만 현재 부화 추첨에는 사용하지 않습니다.

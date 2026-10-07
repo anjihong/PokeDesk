@@ -78,6 +78,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            CancelEvolutionVisual();
             foreach (var timer in _timers) timer.Stop();
             _resultTimer.Stop();
             _hook?.Dispose();
@@ -98,6 +99,7 @@ public partial class MainWindow : Window
         {
             AdvanceEggSparkles();
             if (_atlas != null) ShowFrame((_frame + 1) % _atlas.Frames.Length);
+            if (_evolutionVisualActive) UpdateEvolutionFrames(_atlas);
             if (_eggState == EggState.Result && _resultAtlas != null)
                 ShowResultFrame((_resultFrame + 1) % _resultAtlas.Frames.Length);
         };
@@ -155,7 +157,7 @@ public partial class MainWindow : Window
             _hook.Triggered += () => Dispatcher.BeginInvoke(() =>
             {
                 if (_closed) return;
-                bounce.Begin(this, true);
+                if (!_evolving) bounce.Begin(this, true);
                 AddExp();
             });
         }
@@ -722,6 +724,7 @@ public partial class MainWindow : Window
             SyncSelectedIcon();
             return;
         }
+        if (_evolutionVisualActive) CancelEvolutionVisual();
         if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
         {
             ++_loadRequest; // 이전 비동기 선택을 취소하고 현재 표시를 유지한다.

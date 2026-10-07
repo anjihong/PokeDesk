@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 
 namespace DeskPokemon;
 
@@ -76,12 +75,13 @@ public partial class MainWindow
                 request = ++_loadRequest;
                 if (!IsCurrent()) break;
                 var target = _settings.PrepareEvolution(dex, shiny);
-                var atlas = await SpriteAtlas.LoadAsync(target, shiny);
+                var atlasTask = SpriteAtlas.LoadAsync(target, shiny);
+                var sparkleTask = LoadEvolutionSparkleAsync();
+                var atlas = await atlasTask;
                 if (!IsCurrent()) break;
-                var blink = new DoubleAnimation(1, .15, TimeSpan.FromMilliseconds(150))
-                    { AutoReverse = true, RepeatBehavior = new RepeatBehavior(2) };
-                Stage.BeginAnimation(OpacityProperty, blink);
-                await Task.Delay(600);
+                var sparkle = await sparkleTask;
+                if (!IsCurrent()) break;
+                await PlayEvolutionVisualAsync(_atlas, atlas, sparkle, IsCurrent);
                 if (!IsCurrent()) break;
                 _settings.CompleteEvolution(dex, shiny, target);
                 _dirty = false;
@@ -97,6 +97,7 @@ public partial class MainWindow
                     ReferenceEquals(p, _settings.For(dex, shiny));
             }
         }
+        catch (OperationCanceledException) { /* 선택 변경 또는 창 종료로 연출 취소 */ }
         catch (Exception ex)
         {
             if (!_closed && request == _loadRequest)
@@ -104,7 +105,7 @@ public partial class MainWindow
         }
         finally
         {
-            Stage.BeginAnimation(OpacityProperty, null);
+            ResetEvolutionVisual();
             _evolving = false;
             if (!_closed) RefreshEvolutionUi();
         }

@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Rectangle = System.Windows.Shapes.Rectangle;
 using System.Windows.Threading;
 using DeskPokemon;
 
@@ -35,6 +36,15 @@ internal static class Program
                 .SetValue(null, Path.Combine(Temporary, "cache"));
             typeof(SpriteAtlas).GetProperty("Http", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, new HttpClient(transport));
+
+            if (args.Contains("--evolution-only"))
+            {
+                var evolutionOutput = Path.GetFullPath(Path.Combine("bin", "ui-verification"));
+                Directory.CreateDirectory(evolutionOutput);
+                VerifyEvolution(transport, evolutionOutput);
+                Console.WriteLine($"PASS: {checks} evolution WPF assertions; render: {evolutionOutput}");
+                return 0;
+            }
 
             var normal = Await(SpriteAtlas.LoadAsync(4));
             var shiny = Await(SpriteAtlas.LoadAsync(4, true));
@@ -356,7 +366,31 @@ internal static class Program
             .Single(c => (int)c.Tag.GetType().GetProperty("Dex")!.GetValue(c.Tag)! == dex);
         Await((Task<bool>)Call(w,"LoadPokemonAsync",4,false)!);
         s.For(4).Level = 16;
-        Await((Task)Call(w,"CheckEvolutionAsync")!);
+        var firstEvolution = (Task)Call(w,"CheckEvolutionAsync")!;
+        Until(() => (bool)typeof(MainWindow).GetField("_evolutionVisualActive",Private)!.GetValue(w)!);
+        var visualTime = System.Diagnostics.Stopwatch.StartNew();
+        var root = Element<FrameworkElement>(w,"Root");
+        var particles = Element<Canvas>(w,"EvolutionParticles");
+        Until(() => particles.Children.Count > 0);
+        Check(particles.Visibility == Visibility.Visible && particles.Width * ((ScaleTransform)w.FindName("Zoom")).ScaleX <= 171 &&
+            w.FindName("EvolutionBackground") == null,
+            "evolution effects stay within the pet area without a background");
+        Check(w.FindName("EvolutionFlash") == null, "evolution has no final flash box");
+        Await(Task.Delay(1100));
+        var sourceForm = Element<Canvas>(w,"EvolutionSourceForm");
+        var targetForm = Element<Canvas>(w,"EvolutionTargetForm");
+        Check(Element<Canvas>(w,"EvolutionSourceForm").Visibility == Visibility.Visible &&
+            targetForm.Visibility == Visibility.Visible &&
+            Element<Rectangle>(w,"EvolutionSourceMask").OpacityMask != null &&
+            Element<Rectangle>(w,"EvolutionTargetMask").OpacityMask != null &&
+            sourceForm.Height != targetForm.Height &&
+            Math.Abs(Canvas.GetTop(targetForm) + targetForm.Height - Element<Canvas>(w,"Stage").Height) < .1,
+            "different-sized silhouettes alternate on the same baseline");
+        Layout(root); Render(root,Path.Combine(output,"evolution-transform.png"));
+        Await(firstEvolution);
+        Check(visualTime.Elapsed.TotalSeconds >= 3.5 && visualTime.Elapsed.TotalSeconds < 7 &&
+            particles.Visibility == Visibility.Collapsed && particles.Children.Count == 0,
+            "evolution reveals the target after about four seconds and clears its effects");
         Check(s.SelectedDex == 5 && Cell(5).IsChecked == true, "UI evolution automatically selects target");
         Cell(4).IsChecked = true;
         Until(() => s.SelectedDex == 4);
@@ -368,7 +402,6 @@ internal static class Program
         Check(Element<Panel>(w,"GenTabs").Children.OfType<RadioButton>().Take(2).All(t => t.ToolTip != null),
             "all and source generation tabs highlight ready evolution");
         Check(s.SelectedDex == 4, "earlier appearance is not forcibly evolved");
-        var root = Element<FrameworkElement>(w,"Root");
         Element<FrameworkElement>(w,"Drawer").Height = 215;
         Layout(root);
         Render(root,Path.Combine(output,"evolution-ready.png"));
@@ -387,6 +420,15 @@ internal static class Program
         Cell(5).IsChecked = true;
         Until(() => s.SelectedDex == 6);
         Check(s.For(5).PendingEvolution is null && s.Owned.Contains(4), "returning to source resumes pending evolution");
+
+        s.For(7).Level = 16;
+        Cell(7).IsChecked = true;
+        Until(() => (bool)typeof(MainWindow).GetField("_evolutionVisualActive",Private)!.GetValue(w)!);
+        Cell(6).IsChecked = true;
+        Until(() => s.SelectedDex == 6 && !(bool)typeof(MainWindow).GetField("_evolutionVisualActive",Private)!.GetValue(w)!);
+        Check(s.For(7).PendingEvolution == 8 && !s.HasOwned(8) &&
+            particles.Visibility == Visibility.Collapsed && Element<Image>(w,"Sprite").Visibility == Visibility.Visible,
+            "selection change cancels the visual without committing evolution");
 
         // Repeated branch evolution picks one of the remaining targets without a dialog.
         s.AddOwned(236); s.For(236).Level = 20;
@@ -659,9 +701,11 @@ internal static class Program
                     foreach (var name in new[] { "egg_0", "egg_1", "egg_2", "egg_3", "egg_manaphy" }) frames.Add(Frame(name, 0, 0, name == "egg_manaphy" ? 26 : 28, name == "egg_manaphy" ? 31 : 30));
                 else
                 {
-                    frames.Add(Frame("0001.png", 0, 0, 100, 80));
+                    var width = path.Contains("/pokemon/") && path.Contains("/5.") ? 60 : 100;
+                    var height = width == 60 ? 40 : 80;
+                    frames.Add(Frame("0001.png", 0, 0, width, height));
                     if (!path.Contains("/991.") || path.Contains("/exp/shiny/"))
-                        frames.Add(Frame("0002.png", 100, 0, 100, 80));
+                        frames.Add(Frame("0002.png", 100, 0, width, height));
                 }
                 content = JsonSerializer.SerializeToUtf8Bytes(new { textures = new[] { new { frames } } });
             }

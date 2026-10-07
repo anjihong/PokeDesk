@@ -235,6 +235,18 @@
             <ScaleTransform x:Name="Squash"/>
           </Canvas.RenderTransform>
           <Image x:Name="Sprite" Stretch="Fill"/>
+          <Canvas x:Name="EvolutionSourceForm" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False"
+                  RenderTransformOrigin="0.5,1">
+            <Canvas.RenderTransform><ScaleTransform x:Name="EvolutionSourceScale"/></Canvas.RenderTransform>
+            <Rectangle x:Name="EvolutionSourceMask" Fill="White"/>
+          </Canvas>
+          <Image x:Name="EvolutionTargetPreview" Visibility="Collapsed" Stretch="Fill" IsHitTestVisible="False"/>
+          <Canvas x:Name="EvolutionTargetForm" Visibility="Collapsed" IsHitTestVisible="False"
+                  RenderTransformOrigin="0.5,1">
+            <Canvas.RenderTransform><ScaleTransform x:Name="EvolutionTargetScale" ScaleX="0.25" ScaleY="0.25"/></Canvas.RenderTransform>
+            <Rectangle x:Name="EvolutionTargetMask" Fill="White"/>
+          </Canvas>
+          <Canvas x:Name="EvolutionParticles" Visibility="Collapsed" ClipToBounds="True" IsHitTestVisible="False"/>
           <TextBlock x:Name="SpriteMissing" Visibility="Collapsed" Width="60" FontSize="6"
                      Foreground="White" TextAlignment="Center" TextWrapping="Wrap"/>
         </Canvas>
