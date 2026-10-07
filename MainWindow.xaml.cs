@@ -567,9 +567,14 @@ public partial class MainWindow : Window
 
     // ---- 도감/선택 패널 ----
 
+    private const int AllGenerations = 0;
+
     private void BuildGenTabs()
     {
         var style = (Style)Resources["GenTab"];
+        var all = new RadioButton { Content = "전체", Tag = AllGenerations, GroupName = "Gen", Style = style };
+        all.Checked += OnGenChecked;
+        GenTabs.Children.Add(all);
         foreach (var g in PokemonIcons.Generations)
         {
             var rb = new RadioButton { Content = g.Gen, Tag = g.Gen, GroupName = "Gen", Style = style };
@@ -601,7 +606,7 @@ public partial class MainWindow : Window
         IconGrid.Children.Clear();
         try
         {
-            var icons = await PokemonIcons.LoadGenAsync(gen, shiny);
+            var icons = await LoadVisibleIconsAsync(gen, shiny);
             if (_closed || request != _iconRequest || CheckedGen() != gen || ViewingShiny != shiny) return;
             RebuildIconGrid(gen, icons);
             IconScroll.ScrollToTop();
@@ -609,8 +614,27 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (!_closed && request == _iconRequest)
-                MessageBox.Show($"아이콘 로드 실패 ({gen}세대): {ex.Message}", "DeskPokemon");
+                MessageBox.Show($"아이콘 로드 실패 ({(gen == AllGenerations ? "전체" : $"{gen}세대")}): {ex.Message}", "DeskPokemon");
         }
+    }
+
+    private static async Task<Dictionary<int, BitmapSource>> LoadVisibleIconsAsync(int gen, bool shiny)
+    {
+        if (gen != AllGenerations) return await PokemonIcons.LoadGenAsync(gen, shiny);
+        var groups = await Task.WhenAll(PokemonIcons.Generations.Select(g => PokemonIcons.LoadGenAsync(g.Gen, shiny)));
+        return groups.SelectMany(icons => icons).ToDictionary();
+    }
+
+    private static bool TryGetCachedVisibleIcons(int gen, bool shiny, out Dictionary<int, BitmapSource> icons)
+    {
+        if (gen != AllGenerations) return PokemonIcons.TryGetCachedGen(gen, out icons, shiny);
+        icons = new Dictionary<int, BitmapSource>();
+        foreach (var g in PokemonIcons.Generations)
+        {
+            if (!PokemonIcons.TryGetCachedGen(g.Gen, out var group, shiny)) return false;
+            foreach (var (dex, icon) in group) icons.Add(dex, icon);
+        }
+        return true;
     }
 
     private void RebuildIconGrid(int gen, Dictionary<int, BitmapSource> icons)
@@ -618,7 +642,10 @@ public partial class MainWindow : Window
         var ownedOnly = OwnedOnly.IsChecked == true;
         var shiny = ViewingShiny;
         IconGrid.Children.Clear();
-        foreach (var dex in PokemonIcons.Entries(gen))
+        var entries = gen == AllGenerations
+            ? PokemonIcons.Generations.SelectMany(g => PokemonIcons.Entries(g.Gen))
+            : PokemonIcons.Entries(gen);
+        foreach (var dex in entries)
         {
             if (!icons.TryGetValue(dex, out var bmp)) continue;
             if (ownedOnly && !_settings.IsOwned(dex, shiny)) continue;
@@ -637,7 +664,7 @@ public partial class MainWindow : Window
     private void OnOwnedOnlyChanged(object sender, RoutedEventArgs e)
     {
         if (CheckedGen() is not { } gen) return;
-        if (!PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny)) return;
+        if (!TryGetCachedVisibleIcons(gen, ViewingShiny, out var icons)) return;
         RebuildIconGrid(gen, icons);
         IconScroll.ScrollToTop();
     }
@@ -677,8 +704,8 @@ public partial class MainWindow : Window
     {
         if (shiny != ViewingShiny) return;
         var gen = PokemonIcons.GenOf(dex);
-        if (CheckedGen() != gen) return;
-        if (PokemonIcons.TryGetCachedGen(gen, out var icons, shiny)) RebuildIconGrid(gen, icons);
+        if (CheckedGen() is not { } visibleGen || visibleGen != AllGenerations && visibleGen != gen) return;
+        if (TryGetCachedVisibleIcons(visibleGen, shiny, out var icons)) RebuildIconGrid(visibleGen, icons);
     }
 
     private async void OnIconChecked(object sender, RoutedEventArgs e)
@@ -830,7 +857,7 @@ public partial class MainWindow : Window
         }
 
         UpdateOwnedCount();
-        if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny))
+        if (CheckedGen() is { } gen && TryGetCachedVisibleIcons(gen, ViewingShiny, out var icons))
         {
             RebuildIconGrid(gen, icons);
             IconScroll.ScrollToTop();

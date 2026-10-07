@@ -22,7 +22,7 @@ public partial class MainWindow
             .Select(r => r.FromId).ToHashSet();
         foreach (RadioButton tab in GenTabs.Children)
         {
-            var active = ready.Any(dex => PokemonIcons.GenOf(dex) == (int)tab.Tag);
+            var active = ready.Any(dex => (int)tab.Tag == AllGenerations || PokemonIcons.GenOf(dex) == (int)tab.Tag);
             tab.Background = new SolidColorBrush(active ? Color.FromArgb(130, 60, 190, 100) : Color.FromArgb(51, 255, 255, 255));
             tab.ToolTip = active ? "진화 가능한 포켓몬 있음" : null;
         }
@@ -87,7 +87,7 @@ public partial class MainWindow
                 _dirty = false;
                 ApplyAtlas(atlas);
                 UpdateOwnedCount();
-                if (CheckedGen() is { } gen && PokemonIcons.TryGetCachedGen(gen, out var icons, ViewingShiny))
+                if (CheckedGen() is { } gen && TryGetCachedVisibleIcons(gen, ViewingShiny, out var icons))
                     RebuildIconGrid(gen, icons);
                 SyncSelectedIcon();
                 RefreshEvolutionUi();

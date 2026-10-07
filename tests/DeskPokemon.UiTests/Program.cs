@@ -109,6 +109,51 @@ internal static class Program
             ownedOnly.IsChecked = false;
             Check(Element<Panel>(window, "IconGrid").Children.Count == 151, "all shiny filter");
 
+            var genTabs = Element<Panel>(window, "GenTabs").Children.OfType<RadioButton>().ToArray();
+            Check(genTabs.Length == 10 && Equals(genTabs[0].Content, "전체"), "all generation tab is first");
+            shinyFilter.IsChecked = false;
+            Call(window, "SelectGenTab", 0);
+            var staleAll = (Task)Call(window, "RefreshDexAsync")!;
+            Call(window, "SelectGenTab", 1);
+            Await(staleAll);
+            Check(Element<Panel>(window, "IconGrid").Children.Count == 151, "late all-generation load does not replace selected generation");
+            Call(window, "SelectGenTab", 0);
+            var allGrid = Element<Panel>(window, "IconGrid");
+            Until(() => allGrid.Children.Count == EvolutionData.Count);
+            int DexOf(UIElement element) => (int)((FrameworkElement)element).Tag.GetType().GetProperty("Dex")!
+                .GetValue(((FrameworkElement)element).Tag)!;
+            Check(DexOf(allGrid.Children[0]) == 1 && DexOf(allGrid.Children[151]) == 152 &&
+                DexOf(allGrid.Children[905]) == EvolutionData.Forms.First(f => f.Generation == 8).Id &&
+                DexOf(allGrid.Children[915]) == 906 &&
+                DexOf(allGrid.Children[allGrid.Children.Count - 1]) == EvolutionData.Forms.Last(f => f.Generation == 9).Id,
+                "all generations retain existing per-generation order and forms");
+            ownedOnly.IsChecked = true;
+            Check(allGrid.Children.Count == 2, "all-generation owned filter");
+            s.AddOwned(152);
+            Call(window, "RefreshIconCell", 152, false);
+            Check(allGrid.Children.Count == 3 && allGrid.Children.Cast<UIElement>().Any(c => DexOf(c) == 152),
+                "newly owned pokemon updates all-generation view");
+            ((RadioButton)allGrid.Children.Cast<UIElement>().Single(c => DexOf(c) == 152)).IsChecked = true;
+            Until(() => s.SelectedDex == 152 && !s.SelectedShiny);
+            shinyFilter.IsChecked = true;
+            Await((Task)Call(window, "RefreshDexAsync")!);
+            Check(allGrid.Children.Count == 1 && DexOf(allGrid.Children[0]) == 4,
+                "all-generation shiny owned filter");
+            ((RadioButton)allGrid.Children[0]).IsChecked = true;
+            Until(() => s.SelectedDex == 4 && s.SelectedShiny);
+            ownedOnly.IsChecked = false;
+            Until(() => allGrid.Children.Count == EvolutionData.Count);
+            Check(allGrid.Children.Cast<RadioButton>().Single(c => DexOf(c) == 4).IsChecked == true,
+                "all-generation selection follows shiny pokemon");
+            s.For(4, true).Level = 16;
+            Call(window, "RefreshEvolutionUi");
+            Check(genTabs[0].ToolTip != null && allGrid.Children.Cast<RadioButton>().Single(c => DexOf(c) == 4)
+                .ToolTip!.ToString()!.Contains("진화 가능"), "all-generation view highlights ready evolution");
+            s.For(4, true).Level = 1;
+            Call(window, "RefreshEvolutionUi");
+            Call(window, "SelectGenTab", 1);
+            Check(allGrid.Children.Count == 151, "generation tab restores filtered list");
+
             // Both controls must fit on the same row without overlapping the count.
             var root = Element<FrameworkElement>(window, "Root");
             Element<FrameworkElement>(window, "Drawer").Height = 215;
@@ -119,6 +164,9 @@ internal static class Program
             var countBounds = count.TransformToAncestor(root).TransformBounds(new Rect(count.RenderSize));
             Check(Math.Abs(left.Y - right.Y) < 1 && left.Right <= right.Left, "checkboxes same row");
             Check(right.Right <= countBounds.Left, "filters do not overlap count");
+            var firstTab = genTabs[0].TransformToAncestor(root).TransformBounds(new Rect(genTabs[0].RenderSize));
+            var lastTab = genTabs[^1].TransformToAncestor(root).TransformBounds(new Rect(genTabs[^1].RenderSize));
+            Check(firstTab.Left >= 0 && lastTab.Right <= root.RenderSize.Width, "ten generation tabs fit in 300px window");
 
             var debugMenu = window.ContextMenu!.Items.OfType<MenuItem>().FirstOrDefault(m => m.Header.ToString()!.StartsWith("테스트 알"));
 #if DEBUG
@@ -185,11 +233,17 @@ internal static class Program
             s.Eggs = 1;
             s.PendingEgg = new(EggKind.Rare, 4, true);
             s.Save();
+            Call(window, "SelectGenTab", 0);
+            Until(() => Element<Panel>(window, "IconGrid").Children.Count == EvolutionData.Count);
             Await((Task)Call(window, "HatchAsync")!);
             Until(() => typeof(MainWindow).GetField("_resultAtlas", Private)!.GetValue(window) != null);
             var zoom = (ScaleTransform)window.FindName("ResultZoom");
             Check(zoom.ScaleX > 0 && zoom.ScaleX < 1, "large hatch sprite has fractional positive scale");
             Check(s.Eggs == 0 && s.For(4, true).Level == 2, "UI hatch commits duplicate color only");
+            Check(Element<Panel>(window, "IconGrid").Children.OfType<RadioButton>()
+                .Single(c => DexOf(c) == 4).ToolTip!.ToString()!.Contains("Lv.2"),
+                "hatch refreshes level in all-generation view");
+            Call(window, "SelectGenTab", 1);
             Call(window, "ShowResultFrame", 1);
             Await(Task.Delay(600));
             Layout(root);
@@ -273,6 +327,8 @@ internal static class Program
         Check(Element<Image>(w, "Sprite").Source != null &&
             Element<FrameworkElement>(w, "EggFallback").Visibility == Visibility.Collapsed,
             "startup reveals prepared pokemon and egg");
+        Check(Equals(Element<Panel>(w, "GenTabs").Children.OfType<RadioButton>()
+            .Single(t => t.IsChecked == true).Content, 1), "startup selects current pokemon generation");
         var area = SystemParameters.WorkArea;
         Check(Math.Abs(w.Left - (area.Right - w.ActualWidth - 20)) < 1 &&
             Math.Abs(w.Top - (area.Bottom - w.ActualHeight - 20)) < 1,
@@ -294,6 +350,8 @@ internal static class Program
         Call(w,"BuildGenTabs");
         Call(w,"SelectGenTab",1);
         Until(() => Element<Panel>(w,"IconGrid").Children.Count == 151);
+        Call(w,"SelectGenTab",0);
+        Until(() => Element<Panel>(w,"IconGrid").Children.Count == EvolutionData.Count);
         RadioButton Cell(int dex) => Element<Panel>(w,"IconGrid").Children.OfType<RadioButton>()
             .Single(c => (int)c.Tag.GetType().GetProperty("Dex")!.GetValue(c.Tag)! == dex);
         Await((Task<bool>)Call(w,"LoadPokemonAsync",4,false)!);
@@ -307,7 +365,8 @@ internal static class Program
         Call(w,"RefreshEvolutionUi");
         Check(Element<Button>(w,"EvolutionBadge").Visibility == Visibility.Visible, "old appearance has evolution badge");
         Check(Cell(5).BorderBrush == Brushes.LightGreen && Cell(5).ToolTip.ToString()!.Contains("진화 가능"), "intermediate highlighted");
-        Check(Element<Panel>(w,"GenTabs").Children.OfType<RadioButton>().First().ToolTip != null, "generation highlights ready evolution");
+        Check(Element<Panel>(w,"GenTabs").Children.OfType<RadioButton>().Take(2).All(t => t.ToolTip != null),
+            "all and source generation tabs highlight ready evolution");
         Check(s.SelectedDex == 4, "earlier appearance is not forcibly evolved");
         var root = Element<FrameworkElement>(w,"Root");
         Element<FrameworkElement>(w,"Drawer").Height = 215;
