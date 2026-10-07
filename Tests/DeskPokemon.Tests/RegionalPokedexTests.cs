@@ -40,7 +40,7 @@ public partial class UiTests
             Assert.Equal("가라르 나옹", window.FindControl<TextBlock>("DexDetailName")!.Text);
             Assert.Equal("No.0052", window.FindControl<TextBlock>("DexDetailNumber")!.Text);
             Assert.Equal("강철", window.FindControl<TextBlock>("DexDetailTypes")!.Text);
-            Assert.StartsWith("Lv.7 · 경험치 13/210\n", window.FindControl<TextBlock>("DexDetailDescription")!.Text);
+            Assert.Equal("Lv.7 · 경험치 13/210", TipText(window.FindControl<Grid>("DexDetailHeader")!));
             var unowned = RegionalCell(grid, 4083, false);
             Assert.False(unowned.IsEnabled);
             Assert.Contains("#83 ???", TipText(unowned));
@@ -100,7 +100,7 @@ public partial class UiTests
             Assert.Contains("Lv.50", TipText(RegionalCell(grid, 4052, false)));
             Assert.Contains("Lv.50", TipText(RegionalCell(grid, 863, false)));
             Assert.Contains("Lv.9", TipText(RegionalCell(grid, 4052, true)));
-            Assert.StartsWith("Lv.50 · 경험치 17/1500\n", window.FindControl<TextBlock>("DexDetailDescription")!.Text);
+            Assert.Equal("Lv.50 · 경험치 17/1500", TipText(window.FindControl<Grid>("DexDetailHeader")!));
             Assert.Equal(normalRecords, settings.Progress.Count);
             Assert.Equal(shinyRecords, settings.ShinyProgress.Count);
         }

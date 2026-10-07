@@ -28,10 +28,10 @@
 | [#4 알 기능](https://github.com/anjihong/PokeDesk/issues/4) | 구현. 현재 확률은 등급·풀 기반 |
 | [#5 설정](https://github.com/anjihong/PokeDesk/issues/5) | 구현. 설정 탭, 사용자별 자동 시작, 본체 좌우 반전, 2·4·6·8배와 화면 맞춤, 종료. [상세 명세](12-settings.md) |
 | [#6 알 종류 분화](https://github.com/anjihong/PokeDesk/issues/6) | 구현. 5등급, 등급별 풀, 확정 결과 저장 |
-| [#7 이로치](https://github.com/anjihong/PokeDesk/issues/7) | 구현. 7% 판정, 이로치알 100%, 별도 수집·성장·진화, 자체 금색 별무늬 알. [상세 명세](10-shiny.md) |
+| [#7 이로치](https://github.com/anjihong/PokeDesk/issues/7) | 구현. 7% 판정, 이로치알 100%, 별도 수집·성장·진화, main의 전용 알 PNG와 반짝임 애니메이션. [상세 명세](10-shiny.md) |
 | [#8 이로치 확률](https://github.com/anjihong/PokeDesk/issues/8) | 테스트용 종료 이슈. 별도 요구 사항 없음 |
 | [#9 UI](https://github.com/anjihong/PokeDesk/issues/9) | 구현. 공통 픽셀 UI·Galmuri, 전국도감 1,025종과 지역 모습 11종의 세대별 도감, 보유/이로치 필터, 누락 그림 셀 유지·재시도, 한글 타입·설명·성장 상세, 설정 탭 |
 | [#10 레벨업 디자인](https://github.com/anjihong/PokeDesk/issues/10) | 구현. 요구 경험치 `현재 레벨 × 30` |
 | [#11 macOS 지원](https://github.com/anjihong/PokeDesk/issues/11) | 구현. Windows·macOS 공통 Avalonia UI, OS별 전역 입력·자동 시작, macOS 앱 패키징, 3개 대상 CI 및 화면 비교 |
 
-`Assets/PixelUI`와 번들 Galmuri 폰트는 실행 화면에 적용한다. 도감과 설정은 실제 동작하는 두 탭으로 제공하며 비활성 메뉴 자리표시는 두지 않는다. 플랫폼별 실제 화면·권한·입력·화면 배율 검증은 [Windows/macOS QA](../cross-platform-qa.md)에 기록한다.
+`Assets/PixelUI`와 번들 Galmuri 폰트는 실행 화면에 적용한다. 도감·박스·설정은 실제 동작하는 세 탭으로 제공하며 비활성 메뉴 자리표시는 두지 않는다. 플랫폼별 실제 화면·권한·입력·화면 배율 검증은 [Windows/macOS QA](../cross-platform-qa.md)에 기록한다.

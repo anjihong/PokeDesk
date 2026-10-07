@@ -41,16 +41,16 @@ internal static class AppDialog
         var ok = new Button { Content = "확인" };
         ok.Click += (_, _) => dialog.Close(true);
         buttons.Children.Add(ok);
-        dialog.Content = new Border
+        dialog.Content = new PixelSurface
         {
-            Background = Brush.Parse("#F0202020"), CornerRadius = new CornerRadius(10), Padding = new Thickness(16),
+            Asset = "detail_panel", Slice = new Thickness(8), Padding = new Thickness(16),
             Child = new StackPanel
             {
                 Width = 320, Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Bold, Foreground = Brushes.White },
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.White },
+                    new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Bold },
+                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
                     buttons,
                 },
             },

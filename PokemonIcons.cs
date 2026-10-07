@@ -120,7 +120,11 @@ public static class PokemonIcons
             var pixels = SpritePixels.CopyFrom(icon);
             var px = pixels.Pixels;
             for (var i = 0; i < px.Length; i += 4)
-                px[i] = px[i + 1] = px[i + 2] = 0x28;
+            {
+                px[i] = 0x53;
+                px[i + 1] = 0x3D;
+                px[i + 2] = 0x12;
+            }
 
             var bmp = pixels.ToBitmap();
             Silhouettes[(dex, isShiny)] = bmp;

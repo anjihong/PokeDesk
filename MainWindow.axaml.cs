@@ -256,7 +256,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // 236 DIP pet column minus the 12 DIP margin on either side of StageZoom.
+    // 220 DIP pet column minus the 4 DIP margin on either side of StageZoom.
     private const double BodyMaxWidth = 212;
 
     private static double PetScaleFor(SpriteAtlas atlas, int dex)
@@ -314,7 +314,9 @@ public partial class MainWindow : Window
         if (btn.IsChecked != true) { OnMenuUnchecked(sender, e); return; }
         foreach (ToggleButton other in MenuTabs.Children)
             if (other != btn) other.IsChecked = false;
-        var isDex = (string)btn.Tag! == "dex";
+        var tag = (string)btn.Tag!;
+        var isDex = tag is "dex" or "box";
+        if (isDex) SetCollectionView(tag == "box");
         DexPanel.IsVisible = isDex;
         SettingsPanel.IsVisible = !isDex;
         if (!isDex) RefreshStartupStatus();

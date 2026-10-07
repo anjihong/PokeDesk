@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -67,10 +69,13 @@ public partial class UiTests
             var description = window.FindControl<TextBlock>("DexDetailDescription")!;
             var header = window.FindControl<Grid>("DexDetailHeader")!;
 
-            foreach (var longName in new[] { false, true })
+            foreach (var (longName, typeText) in new[]
+            {
+                (false, "불꽃"), (false, "물"), (true, "드래곤 · 에스퍼")
+            })
             {
                 name.Text = longName ? "아주 긴 포켓몬 이름과 이로치 표시 ★" : "파이리";
-                types.Text = longName ? "드래곤 · 에스퍼" : "불꽃";
+                types.Text = typeText;
                 number.Text = longName ? "No.1025" : "No.0004";
                 window.UpdateLayout();
                 Invoke(window, "ApplyPresentation");
@@ -80,6 +85,16 @@ public partial class UiTests
 
                 var nameBounds = BoundsIn(window, name);
                 var typeBounds = BoundsIn(window, typeBadge);
+                var typeTextBounds = BoundsIn(window, types);
+                Assert.True(types.TextLayout.Width > 0);
+                // A stretched TextBlock could appear centered while its short text is left-aligned.
+                // Verify both natural text width and the actual transformed text rectangle.
+                Assert.Equal(types.TextLayout.Width, types.Bounds.Width, 3);
+                Assert.Equal(typeBounds.Center.X, typeTextBounds.Center.X, 3);
+                Assert.True(typeTextBounds.Left > typeBounds.Left);
+                Assert.True(typeTextBounds.Right < typeBounds.Right);
+                Assert.InRange(typeBadge.Bounds.Width, 48, 166);
+                if (!longName) Assert.Equal(48, typeBadge.Bounds.Width, 3);
                 var numberBounds = BoundsIn(window, numberBadge);
                 var separatorBounds = BoundsIn(window, separator);
                 var headerBounds = BoundsIn(window, header);
@@ -129,7 +144,7 @@ public partial class UiTests
             Invoke(window, "ApplyPresentation");
             await WaitForPresentationAsync(window);
             var grid = window.FindControl<WrapPanel>("IconGrid")!;
-            Assert.Equal(312, grid.Bounds.Width, 3);
+            Assert.Equal(318, grid.Bounds.Width, 3);
             var firstLeft = BoundsIn(window, (RadioButton)grid.Children[0]).Left;
             var firstTop = ((RadioButton)grid.Children[0]).Bounds.Top;
             Assert.All(grid.Children.OfType<RadioButton>().Take(6), cell => Assert.Equal(firstTop, cell.Bounds.Top));
@@ -139,19 +154,94 @@ public partial class UiTests
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
             Assert.Equal(2, grid.Children.Count);
-            Assert.Equal(312, grid.Bounds.Width, 3);
+            Assert.Equal(318, grid.Bounds.Width, 3);
             Assert.Equal(firstLeft, BoundsIn(window, (RadioButton)grid.Children[0]).Left, 3);
             Assert.Equal(0, ((RadioButton)grid.Children[0]).Bounds.Left, 3);
-            Assert.Equal(52, ((RadioButton)grid.Children[1]).Bounds.Left, 3);
+            Assert.Equal(53, ((RadioButton)grid.Children[1]).Bounds.Left, 3);
             Assert.Equal(((RadioButton)grid.Children[0]).Bounds.Top, ((RadioButton)grid.Children[1]).Bounds.Top);
             var count = window.FindControl<TextBlock>("OwnedCount")!;
             count.Text = "보유 2072/2072"; // Maximum mixed collection count must fit beside both filters.
             window.UpdateLayout();
             var ownedBounds = BoundsIn(window, window.FindControl<CheckBox>("OwnedOnly")!);
-            var shinyBounds = BoundsIn(window, window.FindControl<CheckBox>("ShinyDex")!);
+            var shinyFilter = window.FindControl<CheckBox>("ShinyDex")!;
+            var shinyBounds = BoundsIn(window, shinyFilter);
             Assert.True(ownedBounds.Right <= shinyBounds.Left);
             Assert.True(shinyBounds.Right <= BoundsIn(window, count).Left);
+            var presenter = Assert.Single(shinyFilter.GetVisualDescendants().OfType<ContentPresenter>());
+            var star = Assert.IsAssignableFrom<TextBlock>(presenter.Child);
+            Assert.Equal("★", star.Text);
+            Assert.True(star.TextLayout.Width > 0);
+            Assert.True(star.TextLayout.Width <= presenter.Bounds.Width + .001,
+                $"Star glyph width {star.TextLayout.Width} exceeds content width {presenter.Bounds.Width}.");
+            Assert.True(star.TextLayout.Height <= presenter.Bounds.Height + .001);
+            var starBounds = BoundsIn(window, star);
+            foreach (var container in new[] { shinyBounds, BoundsIn(window, presenter) })
+            {
+                Assert.True(starBounds.Left >= container.Left - .001);
+                Assert.True(starBounds.Top >= container.Top - .001);
+                Assert.True(starBounds.Right <= container.Right + .001);
+                Assert.True(starBounds.Bottom <= container.Bottom + .001);
+            }
             AssertPresentationFits(window, requestedScale);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(2)]
+    [InlineData(8)]
+    public async Task MenuTabFacesAlignWithTheDrawerInteriorWithoutABackingImage(int requestedScale)
+    {
+        using var assets = new UiAssets();
+        var settings = Settings.NewPreview(4);
+        settings.UiScale = requestedScale;
+        var window = new MainWindow(settings, false);
+        using var pet = TestSprite();
+        try
+        {
+            ShowAndLayout(window);
+            PopulatePet(window, pet);
+            foreach (var panel in new[] { "dex", "box", "settings" })
+            {
+                await OpenPanelAsync(window, panel);
+                await WaitForPresentationAsync(window);
+                var menu = window.FindControl<StackPanel>("MenuTabs")!;
+                var row = Assert.IsType<Grid>(menu.GetVisualParent());
+                // Only the three buttons draw this row; no rail is hidden behind them.
+                Assert.Same(menu, Assert.Single(row.Children));
+                var tabs = menu.Children.OfType<ToggleButton>().ToArray();
+                Assert.Equal(new[] { "dex", "box", "settings" }, tabs.Select(tab => (string)tab.Tag!).ToArray());
+                Assert.Equal(352, row.Bounds.Width, 3);
+                Assert.Equal(344, menu.Bounds.Width, 3);
+                var menuBounds = BoundsIn(window, menu);
+                var drawerFrame = Assert.Single(window.FindControl<Border>("DrawerContent")!
+                    .GetVisualDescendants().OfType<PixelSurface>(), surface => surface.Asset == "drawer_frame");
+                var drawerBounds = BoundsIn(window, drawerFrame);
+                var uiScale = ((ScaleTransform)window.FindControl<LayoutTransformControl>("UiZoom")!
+                    .LayoutTransform!).ScaleX;
+                var inset = 4 * uiScale;
+                Assert.Equal(drawerBounds.Left + inset, menuBounds.Left, 3);
+                Assert.Equal(drawerBounds.Right - inset, menuBounds.Right, 3);
+                // Check the artwork's actual transformed rectangles, not only button hit boxes.
+                var frames = tabs.Select(tab => Assert.Single(tab.GetVisualDescendants().OfType<PixelSurface>(),
+                    surface => surface.Name == "PART_Frame")).ToArray();
+                Assert.Equal(drawerBounds.Left + inset, BoundsIn(window, frames[0]).Left, 3);
+                Assert.Equal(drawerBounds.Right - inset, BoundsIn(window, frames[^1]).Right, 3);
+                foreach (var frame in frames)
+                {
+                    Assert.Equal(116, frame.Bounds.Width, 3);
+                    var bounds = BoundsIn(window, frame);
+                    Assert.True(bounds.Left >= menuBounds.Left - .001);
+                    Assert.True(bounds.Right <= menuBounds.Right + .001);
+                }
+                // The artwork has a 3 DIP left / 2 DIP right tab border; the drawer's
+                // cream face begins 7 DIP from the left and 6 DIP from the right.
+                Assert.Equal(drawerBounds.Left + 7 * uiScale,
+                    BoundsIn(window, frames[0]).Left + 3 * uiScale, 3);
+                Assert.Equal(drawerBounds.Right - 6 * uiScale,
+                    BoundsIn(window, frames[^1]).Right - 2 * uiScale, 3);
+                AssertPresentationFits(window, requestedScale);
+            }
         }
         finally { window.Close(); }
     }

@@ -6,6 +6,16 @@
 dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj -c Release
 ```
 
+참고 UI를 짧게 확인하려면 다음 명령으로 파이리·일반 알의 초기 화면에서 도감·박스·설정을 차례로 연다.
+
+```sh
+dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj -c Release -- --reference
+```
+
+이 모드도 메모리 전용 미리보기 데이터를 사용한다. 성공 시 `NATIVE_REFERENCE_PASS`를 출력하고,
+`artifacts/native-play/reference-ui.png`, `reference-box.png`, `reference-settings.png`를 저장한다.
+전체 진화·부화 검증은 인자 없이 실행한다.
+
 - headless 대신 Avalonia macOS 창을 연다. CGEvent로 버튼·도감·알을 클릭하고 키 자동 반복을 보낸다.
 - 메모리 전용 `Settings.NewPreview`를 사용한다. 실제 플레이어 저장 파일은 읽어 해시를 비교할 뿐, 테스트 진행을 저장하지 않는다.
 - 자동 실행 체크박스는 가짜 서비스에 연결한다. 실제 LaunchAgent는 변경하지 않는다.
@@ -14,7 +24,7 @@ dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj 
 - 스키마 3의 성장 기록은 종 번호가 아닌 회차 키로 비교한다. 이로치 진화가 일반 보유·성장·회차 연결을 바꾸지 않는지 검사한다.
 - 이전 모습의 진화 안내를 실제로 눌러 현재 회차의 출발 모습이 있는 세대 도감을 여는지 확인한다. 이브이의 첫 무작위 진화, 중복 알로 Lv.1 재육성, 남은 7개 후보 중 다른 결과 획득, 기존 가지 성장 보존도 확인한다.
 - 9세대의 팔데아 우파를 선택해 지역 이름·독/땅 타입·전국도감 번호·본체와 발 위치를 확인한다.
-- 종 높이를 완만하게 반영한 92~120 DIP 표시 정책을 검사한다. 파이리·리자드·리자몽의 목표 높이는 각각 96·106·114 DIP이며, 현재 프레임의 발이 그림자의 타원 중심에 놓이는지도 확인한다.
+- 종 높이를 완만하게 반영한 72~100 DIP 표시 정책을 검사한다. 파이리·리자드·리자몽의 목표 높이는 각각 76·86·94 DIP이며, 현재 프레임의 발이 그림자의 타원 중심에 놓이는지도 확인한다.
 - 진화 조건·지역 모습 보유·준비된 알은 메모리 전용 미리보기 데이터에서 설정한다. 30분이나 진화 레벨까지 실제로 기다리는 테스트가 아니다.
 - 실제 저장 파일 해시는 성공 경로와 실패 후 종료 경로 모두에서 비교한다. 미리보기 `Save()`는 디스크에 쓰지 않는다.
 - 성공하면 `NATIVE_PLAY_PASS`를 출력하고 종료한다. 실패는 종료 코드 1과 오류를 남긴다.

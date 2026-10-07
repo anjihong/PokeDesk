@@ -9,6 +9,7 @@ import json
 import math
 import os
 import random
+import sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -139,7 +140,7 @@ def tab(name, width, gold, pos):
         p.rect(w-x-3,y,3,2,bright)
     p.rect(3,14,1,h-17,'#ffdc55' if gold else '#ef485a')
     p.rect(w-4,14,1,h-17,'#b59827' if gold else '#bd293c')
-    p.rect(3,h-4,w-6,1,'#e4b431' if gold else '#ca2234')
+    # The flat face meets the shared navy baseline without an extra inset stripe.
     p.save(name,pos)
 
 
@@ -187,9 +188,9 @@ def checkbox():
 def grid():
     p=Sprite(672,450)
     p.rect(0,0,336,225,'#1a6d89')
-    p.rect(0,0,336,2,'#b5d1d0')
-    p.rect(0,2,336,2,'#104e68')
-    p.material([(2,4),(333,4),(333,224),(2,224)],'#147392','grid')
+    # One dark seam under the cream toolbar; avoid a second pale raised edge.
+    p.rect(0,0,336,3,'#104e68')
+    p.material([(2,3),(333,3),(333,224),(2,224)],'#147392','grid')
     p.rect(0,6,2,219,'#288ca3')
     p.rect(334,3,2,222,'#499bad')
     p.save('box_grid_bg',(272,576))
@@ -350,8 +351,14 @@ def text_at(canvas,text,pos,size,color=N,bold=True):
 
 
 def cached_sprite(relative,key=None):
-    cache=Path(os.environ['LOCALAPPDATA'])/'DeskPokemon'/'sprites'
+    if sys.platform == 'darwin':
+        cache=Path.home()/'Library'/'Application Support'/'DeskPokemon'/'sprites'
+    else:
+        cache=Path(os.environ.get('LOCALAPPDATA',str(Path.home()/'.local'/'share')))/'DeskPokemon'/'sprites'
     path=cache/relative
+    if relative.isdigit():
+        path=next((p for p in [cache/'pokemon'/'exp'/relative,cache/'pokemon'/relative,path]
+                   if p.with_suffix('.json').exists()),path)
     data=json.loads(path.with_suffix('.json').read_text(encoding='utf-8-sig'))
     frames=data.get('textures',[data])[0].get('frames')
     if isinstance(frames,dict):

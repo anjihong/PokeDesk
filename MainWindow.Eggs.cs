@@ -9,6 +9,8 @@ public partial class MainWindow
     private void SetEggState(EggState state)
     {
         _eggState = state;
+        ++_eggArtRequest; // 대기 중 시작한 이미지 로드가 부화·결과 상태를 뒤늦게 덮지 못하게 한다.
+        ClearEggSparkles();
         if (state != EggState.Result)
         {
             ResultImage.Source = null;
@@ -17,9 +19,12 @@ public partial class MainWindow
         }
         if (state is EggState.Waiting or EggState.Ready)
         {
+            SetEggTooltips(_settings.PendingEgg!.Kind);
             ++_resultRequest;
             if (_startServices) _eggArtLoad = LoadEggAssetsAsync();
         }
+        BubbleText.FontSize = state is EggState.Waiting or EggState.Hatching ? 16 : 11;
+        BubbleText.TextWrapping = state == EggState.Result ? TextWrapping.Wrap : TextWrapping.NoWrap;
         var idle = _animations["EggIdle"];
         var wait = _animations["EggWait"];
         switch (state)
@@ -33,7 +38,7 @@ public partial class MainWindow
             case EggState.Ready:
                 wait.Stop();
                 ShowEgg(true);
-                BubbleText.Text = $"{EggName(_settings.PendingEgg!.Kind)}\n클릭하여 부화";
+                BubbleText.Text = "클릭하여 부화";
                 idle.Play();
                 break;
             case EggState.Hatching:
@@ -63,23 +68,42 @@ public partial class MainWindow
         EggKind.Legendary => "레전더리 알", EggKind.Shiny => "이로치알", _ => "알"
     };
 
-    private void UpdateBubbleCountdown() =>
-        BubbleText.Text = $"{EggName(_settings.PendingEgg!.Kind)}\n{TimeSpan.FromSeconds(_settings.RemainingEggSeconds):mm\\:ss}";
+    private void UpdateBubbleCountdown()
+    {
+        // 다음 알의 타이머가 시작되어도 5초간 표시하는 부화 결과를 덮지 않는다.
+        if (_eggState != EggState.Waiting) return;
+        BubbleText.FontSize = 16;
+        BubbleText.TextWrapping = TextWrapping.NoWrap;
+        BubbleText.Text = $"{TimeSpan.FromSeconds(_settings.RemainingEggSeconds):mm\\:ss}";
+    }
+
+    private void SetEggTooltips(EggKind kind)
+    {
+        UiToolTips.Set(EggStage, EggName(kind));
+        UiToolTips.Set(Bubble, EggName(kind));
+    }
 
     // 외형은 알 등급만으로 로딩한다. 저장된 부화 결과의 이미지는 미리 노출하지 않는다.
     private async Task LoadEggAssetsAsync()
     {
         var request = ++_eggArtRequest;
         var kind = _settings.PendingEgg!.Kind;
+        ClearEggSparkles();
         EggImage.Source = null;
         EggFallback.IsVisible = true;
-        UiToolTips.Set(EggStage, EggName(kind));
+        SetEggTooltips(kind);
         try
         {
             var frame = await EggArtwork.LoadAsync(kind);
-            if (_closed || request != _eggArtRequest) return;
+            if (_closed || request != _eggArtRequest || _settings.PendingEgg?.Kind != kind ||
+                _eggState is not (EggState.Waiting or EggState.Ready)) return;
             EggImage.Source = frame.Bitmap; // 앱 수명 동안 EggArtwork 캐시가 소유한다.
             EggFallback.IsVisible = false;
+            if (kind == EggKind.Shiny)
+            {
+                try { StartEggSparkles(EggArtwork.LoadSparkles()); }
+                catch { /* 별도 효과가 실패해도 알 본체는 유지한다. */ }
+            }
         }
         catch { /* 실패 시에도 등급 이름과 대체 알을 표시한다. */ }
     }

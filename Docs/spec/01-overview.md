@@ -1,6 +1,6 @@
 # DeskPokemon 현재 구현 기능 명세
 
-> 기준: 2026-09-29 `feat/11-macos-avalonia` 브랜치 소스 코드. GitHub 이슈의 요구 사항과 실제 구현을 대조해 현재 동작만 기록한다.
+> 기준: 2026-10-07 `feat/11-macos-avalonia` 브랜치 소스 코드. GitHub 이슈의 요구 사항과 실제 구현을 대조해 현재 동작만 기록한다.
 
 ## 문서 목록
 
@@ -34,6 +34,7 @@
 - 실행 시간 30분마다 등급이 있는 알을 지급한다. 550개 알 후보에서 부화 종과 이로치 여부를 대기 시작 전에 확정·저장한다.
 - 일반·이로치의 보유 목록, 선택 상태, 육성 회차와 알 진행을 스키마 3의 로컬 JSON에 저장한다. 같은 회차의 진화 전후 모습은 레벨·경험치를 공유하고 색상 사이에는 공유하지 않는다.
 - 486개 직접 진화 규칙을 사용한다. 분기는 같은 색상에서 미수집인 후보 중 무작위로 확정·저장하며, 분기 완료 후 기본형을 다시 부화하면 남은 가지를 위한 새 회차를 시작할 수 있다.
+- 도감·박스·설정의 3개 메뉴 탭을 제공한다. 박스는 보유 모습만 표시하며, 세대 화살표·팝업과 별 모양 이로치 필터를 도감과 공유한다.
 - 좌우 반전, 화면 배율, OS 로그인 시 자동 실행을 제공한다.
 
 ## 기능 흐름
@@ -59,7 +60,7 @@
 | `BaseSpecies.cs`, `PokemonRarity.cs` | 부화 후보와 일반·특수 풀 분류 |
 | `PokemonNames.cs`, `PokemonDetails.cs`, `Assets/Data/` | 도감 번호별 한글 이름·타입·설명과 고정 데이터 |
 | `EvolutionData.cs`, `EvolutionRules.cs`, `MainWindow.Evolution.cs` | 지역 모습·486개 진화 규칙, 예약·완료와 연출 |
-| `PokemonDisplaySize.cs`, `Assets/Data/pokemon-sizes.json` | 고정 종 높이와 92~120 DIP 목표 표시 크기 |
+| `PokemonDisplaySize.cs`, `Assets/Data/pokemon-sizes.json` | 고정 종 높이와 72~100 DIP 목표 표시 크기 |
 | `StartupRegistration.cs`, `Platform/*StartupRegistration.cs` | OS별 로그인 자동 실행 등록·해제 |
 | `PixelSurface.cs`, `PixelStyles.axaml`, `Assets/PixelUI/` | 공통 픽셀 패널·버튼·폰트 |
 | `LayoutDefaults.cs` | 말풍선·알 기본 위치 |
@@ -68,8 +69,9 @@
 
 - 명세는 실제 구현 동작을 기록하며, 미완료 범위는 [이슈별 상태](09-developer-tools.md)에 별도로 표시한다.
 - 멀티플레이 이슈 #1은 사용자 요청으로 보류한다.
-- main `78dc8cb`까지의 게임 규칙과 데이터를 반영한다. 충돌 시 main 변경을 우선하고 WPF 의존 부분은 공통 Avalonia UI에 맞게 이식한다. [병합 기준](../CONTRIBUTING.md#main-업데이트-반영)을 따른다.
+- main `5203416`까지의 게임 규칙과 데이터를 반영한다. main의 게임 규칙·데이터·기능 변경을 우선 반영하고 WPF 의존 부분은 공통 Avalonia UI에 맞게 이식한다. 요청된 UI 개선은 들어오는 기능과 충돌하지 않는 한 유지한다. [병합 기준](../CONTRIBUTING.md#main-업데이트-반영)을 따른다.
 - 자동 테스트와 Windows/macOS의 같은 UI 렌더 비교를 실행한다. 실제 Mac 창 조작은 별도 플레이 기록으로 남기며 Windows 실기 검증과 구분한다.
 
-최근 종별 크기·main 업데이트와 실제 Mac 플레이는 [2026-09-29 검증 기록](../playtest-2026-09-29.md)을 따른다.
+2026-10-07의 참고 UI·픽셀 경계·탭과 필터·main 이로치 알 이식은 [2026-10-07 검증 기록](../playtest-2026-10-07.md)에 남긴다.
+2026-09-29 당시의 종별 크기·main 업데이트와 실제 Mac 플레이는 [2026-09-29 검증 기록](../playtest-2026-09-29.md)을 따른다.
 이전 기능 구현 과정은 [2026-09-28 검증 기록](../playtest-2026-09-28.md)에 남긴다.

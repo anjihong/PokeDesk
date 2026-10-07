@@ -19,6 +19,13 @@ public sealed class PixelSurface : Decorator
 
     static PixelSurface() => AffectsRender<PixelSurface>(AssetProperty, SliceProperty);
 
+    public PixelSurface()
+    {
+        UseLayoutRounding = true;
+        // Popups have their own visual root: preserve crisp pixels even outside the main window.
+        RenderOptions.SetBitmapInterpolationMode(this, BitmapInterpolationMode.None);
+    }
+
     public string? Asset { get => GetValue(AssetProperty); set => SetValue(AssetProperty, value); }
     public Thickness Slice { get => GetValue(SliceProperty); set => SetValue(SliceProperty, value); }
 

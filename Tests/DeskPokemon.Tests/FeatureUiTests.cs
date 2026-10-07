@@ -44,8 +44,9 @@ public partial class UiTests
             Assert.Equal("No.0004", window.FindControl<TextBlock>("DexDetailNumber")!.Text);
             Assert.Equal("불꽃", window.FindControl<TextBlock>("DexDetailTypes")!.Text);
             var description = window.FindControl<TextBlock>("DexDetailDescription")!.Text!;
-            Assert.StartsWith("Lv.1 · 경험치 0/30\n", description);
-            Assert.Matches("[가-힣]", description[(description.IndexOf('\n') + 1)..]);
+            Assert.Equal("Lv.1 · 경험치 0/30", TipText(window.FindControl<Grid>("DexDetailHeader")!));
+            Assert.Equal(PokemonDetails.For(4).Description, description);
+            Assert.Matches("[가-힣]", description);
             Assert.NotNull(window.FindControl<Image>("DexDetailImage")!.Source);
             var hidden = grid.Children.OfType<RadioButton>().Single(cell => Choice(cell) == (151, false));
             Assert.False(hidden.IsEnabled);

@@ -101,4 +101,13 @@
     <Setter Property="BorderThickness" Value="2"/>
   </Style>
   <Style Selector="MenuItem"><Setter Property="Foreground" Value="#0C1D36"/></Style>
+  <Style Selector="FlyoutPresenter">
+    <Setter Property="FontFamily" Value="{StaticResource PixelFont}"/>
+    <Setter Property="Foreground" Value="#0C1D36"/>
+    <Setter Property="Background" Value="#F3F0E1"/>
+    <Setter Property="BorderBrush" Value="#0C1D36"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="6"/>
+  </Style>
 </Styles>

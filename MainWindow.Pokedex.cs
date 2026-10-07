@@ -15,6 +15,8 @@ public partial class MainWindow
     private int _visibleGeneration = -1;
     private bool _visibleShiny;
     private bool _dexLoading;
+    private bool _boxView;
+    private bool _dexOwnedFilter;
     private readonly List<int> _failedGenerations = new();
 
     private void BuildGenTabs()
@@ -25,11 +27,12 @@ public partial class MainWindow
         {
             var rb = new RadioButton
             {
-                Content = gen == 0 ? "전체" : gen.ToString(), Tag = gen,
+                Content = gen == 0 ? "전체" : $"{gen}세대", Tag = gen,
                 GroupName = "Gen", Theme = style,
             };
             Avalonia.Automation.AutomationProperties.SetName(rb, gen == 0 ? "전체 세대" : $"{gen}세대");
             rb.IsCheckedChanged += OnGenChecked;
+            rb.Click += (_, _) => GenerationPickerButton.Flyout?.Hide();
             GenTabs.Children.Add(rb);
         }
     }
@@ -47,7 +50,27 @@ public partial class MainWindow
         // Resolve the selection first so a higher generation never reloads the old one.
         foreach (var tab in GenTabs.Children.OfType<RadioButton>())
             if (!ReferenceEquals(tab, selected)) tab.IsChecked = false;
+        var gen = (int)selected.Tag!;
+        GenerationText.Text = gen == 0 ? "전체" : $"{gen}세대";
+        PreviousGenerationButton.IsEnabled = gen > 0;
+        NextGenerationButton.IsEnabled = gen < 9;
+        GenerationPickerButton.Flyout?.Hide();
         await RefreshDexAsync();
+    }
+
+    private void OnPreviousGeneration(object? sender, RoutedEventArgs e) => SelectGenTab(Math.Max(0, (CheckedGen() ?? 1) - 1));
+    private void OnNextGeneration(object? sender, RoutedEventArgs e) => SelectGenTab(Math.Min(9, (CheckedGen() ?? 1) + 1));
+
+    private void SetCollectionView(bool box)
+    {
+        if (box && !_boxView) _dexOwnedFilter = OwnedOnly.IsChecked == true;
+        var changed = box != _boxView;
+        _boxView = box;
+        OwnedOnly.IsEnabled = !box;
+        if (box) OwnedOnly.IsChecked = true;
+        else if (changed) OwnedOnly.IsChecked = _dexOwnedFilter;
+        // A tab change also resets the scroll when the effective filter is unchanged.
+        OnOwnedOnlyChanged(this, new RoutedEventArgs());
     }
 
     private async void OnShinyDexChanged(object? sender, RoutedEventArgs e)
@@ -105,7 +128,7 @@ public partial class MainWindow
         _visibleIcons = icons;
         _visibleGeneration = gen;
         _visibleShiny = ViewingShiny;
-        var ownedOnly = OwnedOnly.IsChecked == true;
+        var ownedOnly = _boxView || OwnedOnly.IsChecked == true;
         var shinyOnly = ViewingShiny;
         // Each generation sheet populates both color caches in one load. Keep the
         // two maps separate: a shiny icon can never overwrite its normal species key.
@@ -185,7 +208,7 @@ public partial class MainWindow
         var rb = new RadioButton
         {
             Content = bmp == null
-                ? new TextBlock { Text = "?", FontSize = 18, Foreground = Brush.Parse("#80776D"),
+                ? new TextBlock { Text = "?", FontSize = 26, FontWeight = FontWeight.Bold, Foreground = Brush.Parse("#428BA3"),
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center }
                 : new Image { Source = owned ? bmp : PokemonIcons.SilhouetteOf(dex, bmp, shiny),
@@ -196,6 +219,7 @@ public partial class MainWindow
             IsChecked = dex == _settings.SelectedDex && shiny == _settings.SelectedShiny,
         };
         rb.Classes.Set("shiny", shiny);
+        rb.Classes.Set("missing", bmp == null);
         SetEvolutionCellState(rb, dex, shiny, owned);
         UiToolTips.Set(rb, owned ? $"#{nationalDex} {PokemonNames.Of(dex)}{(shiny ? " ★ 이로치" : "")} · Lv.{level}{EvolutionCellTip(dex, shiny)}"
             : $"#{nationalDex} ???{(shiny ? " ★ 이로치" : "")} (미보유)");
@@ -274,6 +298,8 @@ public partial class MainWindow
             DexDetailNumber.Text = "";
             DexDetailTypes.Text = "";
             DexDetailDescription.Text = "보유한 포켓몬을 선택하면 설명과 성장 상태를 볼 수 있습니다.";
+            UiToolTips.Set(DexDetailDescription, DexDetailDescription.Text);
+            UiToolTips.Set(DexDetailHeader, "이로치 포켓몬을 선택하세요");
             DexDetailImage.Source = null;
             return;
         }
@@ -282,7 +308,9 @@ public partial class MainWindow
         DexDetailNumber.Text = $"No.{EvolutionData.NationalDex(dex):0000}";
         DexDetailTypes.Text = string.Join(" · ", details.Types);
         var progress = _settings.For(dex, shiny);
-        DexDetailDescription.Text = $"Lv.{progress.Level} · 경험치 {progress.Exp}/{Settings.ExpToNext(progress.Level)}\n{details.Description}";
+        DexDetailDescription.Text = details.Description;
+        UiToolTips.Set(DexDetailDescription, details.Description);
+        UiToolTips.Set(DexDetailHeader, $"Lv.{progress.Level} · 경험치 {progress.Exp}/{Settings.ExpToNext(progress.Level)}");
         DexDetailImage.Source = PokemonIcons.TryGetCached(PokemonIcons.GenOf(dex), dex, out var icon, shiny) ? icon : null;
     }
 }

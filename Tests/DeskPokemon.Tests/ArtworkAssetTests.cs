@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Headless.XUnit;
+using Avalonia.Platform;
+using SkiaSharp;
 using Xunit;
 
 namespace DeskPokemon.Tests;
@@ -192,7 +195,7 @@ public class ArtworkAssetTests
 
         Assert.Equal(5, frames.Length);
         Assert.Equal(2, assets.Requests.Count);
-        Assert.True(EggArtwork.Definitions[EggKind.Shiny].IsGeneratedShiny);
+        Assert.Equal("avares://DeskPokemon/Assets/shiny-egg.png", EggArtwork.Definitions[EggKind.Shiny].ResourceUri);
         Assert.All(EggArtwork.Definitions.Values, definition => Assert.NotEqual("egg_manaphy", definition.Frame));
         Assert.All(frames, frame =>
         {
@@ -209,17 +212,48 @@ public class ArtworkAssetTests
     }
 
     [AvaloniaFact]
-    public async Task ShinyEggIsAnOriginalGoldStarWithoutAnyDownload()
+    public async Task ShinyEggUsesUnmodifiedMainArtworkWithoutAnyDownload()
     {
         using var assets = new AssetScope((_, _) => throw new InvalidOperationException("Shiny art must be offline"));
         var frame = await EggArtwork.LoadAsync(EggKind.Shiny);
         var pixels = SpritePixels.CopyFrom(frame.Bitmap).Pixels;
 
         Assert.Equal((28, 30, 0, 0), (frame.Width, frame.Height, frame.OffsetX, frame.OffsetY));
-        Assert.Equal(0, pixels[3]);
-        Assert.Equal(new byte[] { 0x28, 0xB8, 0xF2, 255 }, pixels.Skip((17 * 28 + 14) * 4).Take(4));
-        Assert.Equal(new byte[] { 0xA2, 0xE9, 0xF8, 255 }, pixels.Skip((5 * 28 + 14) * 4).Take(4));
+        using var stream = AssetLoader.Open(new Uri(EggArtwork.Definitions[EggKind.Shiny].ResourceUri!));
+        using var bytes = new MemoryStream();
+        stream.CopyTo(bytes);
+        Assert.Equal("0fdf07b799989596e7a3eb9668c38a8c71329e701d3aedf33382b93c1d1b7a67",
+            Convert.ToHexString(SHA256.HashData(bytes.ToArray())).ToLowerInvariant());
+        bytes.Position = 0;
+        using var codec = SKCodec.Create(bytes)!;
+        using var original = SpritePixels.Decode(codec, 0).ToBitmap();
+        Assert.Equal(SpritePixels.CopyFrom(original).Pixels, pixels);
         Assert.Same(frame, await EggArtwork.LoadAsync(EggKind.Shiny));
+        Assert.Empty(assets.Requests);
+    }
+
+    [AvaloniaFact]
+    public void ShinySparklesPreserveEveryPixelOfTheTwelveMainFrames()
+    {
+        using var assets = new AssetScope((_, _) => throw new InvalidOperationException("Sparkles must be offline"));
+        var frames = EggArtwork.LoadSparkles();
+        using var stream = AssetLoader.Open(new Uri(EggArtwork.SparkleResourceUri));
+        using var bytes = new MemoryStream();
+        stream.CopyTo(bytes);
+        Assert.Equal("3c063bfa9d663fe8849f629fe843541028a3de832eda82b57dd84de00b922889",
+            Convert.ToHexString(SHA256.HashData(bytes.ToArray())).ToLowerInvariant());
+        bytes.Position = 0;
+        using var codec = SKCodec.Create(bytes)!;
+        var source = SpritePixels.Decode(codec, 0);
+        Assert.Equal((480, 38), (source.Width, source.Height));
+        Assert.Equal(12, frames.Length);
+        for (var i = 0; i < frames.Length; i++)
+        {
+            Assert.Equal((40, 38, 0, 0), (frames[i].Width, frames[i].Height, frames[i].OffsetX, frames[i].OffsetY));
+            using var original = source.Crop(new PixelRect(i * 40, 0, 40, 38));
+            Assert.Equal(SpritePixels.CopyFrom(original).Pixels, SpritePixels.CopyFrom(frames[i].Bitmap).Pixels);
+        }
+        Assert.Same(frames, EggArtwork.LoadSparkles());
         Assert.Empty(assets.Requests);
     }
 

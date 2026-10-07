@@ -7,11 +7,10 @@
   <Window.Resources>
     <ControlTheme x:Key="GenTab" TargetType="RadioButton">
       <Setter Property="Foreground" Value="#0C1D36"/>
-      <Setter Property="FontFamily" Value="{StaticResource SmallPixelFont}"/>
-      <Setter Property="FontSize" Value="9"/>
-      <Setter Property="Width" Value="30"/>
-      <Setter Property="Height" Value="24"/>
-      <Setter Property="Margin" Value="1,0"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Width" Value="116"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="Margin" Value="0,2,0,0"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
@@ -33,17 +32,17 @@
     </ControlTheme>
     <ControlTheme x:Key="MenuTab" TargetType="ToggleButton">
       <Setter Property="Foreground" Value="#FFFBEF"/>
-      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontSize" Value="16"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Width" Value="174"/>
-      <Setter Property="Margin" Value="-3,0"/>
+      <Setter Property="Width" Value="116"/>
+      <Setter Property="Margin" Value="0,0,-2,0"/>
       <Setter Property="Height" Value="41"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
           <Border Name="PART_HitBox" Background="Transparent">
             <Border Name="PART_Lift" IsHitTestVisible="False">
-              <local:PixelSurface Name="PART_Frame" Asset="tab_settings" Slice="9,9,9,3" Padding="8,8,8,3">
+              <local:PixelSurface Name="PART_Frame" Asset="tab_settings" Slice="12,14,12,3" Padding="8,8,8,3">
                 <Border Name="PART_Focus" BorderThickness="1" BorderBrush="Transparent">
                   <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -61,7 +60,7 @@
       <Setter Property="ToolTip.ShowOnDisabled" Value="True"/>
       <Setter Property="Width" Value="52"/>
       <Setter Property="Height" Value="52"/>
-      <Setter Property="Margin" Value="0,2,0,0"/>
+      <Setter Property="Margin" Value="0,0,1,1"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <ControlTemplate>
@@ -82,12 +81,30 @@
           </Border>
         </ControlTemplate>
       </Setter>
-      <Style Selector="^:disabled /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_unknown"/></Style>
+      <Style Selector="^.missing /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_unknown"/></Style>
       <Style Selector="^:checked /template/ local|PixelSurface#PART_Frame"><Setter Property="Asset" Value="slot_selected"/></Style>
       <Style Selector="^.shiny /template/ TextBlock#PART_Shiny"><Setter Property="IsVisible" Value="True"/></Style>
       <Style Selector="^.evolvable /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#2B9A62"/><Setter Property="BorderThickness" Value="2"/></Style>
       <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#FFFBEF"/></Style>
       <Style Selector="^:disabled"><Setter Property="Opacity" Value="1"/></Style>
+    </ControlTheme>
+    <ControlTheme x:Key="SelectorButton" TargetType="Button">
+      <Setter Property="Foreground" Value="#0C1D36"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="PART_HitBox" Background="Transparent">
+            <Border Name="PART_Lift" IsHitTestVisible="False">
+              <Border Name="PART_Focus" BorderBrush="Transparent" BorderThickness="1" Margin="2">
+                <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+            </Border>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:focus-visible /template/ Border#PART_Focus"><Setter Property="BorderBrush" Value="#0C1D36"/></Style>
+      <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.35"/></Style>
     </ControlTheme>
   </Window.Resources>
   <Window.ContextMenu>
@@ -109,11 +126,11 @@
       <WrapPanel x:Name="EvolutionChoices" IsVisible="False" HorizontalAlignment="Center" MaxWidth="336" Margin="8,0,8,4"/>
 
       <!-- The pet and egg remain on the transparent desktop above the pixel panel. -->
-      <Grid x:Name="TopArea" ColumnDefinitions="236,116" RowDefinitions="Auto,Auto" Margin="0,24,0,0">
+      <Grid x:Name="TopArea" ColumnDefinitions="220,132" RowDefinitions="Auto,Auto" Margin="0,24,0,0">
         <Grid Grid.Column="0" VerticalAlignment="Bottom" UseLayoutRounding="False">
           <Image x:Name="PetShadow" Source="/Assets/PixelUI/pet_shadow.png" Width="96" Height="17" Stretch="Fill"
                  HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="-2,0,0,-8.5" IsHitTestVisible="False"/>
-          <LayoutTransformControl x:Name="StageZoom" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12,0">
+          <LayoutTransformControl x:Name="StageZoom" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="4,0">
             <LayoutTransformControl.LayoutTransform><ScaleTransform ScaleX="3" ScaleY="3"/></LayoutTransformControl.LayoutTransform>
             <!-- LayoutTransformControl owns its immediate child's RenderTransform. -->
             <Border>
@@ -128,10 +145,10 @@
             </Border>
             </Border>
           </LayoutTransformControl>
-          <local:EvolutionEffect x:Name="EvolutionVisual" Width="236" IsVisible="False" IsHitTestVisible="False"
+          <local:EvolutionEffect x:Name="EvolutionVisual" Width="220" IsVisible="False" IsHitTestVisible="False"
                                  HorizontalAlignment="Center" VerticalAlignment="Bottom" ClipToBounds="False"/>
         </Grid>
-        <StackPanel Grid.Column="1" Grid.RowSpan="2" Width="104" VerticalAlignment="Bottom" Margin="0,0,12,7">
+        <StackPanel Grid.Column="1" Grid.RowSpan="2" Width="104" VerticalAlignment="Bottom" Margin="0,0,20,7">
           <Grid x:Name="EggGroup">
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
             <StackPanel>
@@ -150,6 +167,8 @@
                       <Canvas.RenderTransform><TransformGroup><ScaleTransform/><RotateTransform/></TransformGroup></Canvas.RenderTransform>
                       <Ellipse x:Name="EggFallback" Width="24" Height="30" Canvas.Left="2" Fill="#F1E3C4" Stroke="#B8A47A" StrokeThickness="1"/>
                       <Image x:Name="EggImage" Width="28" Height="30" Stretch="Fill"/>
+                      <Image x:Name="EggSparkles" Width="40" Height="38" Canvas.Left="-6" Canvas.Top="-6"
+                             Stretch="Fill" IsVisible="False" IsHitTestVisible="False"/>
                       <Image x:Name="CrackImage" Stretch="Fill" IsVisible="False"/>
                       <Ellipse x:Name="Flash" Width="24" Height="30" Canvas.Left="2" Fill="White" Opacity="0" IsHitTestVisible="False"/>
                     </Canvas>
@@ -171,29 +190,30 @@
           </Grid>
           <Grid x:Name="Bubble" HorizontalAlignment="Center" Margin="0,6,0,0">
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
-            <local:PixelSurface Asset="egg_timer_plate" Slice="4" Padding="5,4" Width="100" MinHeight="28">
-              <TextBlock x:Name="BubbleText" Text="30:00" Foreground="#0C1D36" FontSize="11" FontWeight="Bold"
+            <local:PixelSurface Asset="egg_timer_plate" Slice="4" Padding="5,4" Width="98" MinHeight="28">
+              <TextBlock x:Name="BubbleText" Text="30:00" Foreground="#0C1D36" FontSize="15" FontWeight="Bold"
                          TextAlignment="Center" TextWrapping="Wrap" MaxWidth="90"/>
             </local:PixelSurface>
             <Rectangle x:Name="BubbleEditFrame" Stroke="#FFD84A" StrokeThickness="1" StrokeDashArray="3,2" IsHitTestVisible="False" IsVisible="False"/>
           </Grid>
         </StackPanel>
       <StackPanel Grid.Row="1" Width="196" HorizontalAlignment="Left" Margin="20,4,0,7">
-        <Grid ColumnDefinitions="*,Auto" Margin="5,0,4,3">
-          <TextBlock x:Name="PetName" Text="포켓몬" FontSize="11" FontWeight="Bold" Foreground="#FFFBEF" VerticalAlignment="Center">
-            <TextBlock.Effect><DropShadowEffect OffsetX="1" OffsetY="1" BlurRadius="0" Color="#0C1D36"/></TextBlock.Effect>
+        <Grid ColumnDefinitions="*,Auto" Margin="5,0,26,0">
+          <TextBlock x:Name="PetName" Text="포켓몬" FontSize="15" LineHeight="16" FontWeight="Bold" Foreground="#0C1D36" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Text, RelativeSource={RelativeSource Self}}">
+            <TextBlock.Effect><DropShadowEffect OffsetX="1" OffsetY="1" BlurRadius="0" Color="#FFFBEF"/></TextBlock.Effect>
           </TextBlock>
-          <TextBlock x:Name="LevelText" Grid.Column="1" Text="Lv. 1" Foreground="#FFFBEF" FontWeight="Bold" FontSize="11"
+          <TextBlock x:Name="LevelText" Grid.Column="1" Text="Lv. 1" Foreground="#0C1D36" FontWeight="Bold" FontSize="14" LineHeight="16"
                      RenderTransformOrigin="50%,50%">
             <TextBlock.RenderTransform><ScaleTransform/></TextBlock.RenderTransform>
-            <TextBlock.Effect><DropShadowEffect OffsetX="1" OffsetY="1" BlurRadius="0" Color="#0C1D36"/></TextBlock.Effect>
+            <TextBlock.Effect><DropShadowEffect OffsetX="1" OffsetY="1" BlurRadius="0" Color="#FFFBEF"/></TextBlock.Effect>
           </TextBlock>
         </Grid>
-        <StackPanel x:Name="ExpGaugeRow" Orientation="Horizontal" HorizontalAlignment="Center">
+        <StackPanel x:Name="ExpGaugeRow" Orientation="Horizontal" HorizontalAlignment="Left" Margin="4,0,0,0">
           <local:PixelSurface Asset="exp_label_plate" Slice="4" Width="38" Height="22" Padding="3,2">
-            <TextBlock Text="EXP" FontFamily="{StaticResource SmallPixelFont}" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="EXP" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </local:PixelSurface>
-          <local:PixelSurface Asset="exp_track" Slice="3" Width="142" Height="19" Margin="-1,2,0,0" Padding="3,4">
+          <local:PixelSurface Asset="exp_track" Slice="3" Width="142" Height="19" Margin="-3,2,0,0" Padding="3,4">
             <Border x:Name="ExpTrack" Width="136" Height="11" Background="Transparent" ClipToBounds="True" ToolTip.Placement="Top" ToolTip.ShowDelay="300">
               <Rectangle x:Name="ExpBar" HorizontalAlignment="Left" Width="0" Height="11">
                 <Rectangle.Fill><ImageBrush Source="/Assets/PixelUI/exp_fill_segment.png" DestinationRect="0,0,16,11" TileMode="Tile" Stretch="Fill"/></Rectangle.Fill>
@@ -205,15 +225,20 @@
       </Grid>
 
       <Grid Height="42">
-        <Image Source="/Assets/PixelUI/tab_rail.png" Stretch="Fill" IsHitTestVisible="False"/>
-        <StackPanel x:Name="MenuTabs" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+        <StackPanel x:Name="MenuTabs" Orientation="Horizontal" HorizontalAlignment="Left" Margin="4,0" VerticalAlignment="Bottom">
           <ToggleButton Tag="dex" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" AutomationProperties.Name="도감">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Image Source="/Assets/PixelUI/icon_dex.png" Width="22" Height="24" Stretch="Fill"/>
               <TextBlock Text="도감" VerticalAlignment="Center"/>
             </StackPanel>
           </ToggleButton>
-          <ToggleButton Tag="settings" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" AutomationProperties.Name="설정">
+          <ToggleButton Tag="box" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" AutomationProperties.Name="박스">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Image Source="/Assets/PixelUI/icon_box.png" Width="24" Height="24" Stretch="Fill"/>
+              <TextBlock Text="박스" VerticalAlignment="Center"/>
+            </StackPanel>
+          </ToggleButton>
+          <ToggleButton Tag="settings" Margin="0" Theme="{StaticResource MenuTab}" IsCheckedChanged="OnMenuChecked" AutomationProperties.Name="설정">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Image Source="/Assets/PixelUI/icon_settings.png" Width="24" Height="24" Stretch="Fill"/>
               <TextBlock Text="설정" VerticalAlignment="Center"/>
@@ -222,34 +247,52 @@
         </StackPanel>
       </Grid>
 
-      <Border x:Name="Drawer" Height="0" ClipToBounds="True">
+      <Border x:Name="Drawer" Height="0" ClipToBounds="True" Margin="0,-2,0,0">
         <Border x:Name="DrawerContent" VerticalAlignment="Top">
-          <local:PixelSurface Asset="drawer_frame" Slice="14,2,14,14" Padding="8,2,8,14">
+          <local:PixelSurface Asset="drawer_frame" Slice="14,2,14,14" Padding="8,1,8,7">
             <ScrollViewer x:Name="DrawerScroll" MaxHeight="480" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
               <Grid>
                 <StackPanel x:Name="DexPanel">
-                  <local:PixelSurface Asset="toolbar_bg" Slice="0" Padding="4,5,4,3">
-                    <StackPanel Spacing="4">
-                      <StackPanel x:Name="GenTabs" Orientation="Horizontal" HorizontalAlignment="Center"/>
-                      <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,0">
-                        <CheckBox x:Name="OwnedOnly" Content="보유만" IsCheckedChanged="OnOwnedOnlyChanged" VerticalAlignment="Center"/>
-                        <CheckBox x:Name="ShinyDex" Grid.Column="1" Content="이로치만" Margin="9,0,0,0" IsCheckedChanged="OnShinyDexChanged" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="OwnedCount" Grid.Column="2" Text="보유 1/2050" FontFamily="{StaticResource SmallPixelFont}" FontSize="9"
-                                   HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                      </Grid>
-                    </StackPanel>
+                  <local:PixelSurface Asset="toolbar_bg" Slice="0" Height="39" Padding="4,4,4,4">
+                    <Grid ColumnDefinitions="117,8,65,6,40,6,*">
+                      <local:PixelSurface Asset="generation_selector" Slice="4" Width="117" Height="31">
+                        <Grid ColumnDefinitions="22,71,24">
+                          <Button x:Name="PreviousGenerationButton" Theme="{StaticResource SelectorButton}" Click="OnPreviousGeneration" AutomationProperties.Name="이전 세대">
+                            <Image Source="/Assets/PixelUI/arrow_left.png" Width="12" Height="17"/>
+                          </Button>
+                          <Button x:Name="GenerationPickerButton" Grid.Column="1" Theme="{StaticResource SelectorButton}" AutomationProperties.Name="세대 선택">
+                            <TextBlock x:Name="GenerationText" Text="1세대" FontSize="15" FontWeight="Bold"/>
+                            <Button.Flyout>
+                              <Flyout Placement="Bottom">
+                                <StackPanel x:Name="GenTabs"/>
+                              </Flyout>
+                            </Button.Flyout>
+                          </Button>
+                          <Button x:Name="NextGenerationButton" Grid.Column="2" Theme="{StaticResource SelectorButton}" Click="OnNextGeneration" AutomationProperties.Name="다음 세대">
+                            <Image Source="/Assets/PixelUI/arrow_right.png" Width="12" Height="17"/>
+                          </Button>
+                        </Grid>
+                      </local:PixelSurface>
+                      <CheckBox x:Name="OwnedOnly" Grid.Column="2" Content="보유만" FontSize="13" FontWeight="Bold" IsCheckedChanged="OnOwnedOnlyChanged" VerticalAlignment="Center"/>
+                      <CheckBox x:Name="ShinyDex" Grid.Column="4" Content="★" FontSize="12" IsCheckedChanged="OnShinyDexChanged" VerticalAlignment="Center"
+                                ToolTip.Tip="이로치만" AutomationProperties.Name="이로치만"/>
+                      <Viewbox x:Name="OwnedCountFit" Grid.Column="6" Stretch="Uniform" StretchDirection="DownOnly"
+                               HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock x:Name="OwnedCount" Text="보유 1/2072" FontSize="13" FontWeight="Bold"/>
+                      </Viewbox>
+                    </Grid>
                   </local:PixelSurface>
-                  <Grid Margin="3,0,3,3" ColumnDefinitions="*,Auto">
+                  <Grid Margin="3,0" ColumnDefinitions="*,Auto">
                     <TextBlock x:Name="DexStatusText" IsVisible="False" FontSize="10" Foreground="#7B2B2B" TextWrapping="Wrap" VerticalAlignment="Center"/>
                     <Button x:Name="RetryDexButton" Grid.Column="1" Content="다시 시도" IsVisible="False" Click="OnRetryDex" Padding="6,3" Margin="4,0,0,0"/>
                   </Grid>
-                  <local:PixelSurface Asset="box_grid_bg" Slice="3" Padding="4,4,4,4">
-                    <ScrollViewer x:Name="IconScroll" Height="216" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                      <WrapPanel x:Name="IconGrid" Width="312" HorizontalAlignment="Center"/>
+                  <local:PixelSurface Asset="box_grid_bg" Slice="3" Padding="8,5,8,6" Margin="0,-1,0,0">
+                    <ScrollViewer x:Name="IconScroll" Height="214" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+                      <WrapPanel x:Name="IconGrid" Width="318" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                     </ScrollViewer>
                   </local:PixelSurface>
-                  <local:PixelSurface Asset="detail_base" Slice="0" Padding="4,4,4,2">
-                    <local:PixelSurface Asset="detail_panel" Slice="5" Padding="7" MinHeight="87">
+                  <local:PixelSurface Asset="detail_base" Slice="0" Padding="5,4,6,7" Margin="0,-2,0,0">
+                    <local:PixelSurface Asset="detail_panel" Slice="8" Padding="7,7,7,6" MinHeight="79">
                       <!-- Cover the artwork's fixed separator; the real separator follows the wrapping header. -->
                       <Border Background="#F3F0E1">
                       <Grid ColumnDefinitions="65,*" ColumnSpacing="7">
@@ -259,21 +302,22 @@
                         <StackPanel Grid.Column="1" Spacing="4">
                           <Grid x:Name="DexDetailHeader" ColumnDefinitions="*,68" ColumnSpacing="4">
                             <WrapPanel VerticalAlignment="Center">
-                              <TextBlock x:Name="DexDetailName" Text="포켓몬을 선택하세요" FontSize="11" FontWeight="Bold"
+                              <TextBlock x:Name="DexDetailName" Text="포켓몬을 선택하세요" FontSize="15" FontWeight="Bold"
                                          MaxWidth="166" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,4,2"/>
                               <local:PixelSurface x:Name="DexTypeBadge" Asset="type_badge" Slice="4" Padding="6,2"
                                                   MinWidth="48" MaxWidth="166" MinHeight="18" VerticalAlignment="Center" Margin="0,0,0,2">
-                                <TextBlock x:Name="DexDetailTypes" Text="???" Foreground="#FFFBEF" FontFamily="{StaticResource SmallPixelFont}"
-                                           FontSize="9" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="DexDetailTypes" Text="???" Foreground="#FFFBEF"
+                                           FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                               </local:PixelSurface>
                             </WrapPanel>
                             <local:PixelSurface x:Name="DexNumberBadge" Grid.Column="1" Asset="number_badge" Slice="4" Padding="4,2" Height="21" VerticalAlignment="Top">
-                              <TextBlock x:Name="DexDetailNumber" Text="No. ????" FontFamily="{StaticResource SmallPixelFont}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                              <TextBlock x:Name="DexDetailNumber" Text="No. ????" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </local:PixelSurface>
                           </Grid>
                           <Border x:Name="DexDetailSeparator" Height="2" Background="#BDC7C2"/>
-                          <TextBlock x:Name="DexDetailDescription" Text="도감에서 포켓몬을 골라 정보를 확인하세요." FontFamily="{StaticResource SmallPixelFont}"
-                                     FontSize="9" TextWrapping="Wrap" MinHeight="24"/>
+                          <TextBlock x:Name="DexDetailDescription" Text="도감에서 포켓몬을 골라 정보를 확인하세요." FontWeight="Bold"
+                                     FontSize="13" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxLines="2" MinHeight="24"/>
                         </StackPanel>
                       </Grid>
                       </Border>
@@ -307,7 +351,7 @@
       </Border>
 
       <Border x:Name="InputNotice" IsVisible="False" Margin="0,4,0,0">
-        <local:PixelSurface Asset="detail_panel" Slice="5" Padding="10">
+        <local:PixelSurface Asset="detail_panel" Slice="8" Padding="10">
           <StackPanel Spacing="6">
             <TextBlock x:Name="InputStatusText" FontSize="11" TextWrapping="Wrap"/>
             <Button Content="권한 요청 / 다시 연결" Click="OnRetryInput" HorizontalAlignment="Center"/>

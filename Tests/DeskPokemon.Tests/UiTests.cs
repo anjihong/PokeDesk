@@ -264,6 +264,9 @@ public partial class UiTests
             Assert.Equal("★ Lv. 2", window.FindControl<TextBlock>("LevelText")!.Text);
             Assert.Equal("Lv.2 ↑", window.FindControl<TextBlock>("NewText")!.Text);
             Assert.Equal("★ 이로치\n파이리", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Invoke(window, "UpdateBubbleCountdown"); // A timer tick during the result must not replace its name.
+            Assert.Equal("★ 이로치\n파이리", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Assert.Equal(TextWrapping.Wrap, window.FindControl<TextBlock>("BubbleText")!.TextWrapping);
             Assert.False(window.FindControl<Canvas>("EggStage")!.IsVisible);
             Assert.False(window.FindControl<LayoutTransformControl>("EggZoom")!.IsVisible);
             var stage = window.FindControl<Canvas>("ResultStage")!;
@@ -316,8 +319,11 @@ public partial class UiTests
             await InvokeAsync(window, "LoadEggAssetsAsync");
             StopAnimation(window, "EggIdle");
             window.UpdateLayout();
-            Assert.Equal(name + "\n클릭하여 부화", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Assert.Equal("클릭하여 부화", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Assert.Equal(11, window.FindControl<TextBlock>("BubbleText")!.FontSize);
+            Assert.Equal(TextWrapping.NoWrap, window.FindControl<TextBlock>("BubbleText")!.TextWrapping);
             Assert.Equal(name, TipText(window.FindControl<Canvas>("EggStage")!));
+            Assert.Equal(name, TipText(window.FindControl<Grid>("Bubble")!));
             Assert.False(window.FindControl<Avalonia.Controls.Shapes.Ellipse>("EggFallback")!.IsVisible);
             var image = window.FindControl<Image>("EggImage")!;
             var artwork = Assert.IsAssignableFrom<Bitmap>(image.Source);
@@ -325,15 +331,13 @@ public partial class UiTests
             var pixels = SpritePixels.CopyFrom(artwork);
             if (kind == EggKind.Shiny)
             {
-                // The guaranteed-shiny egg is now generated locally, independent of atlas/network colors.
+                // Use main's embedded art without a network or a generated replacement.
                 Assert.Empty(assets.Requests);
                 Assert.Equal(0, pixels.Pixels[3]); // Transparent outside the egg.
-                Assert.Contains(Enumerable.Range(0, pixels.Width * pixels.Height), pixel =>
-                {
-                    var offset = pixel * 4;
-                    return pixels.Pixels[offset + 3] == 255 && pixels.Pixels[offset + 2] > 200 &&
-                        pixels.Pixels[offset + 1] > 120 && pixels.Pixels[offset] < 100; // Visible golden star.
-                });
+                Assert.Equal(SpritePixels.CopyFrom((await EggArtwork.LoadAsync(EggKind.Shiny)).Bitmap).Pixels, pixels.Pixels);
+                Assert.True(window.FindControl<Image>("EggSparkles")!.IsVisible);
+                Field<DispatcherTimer>(window, "_eggSparkleTimer").Stop();
+                window.FindControl<Image>("EggSparkles")!.Source = EggArtwork.LoadSparkles()[0].Bitmap;
             }
             else
             {
@@ -354,7 +358,9 @@ public partial class UiTests
             settings.EggSeconds = 60;
             SetEggState(window, "Waiting");
             StopAnimation(window, "EggWait");
-            Assert.Equal(name + "\n29:00", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Assert.Equal("29:00", window.FindControl<TextBlock>("BubbleText")!.Text);
+            Assert.Equal(16, window.FindControl<TextBlock>("BubbleText")!.FontSize);
+            Assert.Equal(name, TipText(window.FindControl<Grid>("Bubble")!));
             Assert.Same(pending, settings.PendingEgg);
         }
         finally { window.Close(); }

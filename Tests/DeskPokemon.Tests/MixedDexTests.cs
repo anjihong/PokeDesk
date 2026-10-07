@@ -41,7 +41,7 @@ public partial class UiTests
             shiny.IsChecked = true; // No filter toggle is needed to select an owned shiny.
             await EventuallyAsync(window, () => settings.SelectedDex == 4 && settings.SelectedShiny);
             Assert.Equal("파이리 ★", window.FindControl<TextBlock>("DexDetailName")!.Text);
-            Assert.Contains("Lv.8 · 경험치 99/240", window.FindControl<TextBlock>("DexDetailDescription")!.Text);
+            Assert.Equal("Lv.8 · 경험치 99/240", TipText(window.FindControl<Grid>("DexDetailHeader")!));
             Invoke(window, "AddExp");
             Assert.Equal(100, settings.For(4, true).Exp);
             Assert.Equal((3, 9), (settings.For(4).Level, settings.For(4).Exp));

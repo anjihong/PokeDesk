@@ -8,6 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.VisualTree;
 using DeskPokemon;
 
 internal static class Program
@@ -39,6 +40,8 @@ public sealed class PlayApp : App
         typeof(MainWindow).GetMethod(name, Private | BindingFlags.DeclaredOnly)!.Invoke(window, args);
     private static T Field<T>(MainWindow window, string name) => (T)typeof(MainWindow).GetField(name, Private)!.GetValue(window)!;
     private static T Control<T>(MainWindow window, string name) where T : Control => window.FindControl<T>(name)!;
+    private static ToggleButton MenuTab(MainWindow window, string tag) =>
+        Control<StackPanel>(window, "MenuTabs").Children.OfType<ToggleButton>().Single(tab => Equals(tab.Tag, tag));
     private static void Check(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
@@ -59,12 +62,22 @@ public sealed class PlayApp : App
     public override void OnFrameworkInitializationCompleted()
     {
         var desktop = (IClassicDesktopStyleApplicationLifetime)ApplicationLifetime!;
+        var referenceMode = desktop.Args?.Contains("--reference", StringComparer.Ordinal) == true;
         var originalSave = SaveHash();
         var settings = (Settings)typeof(Settings).GetMethod("NewPreview", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [4])!;
-        settings.For(4).Exp = 29;
-        settings.AddOwned(4, true);
-        settings.PendingEgg = new(EggKind.Rare, 7, true);
-        settings.Eggs = 1;
+        settings.For(4).Exp = 0;
+        if (referenceMode)
+        {
+            settings.PendingEgg = new(EggKind.Common, 4, false);
+            settings.Eggs = 0;
+            settings.EggSeconds = 0;
+        }
+        else
+        {
+            settings.AddOwned(4, true);
+            settings.PendingEgg = new(EggKind.Rare, 7, true);
+            settings.Eggs = 1;
+        }
         var startup = new FakeStartup();
         var window = (MainWindow)Activator.CreateInstance(typeof(MainWindow), Private, null, [settings, true, startup], null)!;
         desktop.MainWindow = window;
@@ -80,8 +93,14 @@ public sealed class PlayApp : App
                 Console.WriteLine($"NATIVE renderScale={window.RenderScaling} desktopScale={window.DesktopScaling} size={window.Bounds.Size}");
                 var hook = Field<InputHook?>(window, "_hook");
                 Console.WriteLine($"NATIVE inputActive={hook?.IsActive} inputStatus={hook?.Status}");
+                if (referenceMode)
+                {
+                    await CaptureReferenceViews(window, settings, startup);
+                    Console.WriteLine("NATIVE_REFERENCE_PASS");
+                    return;
+                }
                 Capture(window, "01-collapsed");
-                CheckPetSizeAndGrounding(window, "Charmander");
+                CheckPetSizeAndGrounding(window, "Charmander", 76);
                 var track = Control<Border>(window, "ExpTrack");
                 for (var attempt = 0; attempt < 5 && !ToolTip.GetIsOpen(track); attempt++)
                 {
@@ -91,12 +110,14 @@ public sealed class PlayApp : App
                 await Wait(() => ToolTip.GetIsOpen(track), "experience hover");
                 var tip = (ToolTip)ToolTip.GetTip(track)!;
                 var tipText = ((Decorator)tip.Content!).Child as TextBlock;
-                Check(tipText!.Text!.Contains("필요 경험치: 30"), "native hover shows current/required experience");
+                var hoverProgress = settings.For(settings.SelectedDex, settings.SelectedShiny);
+                var expectedTip = $"현재 경험치: {hoverProgress.Exp:N0}\n필요 경험치: {Settings.ExpToNext(hoverProgress.Level):N0}";
+                Check(tipText?.Text == expectedTip, "native hover shows the current selected growth run's experience and requirement");
                 await Move(Control<TextBlock>(window, "PetName"));
 
-                var menu = Control<StackPanel>(window, "MenuTabs");
-                var dex = (ToggleButton)menu.Children[0];
-                var preferences = (ToggleButton)menu.Children[1];
+                var dex = MenuTab(window, "dex");
+                var box = MenuTab(window, "box");
+                var preferences = MenuTab(window, "settings");
                 await Click(preferences);
                 await Wait(() => Control<StackPanel>(window, "SettingsPanel").IsVisible && Control<Border>(window, "Drawer").Height > 100, "settings tab");
                 await Task.Delay(400);
@@ -121,14 +142,16 @@ public sealed class PlayApp : App
 
                 await Click(dex);
                 await Wait(() => Control<StackPanel>(window, "DexPanel").IsVisible, "dex tab");
-                var tabs = Control<StackPanel>(window, "GenTabs");
-                await Click((RadioButton)tabs.Children[0]);
+                await SelectGeneration(window, 0);
                 await Wait(() => Control<WrapPanel>(window, "IconGrid").Children.Count == 1037, "all 1036 species and forms plus owned shiny");
                 await Wait(() => !Field<bool>(window, "_dexLoading"), "all generation assets", 60000);
                 Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 1037, "all generations include every dex number and owned shiny forms");
                 Capture(window, "03-all-generations");
-                await Click(Control<CheckBox>(window, "OwnedOnly"));
-                Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 2, "owned filter shows normal and shiny forms together");
+                await Click(box);
+                await Wait(() => box.IsChecked == true && Control<WrapPanel>(window, "IconGrid").Children.Count == 2, "owned box");
+                Check(Control<CheckBox>(window, "OwnedOnly").IsChecked == true && !Control<CheckBox>(window, "OwnedOnly").IsEnabled,
+                    "box keeps the owned filter enabled and locked");
+                Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 2, "box shows normal and shiny possessions together");
                 await Click(Control<CheckBox>(window, "ShinyDex"));
                 await Wait(() => !Field<bool>(window, "_dexLoading"), "shiny dex", 60000);
                 await Click((RadioButton)Control<WrapPanel>(window, "IconGrid").Children[0]);
@@ -141,7 +164,7 @@ public sealed class PlayApp : App
                 await Click((RadioButton)Control<WrapPanel>(window, "IconGrid").Children[0]);
                 await Wait(() => !settings.SelectedShiny, "normal selection", 60000);
 
-                await Click(dex);
+                await Click(box);
                 await Task.Delay(400);
                 settings.For(4).Level = 15;
                 settings.For(4).Exp = 449;
@@ -152,7 +175,7 @@ public sealed class PlayApp : App
                 Check(settings.Owned.Contains(4) && settings.Owned.Contains(5), "evolution preserves the earlier form");
                 Check(!settings.ShinyOwned.Contains(5), "normal evolution does not award the shiny form");
                 Capture(window, "05-evolved");
-                CheckPetSizeAndGrounding(window, "Charmeleon");
+                CheckPetSizeAndGrounding(window, "Charmeleon", 86);
 
                 await Click(dex);
                 await Task.Delay(400);
@@ -178,7 +201,7 @@ public sealed class PlayApp : App
                 await Click(Cell(5));
                 await Wait(() => settings.SelectedDex == 6 && !Field<bool>(window, "_evolving"), "selecting intermediate form evolves to Charizard", 60000);
                 await Task.Delay(300);
-                CheckPetSizeAndGrounding(window, "Charizard");
+                CheckPetSizeAndGrounding(window, "Charizard", 94);
                 Capture(window, "13-charizard-size");
 
                 await Click(Control<CheckBox>(window, "ShinyDex"));
@@ -215,7 +238,7 @@ public sealed class PlayApp : App
                 Check(Control<TextBlock>(window, "LevelText").Text!.StartsWith("★"), "fully evolved shiny retains its shiny indicator");
                 await Task.Delay(400);
                 Capture(window, "08-shiny-evolved");
-                CheckPetSizeAndGrounding(window, "shiny Charizard");
+                CheckPetSizeAndGrounding(window, "shiny Charizard", 94);
                 await Click(dex);
                 await Task.Delay(400);
                 await Click(Control<Canvas>(window, "EggStage"));
@@ -256,11 +279,68 @@ public sealed class PlayApp : App
         };
     }
 
+    private static async Task CaptureReferenceViews(MainWindow window, Settings settings, FakeStartup startup)
+    {
+        Check(settings.Owned.SetEquals([4]) && settings.ShinyOwned.Count == 0,
+            "reference starts with only normal Charmander");
+        Check(settings.PendingEgg is { Kind: EggKind.Common, IsShiny: false } && settings.Eggs == 0,
+            "reference starts with a waiting common egg");
+        CheckPetSizeAndGrounding(window, "reference Charmander", 76);
+
+        var dex = MenuTab(window, "dex");
+        await Click(dex);
+        await Wait(() => dex.IsChecked == true && Control<StackPanel>(window, "DexPanel").IsVisible,
+            "reference dex tab");
+        await SettleDrawer();
+        await SelectGeneration(window, 1);
+        await SettleDrawer();
+        Check(Control<WrapPanel>(window, "IconGrid").Children.Count == 151, "reference dex shows all first-generation slots");
+        await Task.Delay(100); // Let the native frame render; keep the real sprite/timer animations running.
+        Capture(window, "reference-ui");
+
+        var box = MenuTab(window, "box");
+        await Click(box);
+        await Wait(() => box.IsChecked == true && Control<WrapPanel>(window, "IconGrid").Children.Count == 1,
+            "reference box tab");
+        await SettleDrawer();
+        Check(Control<CheckBox>(window, "OwnedOnly").IsChecked == true && !Control<CheckBox>(window, "OwnedOnly").IsEnabled,
+            "reference box locks the owned filter");
+        Capture(window, "reference-box");
+
+        var preferences = MenuTab(window, "settings");
+        await Click(preferences);
+        await Wait(() => preferences.IsChecked == true && Control<StackPanel>(window, "SettingsPanel").IsVisible,
+            "reference settings tab");
+        await SettleDrawer();
+        Check(startup.Writes == 0, "reference settings opens without changing startup registration");
+        Capture(window, "reference-settings");
+
+        async Task SettleDrawer()
+        {
+            (Size Size, PixelPoint Position)? previous = null;
+            var stable = 0;
+            await Wait(() =>
+            {
+                window.UpdateLayout();
+                var target = Field<double>(window, "_drawerTargetHeight");
+                if (target <= 0 || Field<bool>(window, "_drawerRemeasurePending") ||
+                    Math.Abs(Control<Border>(window, "Drawer").Height - target) > .01)
+                {
+                    previous = null;
+                    stable = 0;
+                    return false;
+                }
+                var current = (window.Bounds.Size, window.Position);
+                stable = previous == current ? stable + 1 : 1;
+                previous = current;
+                return stable >= 3;
+            }, "reference drawer layout settles");
+        }
+    }
+
     private static async Task CheckBranchAndRegionalPlay(MainWindow window, Settings settings)
     {
-        var menu = Control<StackPanel>(window, "MenuTabs");
-        var dexTab = (ToggleButton)menu.Children[0];
-        var tabs = Control<StackPanel>(window, "GenTabs");
+        var dexTab = MenuTab(window, "dex");
         async Task OpenDex()
         {
             if (dexTab.IsChecked != true) await Click(dexTab);
@@ -272,12 +352,7 @@ public sealed class PlayApp : App
             if (dexTab.IsChecked == true) await Click(dexTab);
             await Task.Delay(400);
         }
-        async Task Generation(int generation)
-        {
-            await Click(tabs.Children.OfType<RadioButton>().Single(tab => Equals(tab.Tag, generation)));
-            await Wait(() => !Field<bool>(window, "_dexLoading") &&
-                (int)Invoke(window, "CheckedGen")! == generation, $"generation {generation} artwork", 60000);
-        }
+        Task Generation(int generation) => SelectGeneration(window, generation);
 
         // This mutates only NewPreview state; real clicks perform selection, level-up and evolution.
         settings.AddOwned(133);
@@ -349,7 +424,7 @@ public sealed class PlayApp : App
         Check(Control<TextBlock>(window, "DexDetailName").Text == "팔데아 우파", "regional detail uses its own appearance name");
         Check(Control<TextBlock>(window, "DexDetailTypes").Text == "독 · 땅", "regional detail shows Paldean rather than ordinary types");
         Check(Control<TextBlock>(window, "DexDetailNumber").Text!.Contains("0194"), "regional detail displays its national dex number");
-        CheckPetSizeAndGrounding(window, "Paldean Wooper");
+        CheckPetSizeAndGrounding(window, "Paldean Wooper", 72);
         Capture(window, "18-regional-selection");
         await CloseDex();
     }
@@ -359,13 +434,12 @@ public sealed class PlayApp : App
             (int)cell.Tag!.GetType().GetProperty("Dex")!.GetValue(cell.Tag)! == dex &&
             (bool)cell.Tag.GetType().GetProperty("IsShiny")!.GetValue(cell.Tag)! == shiny);
 
-    private static void CheckPetSizeAndGrounding(MainWindow window, string species)
+    private static void CheckPetSizeAndGrounding(MainWindow window, string species, double expectedHeight)
     {
         window.UpdateLayout();
         var atlas = Field<SpriteAtlas>(window, "_atlas");
         var scale = ((ScaleTransform)Control<LayoutTransformControl>(window, "StageZoom").LayoutTransform!).ScaleX;
-        var expected = PokemonDisplaySize.TargetHeight(Field<Settings>(window, "_settings").SelectedDex);
-        Check(Math.Abs(atlas.Body.Height * scale - expected) < .001, species + " uses its species display height");
+        Check(Math.Abs(atlas.Body.Height * scale - expectedHeight) < .001, species + $" uses its {expectedHeight} DIP display height");
         Check(atlas.FootAlignedWidth * scale <= 212.001, species + " fits within the pet column");
         var index = Field<int>(window, "_frame");
         var anchor = atlas.FootAnchorFor(index);
@@ -382,17 +456,72 @@ public sealed class PlayApp : App
         Mouse(5, point);
         await Task.Delay(450);
     }
+    private static async Task SelectGeneration(MainWindow window, int generation)
+    {
+        var picker = Control<Button>(window, "GenerationPickerButton");
+        await Click(picker);
+        await Wait(() => picker.Flyout?.IsOpen == true, "generation picker opens");
+        var target = Control<StackPanel>(window, "GenTabs").Children.OfType<RadioButton>()
+            .Single(tab => Equals(tab.Tag, generation));
+        await Wait(() => target.IsEffectivelyVisible && target.Bounds.Width > 0 && target.Bounds.Height > 0,
+            "generation choice is visible");
+        await Click(target);
+        await Wait(() => picker.Flyout?.IsOpen == false && !Field<bool>(window, "_dexLoading") &&
+            (int)Invoke(window, "CheckedGen")! == generation, $"generation {generation} artwork", 60000);
+    }
     private static async Task Click(Control control)
     {
-        control.BringIntoView();
-        await Task.Delay(120);
-        var point = control.PointToScreen(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2));
+        var point = await ClickPointAfterScrolling(control);
         Console.WriteLine($"CLICK {control.Name ?? control.GetType().Name} at {point}");
         Mouse(5, point);
         Mouse(1, point);
         await Task.Delay(60);
         Mouse(2, point);
         await Task.Delay(180);
+    }
+    private static async Task<PixelPoint> ClickPointAfterScrolling(Control control)
+    {
+        // RefreshIconCell replaces every radio button. A newly inserted cell has no
+        // arranged bounds yet, so bringing it into view before layout targets (0,0)
+        // instead of its eventual row. Arrange first and wait for the nested viewports
+        // and the native window position to settle before sending a screen click.
+        var end = DateTime.UtcNow.AddSeconds(5);
+        PixelPoint? previous = null;
+        var stable = 0;
+        while (DateTime.UtcNow < end)
+        {
+            var topLevel = TopLevel.GetTopLevel(control)
+                ?? throw new InvalidOperationException("Cannot click a control detached from its native window.");
+            topLevel.UpdateLayout();
+            if (control.Bounds.Width > 0 && control.Bounds.Height > 0)
+            {
+                control.BringIntoView();
+                topLevel.UpdateLayout();
+            }
+            await Task.Delay(40);
+            topLevel.UpdateLayout();
+            var center = new Point(control.Bounds.Width / 2, control.Bounds.Height / 2);
+            var visible = control.IsEffectivelyVisible && control.IsEffectivelyEnabled &&
+                control.Bounds.Width > 0 && control.Bounds.Height > 0;
+            foreach (var clip in control.GetVisualAncestors().Where(ancestor => ancestor.ClipToBounds))
+            {
+                var inClip = control.TranslatePoint(center, clip);
+                visible &= inClip.HasValue && new Rect(clip.Bounds.Size).Contains(inClip.Value);
+            }
+            var inWindow = control.TranslatePoint(center, topLevel);
+            visible &= inWindow.HasValue && new Rect(topLevel.Bounds.Size).Contains(inWindow.Value);
+            var point = control.PointToScreen(center);
+            var screens = topLevel.Screens
+                ?? throw new InvalidOperationException("Cannot verify a native click without monitor information.");
+            visible &= screens.All.Any(screen => screen.Bounds.Contains(point));
+            stable = visible && previous == point ? stable + 1 : visible ? 1 : 0;
+            previous = visible ? point : null;
+            if (stable >= 3) return point;
+        }
+        var scrolling = string.Join("; ", control.GetVisualAncestors().OfType<ScrollViewer>().Select(scroll =>
+            $"{scroll.Name}: offset={scroll.Offset}, viewport={scroll.Viewport}, extent={scroll.Extent}"));
+        throw new InvalidOperationException($"Cannot scroll {control.Name ?? control.GetType().Name} to a visible, stable click point. " +
+            $"Bounds={control.Bounds}; {scrolling}");
     }
     private static async Task NativeKey(bool repeat = false)
     {

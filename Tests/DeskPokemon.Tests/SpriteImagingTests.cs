@@ -101,8 +101,8 @@ public class SpriteImagingTests
 
         // Skia can normalize RGB under zero alpha; only visible RGB has meaning.
         Assert.Equal(0, actual[3]);
-        AssertPixel(actual, 1, 0x28, 0x28, 0x28, 128);
-        AssertPixel(actual, 2, 0x28, 0x28, 0x28, 255);
+        AssertPixel(actual, 1, 0x12, 0x3D, 0x53, 128);
+        AssertPixel(actual, 2, 0x12, 0x3D, 0x53, 255);
         Assert.Same(silhouette, PokemonIcons.SilhouetteOf(100_001, icon));
         Assert.Equal(original, SpritePixels.CopyFrom(icon).Pixels);
     }

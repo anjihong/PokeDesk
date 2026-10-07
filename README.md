@@ -41,7 +41,7 @@ dotnet run --project DeskPokemon.csproj
   이로치 펫은 레벨 앞에 ★ 표시가 붙음.
   경험치 바에 커서를 올리면 현재 경험치와 다음 레벨에 필요한 경험치를 확인할 수 있음.
   키를 길게 눌러 생기는 자동 반복은 추가 입력으로 세지 않음
-- 표시 크기: 내장한 종별 높이로 목표 몸체 높이를 92~120 DIP 안에서 조절함. 파이리·리자드·리자몽은 96·106·114 DIP이며, 폭이 넓으면 212 DIP 안에 맞추고 실제 발 하단을 그림자에 정렬함. 일반/이로치와 진화 연출이 같은 [표시 규칙](Docs/spec/03-pet-display.md)을 사용함
+- 표시 크기: 내장한 종별 높이로 목표 몸체 높이를 72~100 DIP 안에서 조절함. 파이리·리자드·리자몽은 76·86·94 DIP이며, 폭이 넓으면 212 DIP 안에 맞추고 실제 발 하단을 그림자에 정렬함. 일반/이로치와 진화 연출이 같은 [표시 규칙](Docs/spec/03-pet-display.md)을 사용함
 
 ## macOS 입력 권한
 
@@ -110,6 +110,18 @@ OS 간 비교하며, 레이아웃·텍스트·폰트·기록된 색상은 정확
 실제 양쪽 화면, DPI/Retina, 권한과 전역 입력 확인은
 [Windows/macOS QA](Docs/cross-platform-qa.md)에 따라 별도로 기록합니다.
 커밋·이슈 관례는 [기여 안내](Docs/CONTRIBUTING.md)에 정리했습니다.
+
+macOS의 실제 창·마우스·키 입력 검증은 다음 도우미로 실행할 수 있습니다. 입력 모니터링 권한이 있는
+환경에서 실행하며, 실제 이미지 캐시와 메모리 미리보기 세이브를 사용해 플레이어의 저장 파일은 바꾸지 않습니다.
+
+```bash
+dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj -c Release
+dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj -c Release -- --reference
+```
+
+`--reference`는 파이리만 보유하고 커먼 알이 대기하는 상태에서 도감 1세대·박스·설정을 실제로 클릭합니다.
+애니메이션을 유지한 채 `artifacts/native-play/reference-ui.png`, `reference-box.png`, `reference-settings.png`를
+저장한 후 종료합니다. 인자를 생략하면 입력·선택·진화·부화·지역 모습의 전체 플레이 검증을 실행합니다.
 
 ## 스프라이트 출처 및 라이선스
 

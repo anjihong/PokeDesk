@@ -18,8 +18,8 @@ public partial class UiTests
             // Charmander/Charmeleon/Charizard source geometry, then a very wide body and a padded canvas.
             foreach (var (dex, width, height, foot, padding, expectedHeight) in new[]
             {
-                (4, 42, 42, 18d, 0, 96d), (5, 69, 56, 17.5, 0, 106d), (6, 89, 91, 39d, 0, 114d),
-                (6, 200, 30, 100d, 0, 31.8), (4, 42, 42, 18d, 27, 96d)
+                (4, 42, 42, 18d, 0, 76d), (5, 69, 56, 17.5, 0, 86d), (6, 89, 91, 39d, 0, 94d),
+                (6, 200, 30, 100d, 0, 31.8), (4, 42, 42, 18d, 27, 76d)
             })
             {
                 var pixels = new SpritePixels(width + padding * 2, height + padding * 2);
