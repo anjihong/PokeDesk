@@ -1,164 +1,141 @@
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace DeskPokemon.Platform;
 
 internal sealed class MacInputMonitor : NativeInputMonitor
 {
-    private const string CoreGraphics = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
-    private const string CoreFoundation = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";
-    private const uint LeftMouseDown = 1, RightMouseDown = 3, KeyDown = 10, FlagsChanged = 12, OtherMouseDown = 25;
-    private const uint TapDisabledByTimeout = 0xfffffffe, TapDisabledByUserInput = 0xffffffff;
-    private const int KeyboardAutorepeat = 8, MouseButtonNumber = 3;
-    private const ulong EventMask = (1UL << (int)LeftMouseDown) | (1UL << (int)RightMouseDown) |
-        (1UL << (int)KeyDown) | (1UL << (int)FlagsChanged) | (1UL << (int)OtherMouseDown);
-    private readonly EventTapCallback _callback;
+    private readonly IMacInputBackend _backend;
+    private readonly TimeSpan _retryDelay;
     private readonly MacModifierTracker _modifiers = new();
-    private nint _tap;
-    private bool _tapDisabledByUser;
+    private IMacInputTap? _keyboardTap, _buttonsTap;
+    private bool _tapStopped;
+    private int _session;
 
-    public MacInputMonitor() => _callback = Callback;
+    public MacInputMonitor() : this(new MacInputBackend()) { }
+
+    internal MacInputMonitor(IMacInputBackend backend, TimeSpan? retryDelay = null)
+    {
+        _backend = backend;
+        _retryDelay = retryDelay ?? TimeSpan.FromSeconds(2);
+        if (_retryDelay <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retryDelay));
+    }
+
+    protected override TimeSpan AutomaticRetryDelay => _retryDelay;
 
     public override void RequestPermissionAndRetry()
     {
         if (IsStopping) return;
-        // Only an explicit UI action reaches this API; constructing the pet never prompts.
-        if (!CGPreflightListenEventAccess()) CGRequestListenEventAccess();
+        // Only an explicit UI action reaches the prompting API. Either nonprompting
+        // query can authorize a tap attempt when macOS's permission APIs disagree.
+        if (!_backend.ReadPermission().CanListen) _backend.RequestListenPermission();
         Retry();
     }
 
     protected override void RunMonitor()
     {
-        if (!CGPreflightListenEventAccess())
+        if (!_backend.ReadPermission().CanListen)
         {
             ShowPermissionRequired();
             return;
         }
 
-        nint source = 0, mode = 0;
-        nint runLoop = CFRunLoopGetCurrent();
-        _tapDisabledByUser = false;
+        IMacInputTap? keyboard = null, buttons = null;
+        var session = Interlocked.Increment(ref _session);
+        _tapStopped = false;
         try
         {
-            // kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionListenOnly.
-            // The tap cannot modify, suppress, or synthesize another application's input.
-            _tap = CGEventTapCreate(1, 0, 1, EventMask, _callback, 0);
-            if (_tap == 0)
+            keyboard = _backend.CreateListenOnlyTap(MacInputTapKind.Keyboard,
+                input => OnInput(session, MacInputTapKind.Keyboard, input));
+            _keyboardTap = keyboard;
+            if (IsStopping) return;
+            if (keyboard is null || !keyboard.IsValid)
             {
-                if (!CGPreflightListenEventAccess()) ShowPermissionRequired();
-                else SetStatus(InputHookStatus.Unavailable,
-                    "입력 감지를 시작하지 못했습니다. 입력 모니터링 권한을 확인한 뒤 앱을 다시 실행해 주세요.");
+                ReportFailedConnection();
+                return;
+            }
+            buttons = _backend.CreateListenOnlyTap(MacInputTapKind.ButtonsAndModifiers,
+                input => OnInput(session, MacInputTapKind.ButtonsAndModifiers, input));
+            _buttonsTap = buttons;
+            if (IsStopping) return;
+            if (buttons is null || !buttons.IsValid)
+            {
+                ReportFailedConnection();
+                return;
+            }
+            _modifiers.Reset(keyboard.ModifierFlags);
+            keyboard.Enable();
+            buttons.Enable();
+            if (!IsHealthy(keyboard) || !IsHealthy(buttons))
+            {
+                ReportFailedConnection();
                 return;
             }
 
-            // Use a CFString owned by this run loop instead of depending on an exported variable address.
-            mode = CFStringCreateWithCString(0, "kCFRunLoopDefaultMode", 0x08000100);
-            source = CFMachPortCreateRunLoopSource(0, _tap, 0);
-            if (mode == 0 || source == 0) throw new InvalidOperationException("Cannot create input run-loop source.");
-            CFRunLoopAddSource(runLoop, source, mode);
-            _modifiers.Reset(CGEventSourceFlagsState(0));
-            CGEventTapEnable(_tap, true);
             SetStatus(InputHookStatus.Active, "키보드와 마우스 입력을 감지하고 있습니다.");
-            while (!IsStopping && !_tapDisabledByUser)
+            while (!IsStopping)
             {
-                // The short bounded run permits disposal without touching native objects across threads.
-                int runResult = CFRunLoopRunInMode(mode, 0.25, false);
-                if (runResult is 1 or 2) // Finished/stopped: the native source no longer services events.
+                // Both sources were installed on this worker's default run loop.
+                var result = keyboard.RunSlice();
+                if (IsStopping) return;
+                if (_tapStopped || result is MacRunLoopResult.Finished or MacRunLoopResult.Stopped ||
+                    !IsHealthy(keyboard) || !IsHealthy(buttons))
                 {
-                    SetStatus(InputHookStatus.Unavailable, "입력 감지가 중지되었습니다. 다시 시도해 주세요.");
+                    ReportFailedConnection();
                     return;
                 }
-                if (!CGPreflightListenEventAccess())
-                {
-                    ShowPermissionRequired();
-                    return;
-                }
+                // A false/stale permission query cannot invalidate a live, enabled tap.
+                // Query permissions again only when the actual native connection fails.
             }
-            if (_tapDisabledByUser && !IsStopping)
-            {
-                if (!CGPreflightListenEventAccess()) ShowPermissionRequired();
-                else SetStatus(InputHookStatus.Unavailable, "입력 감지가 중지되었습니다. 다시 시도해 주세요.");
-            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"macOS input connection failed: {ex}");
+            if (!IsStopping) ReportFailedConnection();
         }
         finally
         {
-            if (source != 0)
-            {
-                if (mode != 0) CFRunLoopRemoveSource(runLoop, source, mode);
-                CFRelease(source);
-            }
-            if (_tap != 0)
-            {
-                CGEventTapEnable(_tap, false);
-                CFMachPortInvalidate(_tap);
-                CFRelease(_tap);
-                _tap = 0;
-            }
-            if (mode != 0) CFRelease(mode);
+            Interlocked.Increment(ref _session);
+            _keyboardTap = _buttonsTap = null;
+            try { buttons?.Dispose(); }
+            finally { keyboard?.Dispose(); }
         }
+    }
+
+    private static bool IsHealthy(IMacInputTap tap) => tap.IsValid && tap.IsEnabled;
+
+    private void ReportFailedConnection()
+    {
+        if (!_backend.ReadPermission().CanListen) ShowPermissionRequired();
+        else SetStatus(InputHookStatus.Unavailable,
+            "입력 모니터링 권한은 있지만 입력 감지 연결이 작동하지 않습니다. 현재 실행 중인 DeskPokemon 사본의 권한 등록을 확인하고 앱을 완전히 종료한 뒤 다시 실행해 주세요.");
     }
 
     private void ShowPermissionRequired() => SetStatus(InputHookStatus.PermissionRequired,
-        "시스템 설정 → 개인정보 보호 및 보안 → 입력 모니터링에서 PokeDesk를 허용한 뒤 다시 시도해 주세요. 앱 재실행이 필요할 수 있습니다.");
+        "시스템 설정 → 개인정보 보호 및 보안 → 입력 모니터링에서 현재 실행 중인 DeskPokemon을 허용해 주세요. 이미 켜져 있다면 현재 앱 사본의 등록을 확인하고 앱을 완전히 종료한 뒤 다시 실행해 주세요.");
 
-    private nint Callback(nint proxy, uint type, nint nativeEvent, nint userInfo)
+    private void OnInput(int session, MacInputTapKind kind, MacInputEvent input)
     {
-        if (IsStopping) return nativeEvent;
-        if (type == TapDisabledByTimeout)
+        var tap = kind == MacInputTapKind.Keyboard ? _keyboardTap : _buttonsTap;
+        if (IsStopping || session != Volatile.Read(ref _session) || tap is null || _tapStopped) return;
+        if (input.Type == MacInputEventType.TapDisabledByTimeout)
         {
-            if (_tap != 0) CGEventTapEnable(_tap, true);
-            return nativeEvent;
+            tap.Enable();
+            _tapStopped = !IsHealthy(tap);
+            return;
         }
-        if (type == TapDisabledByUserInput)
+        if (input.Type == MacInputEventType.TapDisabledByUserInput)
         {
-            _tapDisabledByUser = true;
-            return nativeEvent;
+            _tapStopped = true;
+            return;
         }
-        bool pressed = type switch
+        var pressed = input.Type switch
         {
-            KeyDown => CGEventGetIntegerValueField(nativeEvent, KeyboardAutorepeat) == 0,
-            FlagsChanged => _modifiers.FlagsChanged(CGEventGetFlags(nativeEvent)),
-            LeftMouseDown or RightMouseDown => true,
-            // Match the Windows left/right/middle button behavior; ignore extra side buttons.
-            OtherMouseDown => CGEventGetIntegerValueField(nativeEvent, MouseButtonNumber) == 2,
+            MacInputEventType.KeyDown => !input.IsKeyboardRepeat,
+            MacInputEventType.FlagsChanged => _modifiers.FlagsChanged(input.ModifierFlags),
+            MacInputEventType.LeftMouseDown or MacInputEventType.RightMouseDown => true,
+            MacInputEventType.OtherMouseDown => input.MouseButton == 2,
             _ => false
         };
         if (pressed) PublishTrigger();
-        return nativeEvent;
     }
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate nint EventTapCallback(nint proxy, uint type, nint nativeEvent, nint userInfo);
-
-    [DllImport(CoreGraphics)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool CGPreflightListenEventAccess();
-    [DllImport(CoreGraphics)]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool CGRequestListenEventAccess();
-    [DllImport(CoreGraphics)]
-    private static extern nint CGEventTapCreate(uint tap, uint place, uint options, ulong mask, EventTapCallback callback, nint userInfo);
-    [DllImport(CoreGraphics)]
-    private static extern void CGEventTapEnable(nint tap, [MarshalAs(UnmanagedType.I1)] bool enable);
-    [DllImport(CoreGraphics)]
-    private static extern long CGEventGetIntegerValueField(nint nativeEvent, int field);
-    [DllImport(CoreGraphics)]
-    private static extern ulong CGEventGetFlags(nint nativeEvent);
-    [DllImport(CoreGraphics)]
-    private static extern ulong CGEventSourceFlagsState(int state);
-    [DllImport(CoreFoundation)]
-    private static extern nint CFRunLoopGetCurrent();
-    [DllImport(CoreFoundation)]
-    private static extern nint CFStringCreateWithCString(nint allocator, [MarshalAs(UnmanagedType.LPUTF8Str)] string text, uint encoding);
-    [DllImport(CoreFoundation)]
-    private static extern nint CFMachPortCreateRunLoopSource(nint allocator, nint port, nint order);
-    [DllImport(CoreFoundation)]
-    private static extern void CFRunLoopAddSource(nint loop, nint source, nint mode);
-    [DllImport(CoreFoundation)]
-    private static extern void CFRunLoopRemoveSource(nint loop, nint source, nint mode);
-    [DllImport(CoreFoundation)]
-    private static extern int CFRunLoopRunInMode(nint mode, double seconds, [MarshalAs(UnmanagedType.I1)] bool returnAfterSourceHandled);
-    [DllImport(CoreFoundation)]
-    private static extern void CFMachPortInvalidate(nint port);
-    [DllImport(CoreFoundation)]
-    private static extern void CFRelease(nint value);
 }

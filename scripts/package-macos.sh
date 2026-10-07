@@ -3,14 +3,20 @@ set -euo pipefail
 
 if [[ $# -lt 2 || $# -gt 3 ]]; then
   echo "Usage: bash scripts/package-macos.sh <publish-directory> <output-directory> [version]" >&2
+  echo "Optional: MACOS_SIGNING_IDENTITY=<installed certificate name or SHA-1>; defaults to ad-hoc signing." >&2
   exit 2
 fi
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "Run this script on macOS to validate, ad-hoc sign, and archive the app bundle." >&2
+  echo "Run this script on macOS to validate, sign, and archive the app bundle." >&2
   exit 1
 fi
 
 package_version="${3:-1.0.0}"
+macos_signing_identity="${MACOS_SIGNING_IDENTITY:-}"
+if [[ "$macos_signing_identity" == "-" ]]; then
+  echo "MACOS_SIGNING_IDENTITY must name a real installed signing certificate. Leave it unset for ad-hoc signing." >&2
+  exit 2
+fi
 if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Version must have the form 1.2.3." >&2
   exit 2
@@ -45,9 +51,23 @@ cp "$script_directory/macos/README.md" "$app_directory/Contents/Resources/README
 chmod +x "$app_directory/Contents/MacOS/DeskPokemon"
 /usr/bin/plutil -lint "$app_directory/Contents/Info.plist"
 
-# Local/CI builds use an ad-hoc signature. Public distribution still needs
-# a Developer ID signature and notarization; no signing credentials are used here.
-/usr/bin/codesign --force --deep --sign - "$app_directory"
+# Keep credential-free local/CI builds unchanged. A supplied identity is used
+# explicitly; a missing/invalid certificate fails instead of falling back to ad-hoc.
+if [[ -z "$macos_signing_identity" ]]; then
+  /usr/bin/codesign --force --deep --sign - "$app_directory"
+else
+  # .NET publish includes native runtime libraries. Sign those first, then the
+  # containing app, rather than using --deep to overwrite nested signatures.
+  while IFS= read -r -d '' native_file; do
+    if [[ "$native_file" == "$app_directory/Contents/MacOS/DeskPokemon" ]]; then
+      continue
+    fi
+    if /usr/bin/file -b "$native_file" | /usr/bin/grep -q 'Mach-O'; then
+      /usr/bin/codesign --force --sign "$macos_signing_identity" "$native_file"
+    fi
+  done < <(/usr/bin/find "$app_directory/Contents/MacOS" -type f -print0)
+  /usr/bin/codesign --force --sign "$macos_signing_identity" "$app_directory"
+fi
 /usr/bin/codesign --verify --deep --strict "$app_directory"
 # Archive before artifact upload so the executable bit and bundle layout survive.
 /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app_directory" "$archive_path"

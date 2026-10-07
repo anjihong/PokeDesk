@@ -56,16 +56,21 @@ public partial class MainWindow : Window
     internal MainWindow(Settings settings, bool startServices) : this(settings, startServices, null) { }
 
     internal MainWindow(Settings settings, bool startServices, IStartupRegistration? startupRegistration)
+        : this(settings, startServices, startupRegistration, null) { }
+
+    internal MainWindow(Settings settings, bool startServices, IStartupRegistration? startupRegistration,
+        InputHook? inputHook)
     {
         _settings = settings;
         _startServices = startServices;
         _startupRegistration = startupRegistration ?? (startServices ? StartupRegistration.CreateDefault() : null);
-        _hook = startServices && !IsEvolutionTestMode ? new InputHook() : null;
+        _hook = inputHook ?? (startServices && !IsEvolutionTestMode ? new InputHook() : null);
         InitializeComponent();
         InitializeStartupPresentation();
         BuildAnimations();
         ApplyLayout(LayoutDefaults.BubbleX, LayoutDefaults.BubbleY, LayoutDefaults.EggX, LayoutDefaults.EggY);
         InitializePreferences();
+        InitializeScreenTracking();
 #if DEBUG
         SetupLayoutEditor();
         SetupUnlockAll();
@@ -88,6 +93,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnLocalKey, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, OnLocalKeyUp, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => _localKeys.Clear();
+        Activated += (_, _) => _hook?.Retry();
         SizeChanged += OnSizeChanged;
         Closing += (_, e) =>
         {
@@ -96,6 +102,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            StopScreenTracking();
             _lifetime.Cancel();
             foreach (var timer in _timers) timer.Stop();
             _resultTimer.Stop();

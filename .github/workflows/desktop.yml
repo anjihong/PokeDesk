@@ -58,6 +58,22 @@ jobs:
           --runtime ${{ matrix.runtime }} --self-contained true
           --output artifacts/publish/${{ matrix.runtime }}
           -p:PublishSingleFile=false -p:PublishTrimmed=false
+      - name: Validate and launch the published Windows application
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          ./scripts/validate-windows-publish.ps1
+          -PublishDirectory "artifacts/publish/${{ matrix.runtime }}"
+          -LaunchSmokeTest
+      - name: Upload Windows package verification
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-publish-validation
+          path: |
+            artifacts/publish/${{ matrix.runtime }}/windows-validation.json
+            artifacts/publish/${{ matrix.runtime }}/windows-startup.*.log
+          if-no-files-found: warn
       - name: Package macOS application
         if: runner.os == 'macOS'
         shell: bash

@@ -10,7 +10,7 @@
 
 ## 다운로드와 캐시
 
-- 포켓몬 본체, 도감 아이콘과 커먼·레어·에픽·레전더리 알 이미지는 실행 시 다운로드한다. 이로치알과 반짝임은 앱에 포함한 PNG를 사용한다.
+- 포켓몬 본체, 도감 아이콘과 커먼·레어·에픽·레전더리 알 이미지는 실행 시 다운로드한다. 진화 입자의 반짝임 그림도 필요할 때 다운로드하며 없어도 연출을 진행한다. 이로치알과 이로치알 전용 반짝임은 앱에 포함한 PNG를 사용한다.
 - 필요할 때 `pagefaultgames/pokerogue-assets` 또는 PokeAPI 저장소에서 다운로드한다.
 - 다운로드 파일은 Windows의 `%LOCALAPPDATA%\DeskPokemon\sprites`, macOS의 `~/Library/Application Support/DeskPokemon/sprites` 아래에 원격 경로 구조를 유지해 저장한다.
 - 같은 파일 요청은 진행 중 다운로드 작업을 공유한다. 이미 캐시된 파일은 다시 받지 않는다.
@@ -43,6 +43,13 @@
 - 미보유 실루엣은 원본 알파를 유지하고 RGB만 어둡게 바꿔 메모리에 캐시한다.
 - 누락된 프레임은 다른 색상으로 대체하지 않는다. 도감 UI는 해당 번호의 `?` 셀을 유지하며, 세대 로드 실패에는 다시 시도를 제공한다.
 
+## 진화 효과
+
+- 현재 색상의 원본·목표 아틀라스로 흰 실루엣을 만든다. 두 모습은 100ms마다 각자의 프레임을 재생하며 본체와 같은 발 기준점·종별 크기·좌우 반전을 사용한다. 이로치 효과에 일반 이미지를 대신 쓰지 않는다.
+- 입자 그림은 PokéRogue의 `effects/evo_sparkle.png`를 같은 `sprites` 캐시에서 읽는다. 준비 시 최대 1초만 기다리며 다운로드·디코딩 실패나 지연 시 흰 원으로 표시한다. 이 선택적 효과의 실패는 목표 포켓몬 로드나 진화 저장을 실패시키지 않는다.
+- 시작 시 위로 올라가는 입자 12개, 색상 공개 시 안쪽으로 모이는 입자 20개를 사용한다. 후자의 620ms 이동과 500ms 흰색 덮개 제거는 마지막 750ms 공개 구간 안에서 함께 진행한다. 전체 연출·저장 경계는 [진화 명세](11-evolution.md)를 따른다.
+- 효과 종료·취소 시 임시 표시와 프레임 복사본을 정리한다. 표시용 효과가 원본 아틀라스나 다른 화면의 이미지를 해제하지 않는다.
+
 ## 알과 내장 데이터
 
 - 커먼·레어·에픽·레전더리는 PokéRogue의 `egg_0`~`egg_3` 프레임을 사용한다.
@@ -74,9 +81,16 @@
 - 크기 데이터는 별도 명령 `python3 scripts/generate-pokemon-sizes.py --source-dir /path/to/csv`로 재생성한다. 앞서 사용한 것과 동일한 고정 CSV 폴더를 지정하며, 생성기는 `sources.json`에 기록된 `pokemon.csv`의 SHA-256을 확인한 뒤 출력한다.
 - 앱에 맞춘 진화 조건과 이브이 예외는 [11-evolution.md](11-evolution.md)에 기록한다.
 
+## macOS 패키지와 서명 식별
+
+- `scripts/package-macos.sh`는 고정 번들 ID `io.github.anjihong.pokedesk`와 네이티브 `DeskPokemon` 실행 파일을 가진 `.app`을 만든다. 기본은 인증서가 필요 없는 ad-hoc 서명이다.
+- 호출자가 `MACOS_SIGNING_IDENTITY`에 설치된 실제 인증서의 이름 또는 SHA-1을 지정하면 내부 Mach-O 의존성부터 서명한 뒤 앱을 서명한다. 인증서를 자동 선택하거나 새로 만들지 않으며, 지정한 인증서의 서명이 실패하면 ad-hoc으로 대체하지 않는다. 서명 검증 후 실행 권한과 번들 구조를 보존한 ZIP을 생성한다.
+- 고정 설치 위치와 같은 번들 ID를 사용하더라도 ad-hoc 재빌드의 권한 식별이 유지된다고 가정하지 않는다. Apple TN3127은 ad-hoc 서명의 식별 조건을 “it’s tied to that specific version of the code.”라고 설명한다. 반복 빌드는 같은 실제 Apple Development 또는 Developer ID 인증서를 사용하며, 서명 종류를 바꾸면 식별 조건이 달라질 수 있다. [Apple TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)
+- 인증서 선택 옵션은 공증이나 공개 배포용 보안 설정까지 처리하지 않는다. 앱 실행·입력 권한 확인은 실제 설치한 `.app`으로 수행하며 개발 호스트에 부여된 권한을 대신 적용할 수 있다고 가정하지 않는다.
+
 ## 출처와 라이선스
 
 - Galmuri는 SIL Open Font License 1.1을 사용하며 저작권·라이선스 원문을 [`Assets/Fonts/LICENSE-Galmuri.txt`](../../Assets/Fonts/LICENSE-Galmuri.txt)에 포함한다. 기존 나눔고딕의 [OFL](../../Assets/Fonts/OFL.txt)도 보관한다.
-- 다운로드하는 포켓몬·알 그림은 PokéRogue 및 PokeAPI/sprites의 외부 자산이다. 새 UI 부품이나 앱 코드의 라이선스를 이들 그림 전체에 적용하지 않는다.
+- 다운로드하는 포켓몬·알·진화 반짝임 그림은 PokéRogue 및 PokeAPI/sprites의 외부 자산이다. 새 UI 부품이나 앱 코드의 라이선스를 이들 그림 전체에 적용하지 않는다.
 - PokéRogue 자산의 라이선스 적용 범위, 원작 자산에 관한 설명, 작가 크레딧 및 PokeAPI의 커뮤니티 스프라이트 출처는 [루트 README](../../README.md#스프라이트-출처-및-라이선스)의 출처 링크를 따른다.
 - 데이터 출처와 UI 생성 기록을 보존한다. 포켓몬 이름·캐릭터·원작 그림에 대한 권리를 이 프로젝트가 소유한다고 주장하지 않는다.

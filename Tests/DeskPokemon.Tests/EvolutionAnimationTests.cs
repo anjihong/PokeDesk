@@ -11,6 +11,149 @@ namespace DeskPokemon.Tests;
 
 public partial class UiTests
 {
+    [Fact]
+    public void EvolutionTimelineKeepsEveryPokeRogueScaleCycleAndCommitsBeforeItsColorReveal()
+    {
+        static EvolutionEffectState At(double seconds) => EvolutionEffect.StateAt(seconds / EvolutionEffect.DurationSeconds);
+        Assert.Equal(1, At(0).SourceColor);
+        Assert.Equal(.5, At(.225).SourceWhite, 6);
+        Assert.Equal(new EvolutionEffectState(0, 1, 0, 0, 1, .25), At(.6));
+        var elapsed = .8;
+        for (var cycle = 1d; cycle <= 15; cycle += .5)
+        {
+            var leg = .2 / cycle;
+            var forward = At(elapsed + leg * .25);
+            // Cubic EaseInOut is 1/16 at a quarter of the forward leg.
+            Assert.Equal(1 - .75 / 16, forward.SourceScale, 6);
+            Assert.Equal(.25 + .75 / 16, forward.TargetScale, 6);
+            Assert.Equal(0, forward.SourceColor + forward.TargetColor);
+            if (cycle < 15)
+            {
+                var reverse = At(elapsed + leg * 1.75);
+                Assert.Equal(forward.SourceScale, reverse.SourceScale, 6);
+                Assert.Equal(forward.TargetScale, reverse.TargetScale, 6);
+            }
+            elapsed += leg * (cycle == 15 ? 1 : 2);
+        }
+        Assert.Equal(3.182656371402979, elapsed, 9);
+        Assert.Equal(elapsed, EvolutionEffect.RevealStartSeconds, 9);
+        Assert.Equal(elapsed + .75, EvolutionEffect.DurationSeconds, 9);
+        Assert.Equal(new EvolutionEffectState(0, 0, 1, 0, .25, 1),
+            EvolutionEffect.StateAt(EvolutionEffect.RevealProgress));
+        Assert.Equal(.5, At(elapsed + .25).TargetWhite, 6);
+        Assert.Equal(1, At(elapsed + .25).TargetColor);
+        Assert.Equal(0, At(elapsed + .5).TargetWhite, 6);
+    }
+
+    [Fact]
+    public void EvolutionParticlesRiseThenConvergeWithinTheirSeparateLifetimes()
+    {
+        var rising = EvolutionEffect.ParticlesAt(0, false);
+        var inward = EvolutionEffect.ParticlesAt(0, true);
+        Assert.Equal(12, rising.Length);
+        Assert.Equal(20, inward.Length);
+        Assert.All(rising, particle => Assert.Equal(132 * .95, particle.Bounds.Y, 6));
+        Assert.True(EvolutionEffect.ParticlesAt(.25, false)[0].Bounds.Y < rising[0].Bounds.Y);
+        Assert.Empty(EvolutionEffect.ParticlesAt(.826, false));
+        var halfway = EvolutionEffect.ParticlesAt(.31, true);
+        Assert.All(halfway, particle => Assert.Equal(.5, particle.Opacity, 6));
+        Assert.Equal((inward[0].Bounds.Center.X + 85) / 2, halfway[0].Bounds.Center.X, 6);
+        Assert.Empty(EvolutionEffect.ParticlesAt(.620, true));
+    }
+
+    [AvaloniaFact]
+    public void EvolutionAnimatesBothAtlasesAndRetainsItsOwnedCopiesAfterTheInputsAreDisposed()
+    {
+        var pixels = new SpritePixels(40, 20);
+        for (var frame = 0; frame < 2; frame++)
+        for (var y = 0; y < 20; y++)
+        for (var x = 0; x < 20; x++)
+        {
+            var left = y >= 18 ? 8 : frame == 0 ? 6 : 2;
+            if (x < left || x >= 20 - left) continue;
+            var offset = y * pixels.Stride + (frame * 20 + x) * 4;
+            pixels.Pixels[offset] = 40;
+            pixels.Pixels[offset + 1] = 130;
+            pixels.Pixels[offset + 2] = 220;
+            pixels.Pixels[offset + 3] = 255;
+        }
+        using var source = ParseEvolutionFixture(pixels, 20);
+        using var target = ParseEvolutionFixture(pixels, 20);
+        using var effect = new EvolutionEffect { Width = 100 };
+        effect.SetFrames(source, 0, 1, target, 1);
+        source.Dispose();
+        target.Dispose();
+        effect.Measure(new Size(100, effect.Height));
+        effect.Arrange(new Rect(0, 0, 100, effect.Height));
+        RenderOptions.SetBitmapInterpolationMode(effect, BitmapInterpolationMode.None);
+
+        byte BodyAlphaAt(double seconds)
+        {
+            effect.Progress = seconds / EvolutionEffect.DurationSeconds;
+            using var rendered = new RenderTargetBitmap(new PixelSize(100, (int)effect.Height), new Vector(96, 96));
+            rendered.Render(effect);
+            var result = SpritePixels.CopyFrom(rendered);
+            return result.Pixels[(result.Height - 10) * result.Stride + 43 * 4 + 3];
+        }
+        Assert.Equal(0, BodyAlphaAt(0)); // Narrow source frame.
+        Assert.Equal(255, BodyAlphaAt(.11)); // Wide source frame; the actual atlas animates beneath its white mask.
+        Assert.Equal(255, BodyAlphaAt(EvolutionEffect.RevealStartSeconds + .55));
+        Assert.Equal(0, BodyAlphaAt(EvolutionEffect.RevealStartSeconds + .65));
+        effect.Clear();
+        Assert.False(effect.HasFrames);
+    }
+
+    [AvaloniaFact]
+    public async Task EvolutionSparkleUsesTheSharedCacheAndReturnsIndependentlyOwnedBitmaps()
+    {
+        using var assets = new UiAssets();
+        using var second = await EvolutionArtwork.LoadSparkleAsync(CancellationToken.None);
+        Assert.NotNull(second);
+        using (var first = await EvolutionArtwork.LoadSparkleAsync(CancellationToken.None))
+        {
+            Assert.NotNull(first);
+            Assert.NotSame(first, second);
+        }
+        Assert.Single(assets.Requests, path => path.EndsWith("/effects/evo_sparkle.png"));
+        Assert.NotEmpty(SpritePixels.CopyFrom(second).Pixels);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EvolutionSparkleTimeoutFallsBackAndCancellationStopsWaiting(bool cancel)
+    {
+        using var assets = new UiAssets();
+        var originalClient = SpriteAtlas.Http;
+        using var handler = new DelayedEvolutionSparkle();
+        using var client = new System.Net.Http.HttpClient(handler);
+        using var cancellation = new CancellationTokenSource();
+        SpriteAtlas.Http = client;
+        try
+        {
+            var load = EvolutionArtwork.LoadSparkleAsync(cancellation.Token, TimeSpan.FromMilliseconds(30));
+            if (cancel)
+            {
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => load);
+            }
+            else Assert.Null(await load.WaitAsync(TimeSpan.FromSeconds(1)));
+        }
+        finally
+        {
+            handler.Response.TrySetResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+            SpriteAtlas.Http = originalClient;
+        }
+    }
+
+    private sealed class DelayedEvolutionSparkle : System.Net.Http.HttpMessageHandler
+    {
+        public TaskCompletionSource<System.Net.Http.HttpResponseMessage> Response { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request,
+            CancellationToken cancellationToken) => Response.Task;
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
@@ -129,7 +272,11 @@ public partial class UiTests
             window.FindControl<LayoutTransformControl>("StageZoom")!.Opacity = 0;
             window.FindControl<TextBlock>("EvolutionNoticeText")!.Text = "진화 중…";
             window.FindControl<Button>("EvolutionNotice")!.IsVisible = true;
-            foreach (var (name, progress) in new[] { ("evolution-glow", .14), ("evolution-morph", .52), ("evolution-reveal", .90) })
+            var lightProgress = .2 / EvolutionEffect.DurationSeconds;
+            var morphProgress = .9 / EvolutionEffect.DurationSeconds;
+            var revealProgress = (EvolutionEffect.RevealStartSeconds + .25) / EvolutionEffect.DurationSeconds;
+            foreach (var (name, progress) in new[] { ("evolution-glow", lightProgress), ("evolution-morph", morphProgress),
+                         ("evolution-reveal", revealProgress) })
             {
                 effect.Progress = progress;
                 Dispatcher.UIThread.RunJobs();
@@ -138,19 +285,21 @@ public partial class UiTests
                 Assert.True(effect.HasFrames);
                 Assert.Equal(1, window.FindControl<Canvas>("Stage")!.Opacity);
             }
-            var light = EvolutionEffect.StateAt(.14);
+            var light = EvolutionEffect.StateAt(lightProgress);
             Assert.True(light.SourceColor > 0 && light.SourceWhite > 0);
             Assert.Equal(0, light.TargetWhite);
-            var morph = EvolutionEffect.StateAt(.52);
-            Assert.InRange(morph.SourceWhite, .01, .99);
-            Assert.InRange(morph.TargetWhite, .01, .99);
+            var morph = EvolutionEffect.StateAt(morphProgress);
+            Assert.Equal(1, morph.SourceWhite);
+            Assert.Equal(1, morph.TargetWhite);
+            Assert.Equal(.625, morph.SourceScale, 6);
+            Assert.Equal(.625, morph.TargetScale, 6);
             Assert.Equal(0, morph.SourceColor + morph.TargetColor);
-            var reveal = EvolutionEffect.StateAt(.90);
-            Assert.InRange(reveal.TargetColor, .01, .99);
-            Assert.InRange(reveal.TargetWhite, .01, .99);
+            var reveal = EvolutionEffect.StateAt(revealProgress);
+            Assert.Equal(1, reveal.TargetColor);
+            Assert.Equal(.5, reveal.TargetWhite, 6);
             Assert.Equal(0, reveal.SourceWhite);
             Assert.Equal(0, EvolutionEffect.StateAt(EvolutionEffect.RevealProgress).TargetColor);
-            Assert.Equal(new EvolutionEffectState(0, 0, 0, 1, 0, 1), EvolutionEffect.StateAt(1));
+            Assert.Equal(new EvolutionEffectState(0, 0, 0, 1, .25, 1), EvolutionEffect.StateAt(1));
 
             effect.Clear();
             Assert.False(effect.HasFrames);
@@ -213,7 +362,7 @@ public partial class UiTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(targetExp + 1, settings.For(5, shiny).Exp);
             Assert.Equal(sourceExp + 2, settings.For(4, shiny).Exp);
-            await evolution.WaitAsync(TimeSpan.FromSeconds(5));
+            await evolution.WaitAsync(TimeSpan.FromSeconds(8));
             Assert.True(Field<bool>(window, "_dirty")); // Inputs during reveal must still be saved later.
             Assert.Equal(shiny, settings.SelectedShiny);
             Assert.True(settings.IsOwned(4, shiny));
@@ -334,7 +483,7 @@ public partial class UiTests
             {
                 if (e.Property == EvolutionEffect.ProgressProperty) greatestProgress = Math.Max(greatestProgress, effect.Progress);
             };
-            await InvokeAsync(window, "EvolveAsync", 5).WaitAsync(TimeSpan.FromSeconds(5));
+            await InvokeAsync(window, "EvolveAsync", 5).WaitAsync(TimeSpan.FromSeconds(8));
             Assert.Equal(before, JsonSerializer.Serialize(settings));
             if (afterReservation) Assert.InRange(greatestProgress, .7, EvolutionEffect.RevealProgress);
             else
@@ -386,9 +535,9 @@ public partial class UiTests
         return ParseEvolutionFixture(pixels);
     }
 
-    private static SpriteAtlas ParseEvolutionFixture(SpritePixels pixels)
+    private static SpriteAtlas ParseEvolutionFixture(SpritePixels pixels, int frameWidth = 0)
     {
-        var width = pixels.Width;
+        var width = frameWidth == 0 ? pixels.Width : frameWidth;
         var height = pixels.Height;
         var directory = Path.Combine(Path.GetTempPath(), "PokeDesk-evolution-fixture-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -399,8 +548,11 @@ public partial class UiTests
             using (var bitmap = pixels.ToBitmap()) bitmap.Save(png);
             File.WriteAllText(json, JsonSerializer.Serialize(new
             {
-                frames = new[] { new { filename = "0000.png", frame = new { x = 0, y = 0, w = width, h = height },
-                    spriteSourceSize = new { x = 0, y = 0, w = width, h = height }, sourceSize = new { w = width, h = height } } }
+                frames = Enumerable.Range(0, pixels.Width / width).Select(index => new
+                {
+                    filename = $"{index:D4}.png", frame = new { x = index * width, y = 0, w = width, h = height },
+                    spriteSourceSize = new { x = 0, y = 0, w = width, h = height }, sourceSize = new { w = width, h = height }
+                }).ToArray()
             }));
             return SpriteAtlas.Parse(json, png);
         }

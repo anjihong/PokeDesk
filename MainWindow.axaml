@@ -354,7 +354,18 @@
         <local:PixelSurface Asset="detail_panel" Slice="8" Padding="10">
           <StackPanel Spacing="6">
             <TextBlock x:Name="InputStatusText" FontSize="11" TextWrapping="Wrap"/>
-            <Button Content="권한 요청 / 다시 연결" Click="OnRetryInput" HorizontalAlignment="Center"/>
+            <Button x:Name="InputRetryButton" Content="다시 확인 / 연결" Click="OnRetryInput" HorizontalAlignment="Center"/>
+            <StackPanel x:Name="InputPermissionActions" IsVisible="False" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+              <Button x:Name="InputPermissionButton" Content="권한 요청" Click="OnRequestInputPermission"/>
+              <Button Content="시스템 설정 열기" Click="OnOpenInputSettings"/>
+            </StackPanel>
+            <Expander x:Name="InputAppIdentity" IsVisible="False" Header="허용할 앱 확인" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="5">
+                <TextBlock Text="현재 실행 중인 앱" FontSize="10"/>
+                <SelectableTextBlock x:Name="InputAppPath" FontSize="10" TextWrapping="Wrap"/>
+                <TextBlock FontSize="10" TextWrapping="Wrap" Text="DeskPokemon이 이미 켜져 있다면 위 경로의 앱인지 확인해 주세요. 새 빌드로 바꾼 뒤에는 기존 항목을 제거하고 현재 앱을 다시 추가한 후 앱을 재실행해야 할 수 있습니다."/>
+              </StackPanel>
+            </Expander>
           </StackPanel>
         </local:PixelSurface>
       </Border>

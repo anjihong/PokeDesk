@@ -216,10 +216,10 @@ public sealed class PlayApp : App
                 Invoke(window, "UpdateLevelUi");
                 await NativeKey();
                 var evolution = Control<EvolutionEffect>(window, "EvolutionVisual");
-                foreach (var phase in new[] { (.14, "10-evolution-glow"), (.52, "11-evolution-silhouette"), (.90, "12-evolution-reveal") })
+                foreach (var phase in new[] { (.2 / EvolutionEffect.DurationSeconds, "10-evolution-glow"), (.52, "11-evolution-silhouette"), (.90, "12-evolution-reveal") })
                 {
                     await Wait(() => evolution.HasFrames && evolution.Progress >= phase.Item1, "evolution animation phase " + phase.Item2, 60000);
-                    Check(Field<bool>(window, "_evolving"), "evolution keeps interaction locked during " + phase.Item2);
+                    Check(Field<bool>(window, "_evolving"), "evolution remains active during " + phase.Item2);
                     Capture(window, phase.Item2);
                 }
                 await Wait(() => settings.SelectedDex == 5 && settings.SelectedShiny && !Field<bool>(window, "_evolving"), "shiny Charmander evolves to shiny Charmeleon", 60000);

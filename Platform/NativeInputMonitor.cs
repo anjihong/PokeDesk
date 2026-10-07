@@ -24,7 +24,7 @@ internal abstract class NativeInputMonitor : IDisposable
         lock (_lifecycle)
         {
             if (_stopping || _thread is not null) return;
-            _thread = new Thread(WorkerMain) { IsBackground = true, Name = "PokeDesk input monitor" };
+            _thread = new Thread(WorkerMain) { IsBackground = true, Name = "DeskPokemon input monitor" };
             _thread.Start();
         }
     }
@@ -40,6 +40,7 @@ internal abstract class NativeInputMonitor : IDisposable
     public virtual void RequestPermissionAndRetry() => Retry();
     protected abstract void RunMonitor();
     protected virtual void WakeNativeLoop() { }
+    protected virtual TimeSpan AutomaticRetryDelay => Timeout.InfiniteTimeSpan;
 
     private void WorkerMain()
     {
@@ -47,10 +48,10 @@ internal abstract class NativeInputMonitor : IDisposable
         {
             while (!_stopping)
             {
-                _retry.WaitOne();
+                _retry.WaitOne(AutomaticRetryDelay);
                 if (_stopping) break;
-                SetStatus(InputHookStatus.Starting, "입력 감지를 시작하는 중입니다.");
-                if (_stopping) break; // A status subscriber may dispose this monitor.
+                // Keep the last actionable status visible while retrying. In particular,
+                // polling macOS permissions must not flicker through Starting every time.
                 try
                 {
                     RunMonitor();

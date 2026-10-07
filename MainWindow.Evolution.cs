@@ -9,6 +9,16 @@ public partial class MainWindow
     private bool _evolving;
     private int _pendingSelections;
     private bool _checkEvolutionAgain;
+    private CancellationTokenSource? _evolutionCancellation;
+    private TaskCompletionSource? _evolutionCompletion;
+
+    private async Task CancelEvolutionAsync()
+    {
+        var cancellation = _evolutionCancellation;
+        var completion = _evolutionCompletion;
+        cancellation?.Cancel();
+        if (completion != null) await completion.Task;
+    }
 
     private void SetEvolutionCellState(RadioButton cell, int dex, bool shiny, bool owned) =>
         cell.Classes.Set("evolvable", owned && _settings.CanEvolve(dex, shiny));
@@ -104,35 +114,45 @@ public partial class MainWindow
         var shiny = _settings.SelectedShiny;
         if (!_settings.AvailableEvolutions(dex, shiny).Any(option => option.TargetDex == targetDex)) return;
         _evolving = true;
-        ++_loadRequest;
+        var progress = _settings.For(dex, shiny);
+        var request = ++_loadRequest;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _evolutionCancellation = cancellation;
+        _evolutionCompletion = completion;
+        var token = cancellation.Token;
         EvolutionChoices.IsVisible = false;
         EvolutionNotice.IsVisible = true;
         EvolutionNotice.IsEnabled = false;
         EvolutionNoticeText.Text = "진화 준비 중…";
         SpriteAtlas? atlas = null;
         SpriteAtlas? temporarySource = null;
+        var committed = false;
         var previousOpacity = StageZoom.Opacity;
         try
         {
             targetDex = _settings.PrepareEvolution(dex, shiny, targetDex);
-            atlas = await LoadEvolutionAtlasAsync(targetDex, shiny, _lifetime.Token);
-            var source = _atlas ?? (temporarySource = await LoadEvolutionAtlasAsync(dex, shiny, _lifetime.Token));
-            _lifetime.Token.ThrowIfCancellationRequested();
+            atlas = await LoadEvolutionAtlasAsync(targetDex, shiny, token);
+            var source = _atlas ?? (temporarySource = await LoadEvolutionAtlasAsync(dex, shiny, token));
+            using var sparkle = await EvolutionArtwork.LoadSparkleAsync(token);
+            RequireCurrent();
             _animations["Bounce"].Stop();
             var sourceScale = _atlas == null ? PetScaleFor(source, dex) : Zoom.ScaleX;
             var targetScale = PetScaleFor(atlas, targetDex);
-            EvolutionVisual.SetFrames(source, _atlas == null ? 0 : _frame, sourceScale, atlas, targetScale);
+            EvolutionVisual.SetFrames(source, _atlas == null ? 0 : _frame, sourceScale, atlas, targetScale, sparkle);
             EvolutionVisual.FlipHorizontal = _settings.FlipHorizontal;
             StageZoom.Opacity = 0;
             EvolutionNoticeText.Text = "진화 중…";
             ApplyPresentation();
-            await PlayEvolutionPhaseAsync(0, EvolutionEffect.RevealProgress, _lifetime.Token);
-            _lifetime.Token.ThrowIfCancellationRequested();
+            await PlayEvolutionPhaseAsync(0, EvolutionEffect.RevealProgress, token);
+            RequireCurrent();
             // The target stays a white silhouette until the atomic save succeeds.
             _settings.CompleteEvolution(dex, shiny, targetDex);
+            committed = true;
             _dirty = false;
             EvolutionNoticeText.Text = "진화 완료!";
-            await PlayEvolutionPhaseAsync(EvolutionEffect.RevealProgress, 1, _lifetime.Token);
+            await PlayEvolutionPhaseAsync(EvolutionEffect.RevealProgress, 1, token);
+            token.ThrowIfCancellationRequested();
             // Apply the target only after reveal so atlas sizing cannot move the effect's foot anchor.
             ApplyPokemonAtlas(atlas);
             atlas = null;
@@ -142,24 +162,62 @@ public partial class MainWindow
             SyncSelectedIcon();
             UpdateDexDetails();
         }
-        catch (OperationCanceledException) when (_closed) { }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested || !IsCurrent()) { }
         catch (Exception ex)
         {
             if (!_closed) ShowSpriteError($"진화를 완료하지 못했습니다. 기존 포켓몬과 확정된 진화 대상은 유지됩니다.\n{ex.Message}");
         }
         finally
         {
-            EvolutionVisual.Clear();
-            temporarySource?.Dispose();
-            atlas?.Dispose();
-            StageZoom.Opacity = previousOpacity;
-            Stage.Opacity = 1;
-            _evolving = false;
-            if (!_closed)
+            try
             {
-                RefreshEvolutionUi();
-                ApplyPresentation();
+                EvolutionVisual.Clear();
+                // Selection waits for this cleanup. If it interrupts the reveal after saving,
+                // first restore the committed body so a same-target selection or failed new load
+                // cannot leave the old source displayed beneath the saved target's name.
+                if (committed && atlas != null && !_closed && _settings.SelectedDex == targetDex &&
+                    _settings.SelectedShiny == shiny && ReferenceEquals(progress, _settings.For(targetDex, shiny)))
+                {
+                    ApplyPokemonAtlas(atlas);
+                    atlas = null;
+                    UpdateOwnedCount();
+                    if (CheckedGen() is { } gen) RebuildIconGrid(gen, CachedDexIcons(gen, ViewingShiny));
+                    SyncSelectedIcon();
+                    UpdateDexDetails();
+                }
             }
+            finally
+            {
+                temporarySource?.Dispose();
+                atlas?.Dispose();
+                StageZoom.Opacity = previousOpacity;
+                Stage.Opacity = 1;
+                _evolving = false;
+                try
+                {
+                    if (!_closed)
+                    {
+                        RefreshEvolutionUi();
+                        ApplyPresentation();
+                    }
+                }
+                finally
+                {
+                    _evolutionCancellation = null;
+                    _evolutionCompletion = null;
+                    completion.TrySetResult();
+                }
+            }
+        }
+
+        bool IsCurrent() => !_closed && request == _loadRequest &&
+            _settings.SelectedDex == dex && _settings.SelectedShiny == shiny &&
+            ReferenceEquals(progress, _settings.For(dex, shiny));
+
+        void RequireCurrent()
+        {
+            token.ThrowIfCancellationRequested();
+            if (!IsCurrent()) throw new OperationCanceledException(token);
         }
     }
 

@@ -81,6 +81,25 @@ public class InputHookTests
     }
 
     [Fact]
+    public async Task DefaultMonitorWaitsForAnExplicitRetryInsteadOfPolling()
+    {
+        var failed = Signal();
+        using var monitor = new ScriptedMonitor(self => self.Report(InputHookStatus.Unavailable));
+        monitor.StatusChanged += () =>
+        {
+            if (monitor.Status == InputHookStatus.Unavailable) failed.TrySetResult();
+        };
+
+        monitor.Start();
+        await failed.Task.WaitAsync(Timeout);
+        // macOS opts into two-second recovery. Windows and unsupported monitors
+        // retain their existing wait-until-retry behavior.
+        await Task.Delay(TimeSpan.FromSeconds(2.2));
+        Assert.Equal(1, monitor.Attempts);
+        Assert.Equal(InputHookStatus.Unavailable, monitor.Status);
+    }
+
+    [Fact]
     public void DisposeBeforeStartPreventsNativeSetup()
     {
         using var monitor = new ScriptedMonitor(_ => throw new Exception("Must never run."));

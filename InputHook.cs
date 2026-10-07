@@ -28,10 +28,12 @@ public sealed class InputHook : IDisposable
     public bool CanRequestPermission => OperatingSystem.IsMacOS() &&
         Status is InputHookStatus.PermissionRequired or InputHookStatus.Unavailable;
 
-    public InputHook()
+    public InputHook() : this(OperatingSystem.IsWindows() ? new WindowsInputMonitor() :
+        OperatingSystem.IsMacOS() ? new MacInputMonitor() : new UnsupportedInputMonitor()) { }
+
+    internal InputHook(NativeInputMonitor monitor)
     {
-        _monitor = OperatingSystem.IsWindows() ? new WindowsInputMonitor() :
-            OperatingSystem.IsMacOS() ? new MacInputMonitor() : new UnsupportedInputMonitor();
+        _monitor = monitor;
         _monitor.Triggered += OnTriggered;
         _monitor.StatusChanged += OnStatusChanged;
         _monitor.Start();

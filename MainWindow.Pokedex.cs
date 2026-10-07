@@ -17,6 +17,7 @@ public partial class MainWindow
     private bool _dexLoading;
     private bool _boxView;
     private bool _dexOwnedFilter;
+    private int _selectionRequest;
     private readonly List<int> _failedGenerations = new();
 
     private void BuildGenTabs()
@@ -245,24 +246,28 @@ public partial class MainWindow
 
     private async Task SelectPokemonAsync(PokemonChoice choice)
     {
-        if (_evolving || !_settings.IsOwned(choice.Dex, choice.IsShiny))
+        if (_closed || !_settings.IsOwned(choice.Dex, choice.IsShiny))
         {
             SyncSelectedIcon();
             return;
         }
-        if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
-        {
-            ++_loadRequest;
-            UpdateDexDetails();
-            await CheckEvolutionAsync();
-            return;
-        }
+        var selection = ++_selectionRequest;
+        ++_loadRequest; // Invalidate both older sprite loads and the current evolution before awaiting cleanup.
         _pendingSelections++;
         try
         {
+            // Keep the controller from restarting the old source while cancellation
+            // restores its body. A newer selection may supersede this wait.
+            await CancelEvolutionAsync();
+            if (_closed || selection != _selectionRequest) return;
+            if (choice == new PokemonChoice(_settings.SelectedDex, _settings.SelectedShiny))
+            {
+                UpdateDexDetails();
+                return;
+            }
             var task = LoadPokemonAsync(choice.Dex, choice.IsShiny);
             var request = _loadRequest;
-            if (await task)
+            if (await task && !_closed && selection == _selectionRequest)
             {
                 _settings.SelectedDex = choice.Dex;
                 _settings.SelectedShiny = choice.IsShiny;
@@ -272,10 +277,13 @@ public partial class MainWindow
                 SyncSelectedIcon();
                 UpdateDexDetails();
             }
-            else if (!_closed && request == _loadRequest) SyncSelectedIcon();
+            else if (!_closed && selection == _selectionRequest && request == _loadRequest) SyncSelectedIcon();
         }
-        finally { _pendingSelections--; }
-        if (_pendingSelections == 0 && !_closed) await CheckEvolutionAsync();
+        finally
+        {
+            _pendingSelections--;
+            if (_pendingSelections == 0 && !_closed) await CheckEvolutionAsync();
+        }
     }
 
     private void SyncSelectedIcon()

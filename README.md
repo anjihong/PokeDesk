@@ -34,9 +34,10 @@ dotnet run --project DeskPokemon.csproj
   등급에 따라 일반/특수 포켓몬 그룹을 고른 뒤 그룹 안에서 균등 추첨함. 이로치알은 이로치 확정,
   나머지 알은 7% 확률로 이로치가 나옴. 부화 결과는 해당 색상의 애니메이션으로 표시됨.
   Debug 빌드의 "테스트 알" 메뉴에서는 등급별 알 지급과 다음 지급 1회의 이로치 강제를 확인할 수 있음
-- 메뉴 탭(도감 / 설정): 누르면 패널 높이만큼 현재 위치에서 위로 이동하며 펼쳐지고, 다시 누르면 접히며 원래 위치로 돌아옴
+- 메뉴 탭(도감 / 박스 / 설정): 누르면 패널 높이만큼 현재 위치에서 위로 이동하며 펼쳐지고, 다시 누르면 접히며 원래 위치로 돌아옴. 박스는 보유 모습만 표시하며, 도감으로 돌아오면 이전 보유 필터가 복원됨. 세대와 이로치 필터는 두 탭이 공유함
 - 설정: 포켓몬 좌우 반전, 전체 UI 배율 2·4·6·8배, 로그인 시 자동 실행, 종료. 배율은 화면 안에 들어가도록 제한되며 선택값은 유지됨. 자동 실행은 Windows 사용자 시작 항목 또는 Mac LaunchAgent에 이 실행 파일을 등록함
 - 진화: 486개 직접 진화 규칙에 따라 종별 레벨에 도달하면 자동으로 진화하며 이전 모습도 계속 선택할 수 있음. 레벨 외 조건은 첫 진화 25/다음 진화 40으로 대체. 분기는 같은 색상의 미수집 후보 중 무작위로 정해 이미지 로딩 전에 저장함. 이브이는 Lv.25에 8개 진화형 중 하나로 진화함. 이전 모습을 선택해 키워도 같은 회차의 경험치가 쌓이며, 다음 조건을 달성하면 안내된 현재 출발 모습을 도감에서 선택해 이어서 진화할 수 있음
+- 진화 연출: 약 3.933초 동안 흰 실루엣이 점점 빠르게 크기를 왕복하고 반짝임과 함께 같은 색상의 다음 모습을 공개함. 원본·목표의 프레임 애니메이션과 발 정렬을 유지하며, 완료 저장 뒤에 실제 색상을 표시함. 보유 포켓몬을 선택하면 연출을 취소한 뒤 새 선택을 적용함. [연출과 저장 경계](Docs/spec/11-evolution.md)를 따름
 - 레벨: 키 입력·마우스 클릭마다 경험치 +1, 레벨 × 30회마다 레벨업. 같은 육성 회차의 진화 전후 모습은 레벨·경험치를 공유함. 일반/이로치의 보유·육성 회차는 따로 기록되며, 이로치 진화 결과도 이로치로 유지됨.
   이로치 펫은 레벨 앞에 ★ 표시가 붙음.
   경험치 바에 커서를 올리면 현재 경험치와 다음 레벨에 필요한 경험치를 확인할 수 있음.
@@ -47,13 +48,20 @@ dotnet run --project DeskPokemon.csproj
 
 다른 앱에서 발생한 키 입력·클릭에도 반응하려면 **시스템 설정 → 개인정보 보호 및 보안 → 입력 모니터링**에서
 DeskPokemon을 허용하세요. 입력 내용을 저장하거나 전송하지 않으며, 입력 횟수로 바운스와 경험치만 처리합니다.
-권한이 없으면 앱 안에 설명과 **권한 요청 / 다시 연결** 버튼이 표시됩니다.
-우클릭 메뉴의 **전역 입력 다시 연결**에서도 다시 시도할 수 있습니다.
+연결되지 않으면 약 2초 간격으로 자동 재확인하며, 설정에서 앱으로 돌아왔을 때도 다시 시도합니다.
+**다시 확인 / 연결**과 우클릭 **전역 입력 다시 연결**은 권한 창 없이 재확인합니다.
+OS 권한 창은 별도의 **권한 요청**을 눌렀을 때만 요청합니다. **시스템 설정 열기**로 해당 화면을 열 수 있습니다.
+설정에서 이미 켜져 있다면 **허용할 앱 확인**에 표시된 현재 앱 경로와 같은 앱인지 확인하세요.
+새 빌드로 교체한 경우 기존 항목을 제거하고 현재 앱을 다시 추가한 뒤 앱 재실행이 필요할 수 있습니다.
 허용을 변경한 후 연결되지 않으면 앱을 완전히 종료하고 다시 실행하세요.
 권한을 허용하지 않아도 스타팅 선택·도감·알·저장 기능은 사용할 수 있습니다.
 
 `dotnet run`으로 실행하면 권한 대상이 터미널 또는 dotnet 호스트로 표시될 수 있습니다.
 배포 환경 확인은 아래 `.app`을 고정된 위치(예: Applications)에 놓고 실행해서 진행하세요.
+기본 ad-hoc 패키지는 재빌드하면 서명 식별 조건이 달라질 수 있으므로, 설정에 남은 체크만으로 현재
+빌드의 권한을 확인할 수는 없습니다. 반복 빌드는 같은 번들 ID와 같은 실제 Apple Development 또는
+Developer ID 인증서를 사용하는 것이 좋습니다. 두 서명 종류 사이를 바꾸는 경우에도 권한 식별은 달라질 수 있습니다.
+[Apple의 코드 식별 설명](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)을 참고하세요.
 macOS의 읽기 전용 전역 입력은 Input Monitoring을 사용합니다.
 [Apple DTS 설명](https://developer.apple.com/forums/thread/811443)
 
@@ -94,12 +102,24 @@ open artifacts/package/osx-arm64/DeskPokemon.app
 ```
 
 배포 출력은 .NET 런타임을 포함합니다. `package-macos.sh`는 `.app`과 실행 권한을 보존하는
-`DeskPokemon.zip`을 생성하고 로컬 테스트용 ad-hoc 서명을 적용합니다.
+`DeskPokemon.zip`을 생성하고 기본으로 로컬 테스트용 ad-hoc 서명을 적용합니다.
 세 번째 인수로 `1.2.3` 형식의 버전을 지정할 수 있습니다. 기존 출력과 섞이지 않도록 새 출력 폴더를 사용하세요.
-현재 스크립트는 Apple Developer ID 서명이나 공증을 수행하지 않습니다.
+키체인에 이미 설치된 실제 인증서로 서명하려면 `MACOS_SIGNING_IDENTITY`를 지정합니다.
+아래 자리표시자를 인증서의 실제 이름이나 SHA-1로 바꾸세요. 지정한 인증서를 사용할 수 없으면 실패하며,
+자동으로 인증서를 선택하거나 ad-hoc 서명으로 바꾸지 않습니다.
+
+```bash
+MACOS_SIGNING_IDENTITY="<실제 인증서 이름 또는 SHA-1>" \
+  bash scripts/package-macos.sh artifacts/publish/osx-arm64 artifacts/package/signed-osx-arm64
+```
+
+이 옵션은 네이티브 의존성과 앱을 서명하며, 공증이나 공개 배포용 보안 설정을 자동 구성하지 않습니다.
 공개 배포 전에 [Avalonia macOS 배포 안내](https://docs.avaloniaui.net/docs/deployment/macos)에 따라
 서명·공증을 진행해야 합니다. 테스트 빌드가 macOS에서 차단되면 출처를 확인한 뒤
 시스템 설정의 개인정보 보호 및 보안에서 앱 실행 허용 절차를 따르세요.
+
+Windows는 GitHub Actions의 `DeskPokemon-win-x64` ZIP을 **폴더 전체로 압축 해제**하고 그 안의
+`DeskPokemon.exe`를 실행하세요. EXE 옆의 DLL과 런타임 파일도 필요하므로 EXE만 따로 옮기지 않습니다.
 
 [GitHub Actions](.github/workflows/desktop.yml)는 Windows x64, Mac ARM64, Mac x64에서
 빌드·테스트 후 실행 파일을 아티팩트로 보관합니다. 일반/이로치 도감, 다섯 알 등급, 부화 결과와
@@ -107,6 +127,9 @@ open artifacts/package/osx-arm64/DeskPokemon.app
 OS 간 비교하며, 레이아웃·텍스트·폰트·기록된 색상은 정확하게 일치해야 합니다.
 이미지는 OS별 글자 래스터화 차이를 제한적으로 허용하고, 원본 오차와 판별된 경계 차이를 함께 보고합니다.
 `desktop-visual-comparison` 아티팩트에서 비교 결과와 차이 이미지를 확인할 수 있습니다.
+Windows CI는 게시된 EXE와 필수 DLL·런타임 구성을 검사하고, 새 프로필에서 실제 스타팅 창을 열고 닫습니다.
+`windows-publish-validation` 아티팩트에 검사 결과와 시작 로그를 남깁니다.
+확인한 커밋·CI 결과와 실기 검증의 남은 범위는 [Windows 검증 기록](Docs/windows-validation.md)을 참고하세요.
 실제 양쪽 화면, DPI/Retina, 권한과 전역 입력 확인은
 [Windows/macOS QA](Docs/cross-platform-qa.md)에 따라 별도로 기록합니다.
 커밋·이슈 관례는 [기여 안내](Docs/CONTRIBUTING.md)에 정리했습니다.
@@ -134,6 +157,7 @@ dotnet run --project Tests/DeskPokemon.NativePlay/DeskPokemon.NativePlay.csproj 
 스프라이트는 앱에 포함되지 않으며, 첫 실행 시
 [pagefaultgames/pokerogue-assets](https://github.com/pagefaultgames/pokerogue-assets) 의
 `images/pokemon/`, `images/pokemon/exp/`와 각 경로의 `shiny/`, `images/pokemon_icons_*`, `images/egg/`에서 받아 위 데이터 폴더의 `sprites/`에 캐시합니다.
+진화 입자용 `images/effects/evo_sparkle.png`도 같은 캐시를 사용하며, 1초 안에 준비되지 않으면 흰 원으로 표시합니다.
 PokéRogue 쪽 스프라이트가 정지(1프레임)인 일부 종은
 [PokeAPI/sprites](https://github.com/PokeAPI/sprites) 의 `versions/generation-v/black-white/animated/` GIF를 대신 사용합니다.
 지역 모습은 내부 ID가 PokeAPI 번호와 다르므로 GIF·대체 PNG를 요청하지 않고 해당 모습의 아틀라스만 사용합니다.
